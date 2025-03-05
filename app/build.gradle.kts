@@ -5,13 +5,13 @@ plugins {
 }
 
 android {
-    namespace = "com.example.frontend_mob"
-    compileSdk = 35
+    namespace = "eina.unizar.es"
+    compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.example.frontend_mob"
+        applicationId = "eina.unizar.es"
         minSdk = 30
-        targetSdk = 35
+        targetSdk = 34
         versionCode = 1
         versionName = "1.0"
 
