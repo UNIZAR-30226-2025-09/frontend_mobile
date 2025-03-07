@@ -127,7 +127,12 @@ fun UserLoginScreen(navController: NavController) {
                 Spacer(modifier = Modifier.height(20.dp))
 
                 Button(
-                    onClick = { /* Lógica de inicio de sesión */ },
+                    onClick = { /* Lógica de inicio de sesión */
+                            // Aquí pones la lógica de validación de inicio de sesión
+                            // Si es correcta, navegas a la pantalla menu:
+                            navController.navigate("menu")
+
+                    },
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Color(0xFF79E2FF),
                         contentColor = Color.Black
