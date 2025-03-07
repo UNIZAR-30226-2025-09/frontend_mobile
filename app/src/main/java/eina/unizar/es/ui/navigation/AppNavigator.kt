@@ -10,7 +10,10 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import eina.unizar.es.ui.auth.UserLoginScreen
+import eina.unizar.es.ui.auth.UserRegisterScreen
 import eina.unizar.es.ui.main.MainScreen
+import eina.unizar.es.ui.plans.PlansScreen
 import eina.unizar.es.ui.player.PlayerScreen
 
 @Composable
@@ -26,6 +29,9 @@ fun AppNavigator() {
             ) {
                 composable("main") { MainScreen(navController) }
                 composable("player") { PlayerScreen() }
+                composable("plans") { PlansScreen(navController) }
+                composable("login") { UserLoginScreen(navController) }
+                composable("register") { UserRegisterScreen(navController)  }
             }
         }
     }

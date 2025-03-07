@@ -1,5 +1,6 @@
 package eina.unizar.es.ui.main
 
+import android.media.MediaPlayer
 import android.widget.ImageView
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
@@ -30,6 +31,14 @@ val Rubik = FontFamily(
 @Composable
 fun MainScreen(navController: NavController) {
     val context = LocalContext.current
+    var mediaPlayer: MediaPlayer? by remember { mutableStateOf(null) }
+
+    // Musica en segundo plano
+    LaunchedEffect(Unit) {
+        mediaPlayer = MediaPlayer.create(context, R.raw.music_background_inicio)
+        mediaPlayer?.isLooping = true // Para que se repita automáticamente
+        mediaPlayer?.start()
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         AndroidView(
@@ -77,7 +86,11 @@ fun MainScreen(navController: NavController) {
 
             // Boton de comenzar
             Button(
-                onClick = { navController.navigate("player") },
+                onClick = {
+                    mediaPlayer?.stop()
+                    mediaPlayer?.release()
+                    mediaPlayer = null
+                    navController.navigate("login") },
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color(android.graphics.Color.parseColor("#79e2ff")),
                     contentColor = Color.Black
