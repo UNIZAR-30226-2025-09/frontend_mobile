@@ -65,7 +65,7 @@ fun PlansScreen(navController: NavController) {
                 buttonColor = Color(0xFFB0C4DE), // Azul
                 textColor = Color(0xFFB0C4DE),
                 iconResId = R.drawable.vibraazul, // Logo azul
-                onClick = { navController.navigate("register") }
+                onClick = { navController.navigate("login") }
             )
         }
     }
