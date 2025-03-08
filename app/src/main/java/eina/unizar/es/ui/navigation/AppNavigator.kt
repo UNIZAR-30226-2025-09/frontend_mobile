@@ -33,7 +33,7 @@ fun AppNavigator() {
                 composable("plans") { PlansScreen(navController) }
                 composable("login") { UserLoginScreen(navController) }
                 composable("register") { UserRegisterScreen(navController)  }
-                composable("menu") {HomeScreen()}
+                composable("menu") {HomeScreen(navController)}
             }
         }
     }

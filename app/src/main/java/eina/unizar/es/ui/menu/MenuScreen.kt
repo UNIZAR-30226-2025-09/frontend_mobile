@@ -6,24 +6,22 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import eina.unizar.es.ui.components.UserProfileMenu
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen(
-    //navController: NavController,
-   /* onPlaylistClick: (String) -> Unit,  // Para navegar a la pantalla de Playlist
-    onSongClick: (String) -> Unit       // Para navegar a la pantalla de Player
-*/
-    ) {
+fun HomeScreen(navController: NavController) {
     // Colores básicos
     val backgroundColor = Color(0xFF000000)   // Negro
     val textColor = Color(0xFFFFFFFF)         // Blanco
@@ -37,84 +35,100 @@ fun HomeScreen(
     val playlistRecomendadas = listOf("Rock", "Pop", "Indie", "Jazz")
     val cancionesRecomendadas = listOf("Canción A", "Canción B", "Canción C", "Canción D")
 
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxSize()
             .background(backgroundColor)
             .padding(8.dp)
     ) {
-        // Barra de búsqueda
-        OutlinedTextField(
-            value = searchText,
-            onValueChange = { searchText = it },
-            label = {
-                Text("Buscar música o artistas", color = textColor)
-            },
-            textStyle = TextStyle(color = textColor),
-            modifier = Modifier.fillMaxWidth(),
-            colors = TextFieldDefaults.outlinedTextFieldColors(
-                focusedBorderColor = buttonColor,
-                unfocusedBorderColor = textColor,
-                cursorColor = textColor
-            )
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Título de sección playlists
-        Text(
-            text = "Listas Recomendadas",
-            color = textColor
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-
-        // Sección de playlists
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(playlistRecomendadas) { playlist ->
-                Card(
+        Column {
+            // Barra de búsqueda con icono pegado a la derecha
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Barra de búsqueda ajustada para dejar espacio al icono
+                OutlinedTextField(
+                    value = searchText,
+                    onValueChange = { searchText = it },
+                    label = {
+                        Text("Buscar música o artistas", color = textColor)
+                    },
+                    textStyle = TextStyle(color = textColor),
+                    shape = RoundedCornerShape(16.dp), // Bordes redondeados
                     modifier = Modifier
-                        .size(width = 120.dp, height = 80.dp)
-                        .clickable { /*onPlaylistClick(playlist)*/ },
-                    colors = CardDefaults.cardColors(containerColor = cardBackgroundColor)
-                ) {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
+                        .fillMaxWidth(0.8f) // Se reduce para que el icono tenga espacio
+                        .padding(end = 8.dp), // Espacio pequeño entre el campo y el icono
+                    colors = TextFieldDefaults.outlinedTextFieldColors(
+                        focusedBorderColor = buttonColor,
+                        unfocusedBorderColor = textColor,
+                        cursorColor = textColor
+                    )
+                )
+
+                // Icono de usuario bien pegado a la derecha de la barra de búsqueda
+                UserProfileMenu(navController)
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Título de sección playlists
+            Text(
+                text = "Listas Recomendadas",
+                color = textColor
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Sección de playlists
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(playlistRecomendadas) { playlist ->
+                    Card(
+                        modifier = Modifier
+                            .size(width = 120.dp, height = 80.dp)
+                            .clickable { /*onPlaylistClick(playlist)*/ },
+                        colors = CardDefaults.cardColors(containerColor = cardBackgroundColor)
                     ) {
-                        Text(playlist, color = textColor)
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(playlist, color = textColor)
+                        }
                     }
                 }
             }
-        }
 
-        Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-        // Título de sección canciones
-        Text(
-            text = "Canciones Recomendadas",
-            color = textColor
-        )
-        Spacer(modifier = Modifier.height(8.dp))
+            // Título de sección canciones
+            Text(
+                text = "Canciones Recomendadas",
+                color = textColor
+            )
+            Spacer(modifier = Modifier.height(8.dp))
 
-        // Sección de canciones
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            items(cancionesRecomendadas) { cancion ->
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { /*onSongClick(cancion)*/ },
-                    colors = CardDefaults.cardColors(containerColor = cardBackgroundColor)
-                ) {
-                    Box(
+            // Sección de canciones
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(cancionesRecomendadas) { cancion ->
+                    Card(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(16.dp),
-                        contentAlignment = Alignment.CenterStart
+                            .clickable { /*onSongClick(cancion)*/ },
+                        colors = CardDefaults.cardColors(containerColor = cardBackgroundColor)
                     ) {
-                        Text(cancion, color = textColor)
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            contentAlignment = Alignment.CenterStart
+                        ) {
+                            Text(cancion, color = textColor)
+                        }
                     }
                 }
             }
