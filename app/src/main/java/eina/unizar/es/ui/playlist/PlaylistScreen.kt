@@ -11,14 +11,15 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
@@ -38,8 +39,12 @@ fun PlaylistScreen(navController: NavController) {
     val playlistTitle = "Playlist: Rock"
     val playlistAuthor = "Autor: John Doe"
 
-    // Simulación de 20 canciones
+    // Simulación de 20 canciones y sus artistas
     val allSongs = (1..20).map { "Canción $it" }
+    val songArtistMap = allSongs.associateWith { song ->
+        val number = song.filter { it.isDigit() }
+        "Artista $number"
+    }
 
     // Estados para búsqueda y orden
     var searchText by remember { mutableStateOf(TextFieldValue("")) }
@@ -48,30 +53,41 @@ fun PlaylistScreen(navController: NavController) {
     val sortedSongs = remember(filteredSongs, sortOption) {
         when (sortOption) {
             "Título" -> filteredSongs.sortedBy { it }
-            "Añadido recientemente" -> filteredSongs.reversed() // Orden inverso simulado
-            "Artista" -> filteredSongs.sortedBy { it }
+            "Añadido recientemente" -> filteredSongs.reversed()
+            "Artista" -> filteredSongs.sortedBy { songArtistMap[it] ?: "" }
             else -> filteredSongs
         }
     }
 
-    // Estado del LazyColumn para detectar scroll y aplicar efecto en la portada
+    // Estado para mostrar/ocultar la barra de búsqueda
+    var showSearch by remember { mutableStateOf(false) }
+
+    // Estado del LazyColumn para detectar scroll y aplicar efecto en el header
     val lazyListState = rememberLazyListState()
-    // Definimos el tamaño inicial de la imagen (cuadrado)
-    val imageSize = 180.dp
-    // Usamos un offset máximo para el efecto (por ejemplo, 150 px)
-    val maxOffset = 150f
+    val imageSize = 150.dp
+    val maxOffset = with(LocalDensity.current) { imageSize.toPx() }
     val scrollOffset = lazyListState.firstVisibleItemScrollOffset.toFloat()
-    // Calculamos un factor de colapso (entre 0 y 1)
     val collapseFraction = (scrollOffset / maxOffset).coerceIn(0f, 1f)
-    // Usamos el factor para ajustar solo la escala y la opacidad
+    // Ajustamos solo la opacidad (sin escala) con Modifier.alpha
     val imageAlpha = 1f - collapseFraction
-    val imageScale = 1f - (collapseFraction * 0.5f)
+
+    // Alpha para el título en el TopAppBar: aparece gradualmente conforme se hace scroll
+    val topTitleAlpha = if (lazyListState.firstVisibleItemIndex > 0) {
+        1f
+    } else {
+        ((scrollOffset) / (maxOffset / 2)).coerceIn(0f, 1f)
+    }
 
     Scaffold(
         topBar = {
-            // TopAppBar siempre visible con botón de volver en blanco
             TopAppBar(
-                title = { /* Puedes dejarlo vacío o poner un título corto */ },
+                title = {
+                    Text(
+                        text = playlistTitle,
+                        color = textColor,
+                        modifier = Modifier.alpha(topTitleAlpha)
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(
@@ -99,25 +115,18 @@ fun PlaylistScreen(navController: NavController) {
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    // Portada con efecto de colapso (solo se aplica una vez)
                     Box(
                         modifier = Modifier
                             .size(imageSize)
-                            .graphicsLayer {
-                                alpha = imageAlpha
-                                scaleX = imageScale
-                                scaleY = imageScale
-                            }
-                            .background(Color.Gray) // Placeholder para la imagen
+                            .alpha(imageAlpha)
+                            .background(Color.Gray) // Placeholder para la portada
                     )
                     Spacer(modifier = Modifier.height(8.dp))
-                    // Título
                     Text(
                         text = playlistTitle,
                         color = textColor,
                         style = TextStyle(fontSize = 20.sp)
                     )
-                    // Autor (más pequeño)
                     Text(
                         text = playlistAuthor,
                         color = textColor,
@@ -125,7 +134,7 @@ fun PlaylistScreen(navController: NavController) {
                     )
                 }
             }
-            // Fila con barra de búsqueda y botón de reproducir (Play) – ahora a la izquierda
+            // Fila para la búsqueda: si showSearch es true, se muestra la barra de búsqueda que deja espacio para el icono de reproducir
             item {
                 Row(
                     modifier = Modifier
@@ -133,24 +142,37 @@ fun PlaylistScreen(navController: NavController) {
                         .padding(horizontal = 16.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    OutlinedTextField(
-                        value = searchText,
-                        onValueChange = { searchText = it },
-                        label = { Text("Buscar en playlist", color = textColor) },
-                        modifier = Modifier.weight(1f),
-                        textStyle = TextStyle(color = textColor),
-                        colors = TextFieldDefaults.outlinedTextFieldColors(
-                            focusedBorderColor = buttonColor,
-                            unfocusedBorderColor = textColor,
-                            cursorColor = textColor
+                    if (showSearch) {
+                        OutlinedTextField(
+                            value = searchText,
+                            onValueChange = { searchText = it },
+                            label = { Text("Buscar en playlist", color = textColor) },
+                            modifier = Modifier.weight(1f),
+                            textStyle = TextStyle(color = textColor),
+                            colors = TextFieldDefaults.outlinedTextFieldColors(
+                                focusedBorderColor = buttonColor,
+                                unfocusedBorderColor = textColor,
+                                cursorColor = textColor
+                            )
                         )
-                    )
+                    } else {
+                        Spacer(modifier = Modifier.weight(1f))
+                    }
                     Spacer(modifier = Modifier.width(8.dp))
-                    // Botón circular para reproducir la playlist (Play) en esta fila
+                    IconButton(
+                        onClick = { showSearch = !showSearch },
+                        modifier = Modifier.size(48.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Search,
+                            contentDescription = "Mostrar/Ocultar búsqueda",
+                            tint = textColor
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
                     IconButton(
                         onClick = {
                             // Acción para reproducir la playlist (simulada)
-                            // Ejemplo: navController.navigate("playPlaylist")
                         },
                         modifier = Modifier
                             .size(48.dp)
@@ -165,7 +187,7 @@ fun PlaylistScreen(navController: NavController) {
                     }
                 }
             }
-            // Fila con dropdown para ordenar y botón de añadir (Add) – ahora el +
+            // Fila con dropdown para ordenar y botón de añadir (Add)
             item {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -209,11 +231,9 @@ fun PlaylistScreen(navController: NavController) {
                         }
                     }
                     Spacer(modifier = Modifier.width(8.dp))
-                    // Botón para añadir canción (Add) en esta fila
                     IconButton(
                         onClick = {
                             // Acción para añadir una canción (simulada)
-                            // Ejemplo: navController.navigate("addSong")
                         },
                         modifier = Modifier.size(48.dp)
                     ) {
@@ -225,10 +245,11 @@ fun PlaylistScreen(navController: NavController) {
                     }
                 }
             }
-            // Espacio de separación
+            // Separador
             item { Spacer(modifier = Modifier.height(26.dp)) }
-            // Lista de canciones (20 canciones simuladas)
-            items(sortedSongs) { cancion ->
+            // Lista de canciones: Cada banner con imagen a la izquierda y título/artista a la derecha
+            items(sortedSongs) { song ->
+                val artist = songArtistMap[song] ?: "Artista Desconocido"
                 Box(
                     modifier = Modifier.fillMaxWidth(),
                     contentAlignment = Alignment.Center
@@ -238,18 +259,35 @@ fun PlaylistScreen(navController: NavController) {
                             .fillMaxWidth(0.9f)
                             .clickable {
                                 // Acción al pulsar en la canción (simulada)
-                                // Ejemplo: navController.navigate("player/$cancion")
                             },
                         colors = CardDefaults.cardColors(containerColor = cardBackgroundColor),
                         elevation = CardDefaults.cardElevation(defaultElevation = 10.dp)
                     ) {
-                        Box(
+                        Row(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(16.dp),
-                            contentAlignment = Alignment.CenterStart
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(cancion, color = textColor)
+                            // Imagen de la canción (cuadrado)
+                            Box(
+                                modifier = Modifier
+                                    .size(60.dp)
+                                    .background(Color.DarkGray) // Placeholder de la imagen
+                            )
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Column {
+                                Text(
+                                    text = song,
+                                    color = textColor,
+                                    style = TextStyle(fontSize = 18.sp)
+                                )
+                                Text(
+                                    text = artist,
+                                    color = textColor,
+                                    style = TextStyle(fontSize = 14.sp)
+                                )
+                            }
                         }
                     }
                 }

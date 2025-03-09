@@ -66,7 +66,7 @@ fun HomeScreen(navController: NavController) {
                             if (selectedItem == 0) {
                                 navController.navigate("menu")
                             } else if (selectedItem == 1) {
-                                //navController.navigate("b")
+                                navController.navigate("search")
                             } else if (selectedItem == 2) {
                                 navController.navigate("library")
                             }

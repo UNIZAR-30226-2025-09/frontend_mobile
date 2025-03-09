@@ -18,8 +18,10 @@ import eina.unizar.es.ui.plans.PlansScreen
 import eina.unizar.es.ui.player.PlayerScreen
 import eina.unizar.es.ui.menu.HomeScreen
 import eina.unizar.es.ui.playlist.PlaylistScreen
+import eina.unizar.es.ui.search.SearchScreen
 import eina.unizar.es.ui.user.UserSettings
 import eina.unizar.es.ui.user.EditProfileScreen
+import eina.unizar.es.ui.search.SearchScreen
 
 @Composable
 fun AppNavigator() {
@@ -42,6 +44,7 @@ fun AppNavigator() {
                 composable("settings") { UserSettings(navController) }
                 composable("library") { LibraryScreen(navController) }
                 composable("perfilEdit") { EditProfileScreen(navController) }
+                composable("search") { SearchScreen(navController) }
             }
         }
     }
