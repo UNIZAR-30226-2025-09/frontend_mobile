@@ -136,7 +136,8 @@ fun HomeScreen(navController: NavController) {
                             modifier = Modifier
                                 .size(width = 120.dp, height = 80.dp)
                                 .clickable {
-                                    // navController.navigate("playlist/$playlist")
+                                    //navController.navigate("playlist/$playlist")
+                                    navController.navigate("playlist")
                                 },
                             colors = CardDefaults.cardColors(containerColor = cardBackgroundColor),
                             elevation = CardDefaults.cardElevation(defaultElevation = 4.dp) // sombra
