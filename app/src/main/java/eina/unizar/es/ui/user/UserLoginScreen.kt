@@ -15,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -85,6 +86,7 @@ fun UserLoginScreen(navController: NavController) {
                     onValueChange = { email = it },
                     placeholder = { Text("Correo electrónico") },
                     singleLine = true,
+                    textStyle = TextStyle(color = Color.White),
                     leadingIcon = { Icon(Icons.Default.Email, contentDescription = "Email Icon") },
                     modifier = Modifier.fillMaxWidth(),
                     colors = TextFieldDefaults.outlinedTextFieldColors(
@@ -113,6 +115,7 @@ fun UserLoginScreen(navController: NavController) {
                     onValueChange = { password = it },
                     placeholder = { Text("********") },
                     singleLine = true,
+                    textStyle = TextStyle(color = Color.White),
                     leadingIcon = { Icon(Icons.Default.Lock, contentDescription = "Password Icon") },
                     visualTransformation = PasswordVisualTransformation(),
                     modifier = Modifier.fillMaxWidth(),
@@ -127,7 +130,12 @@ fun UserLoginScreen(navController: NavController) {
                 Spacer(modifier = Modifier.height(20.dp))
 
                 Button(
-                    onClick = { /* Lógica de inicio de sesión */ },
+                    onClick = { /* Lógica de inicio de sesión */
+                            // Aquí pones la lógica de validación de inicio de sesión
+                            // Si es correcta, navegas a la pantalla menu:
+                            navController.navigate("menu")
+
+                    },
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Color(0xFF79E2FF),
                         contentColor = Color.Black

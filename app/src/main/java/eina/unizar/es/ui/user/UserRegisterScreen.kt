@@ -16,6 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -53,7 +54,7 @@ fun UserRegisterScreen(navController: NavController) {
                     .fillMaxWidth()
                     .padding(24.dp)
             ) {
-                // 🔹 Logo de Vibra
+                // Logo de Vibra
                 Icon(
                     painter = painterResource(id = R.drawable.vibrablanco),
                     contentDescription = "Logo de Vibra",
@@ -63,7 +64,7 @@ fun UserRegisterScreen(navController: NavController) {
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // 🔹 Título
+                // Título
                 Text(
                     text = "Regístrate en Vibra",
                     fontSize = 26.sp,
@@ -74,7 +75,7 @@ fun UserRegisterScreen(navController: NavController) {
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // 🔹 Campo de Nombre de Usuario
+                // Campo de Nombre de Usuario
                 Text(
                     text = "Nombre de Usuario",
                     fontSize = 14.sp,
@@ -91,6 +92,7 @@ fun UserRegisterScreen(navController: NavController) {
                     onValueChange = { username = it },
                     placeholder = { Text("Nombre de usuario") },
                     singleLine = true,
+                    textStyle = TextStyle(color = Color.White),
                     leadingIcon = { Icon(Icons.Default.Person, contentDescription = "User Icon") },
                     modifier = Modifier.fillMaxWidth(),
                     colors = TextFieldDefaults.outlinedTextFieldColors(
@@ -103,7 +105,7 @@ fun UserRegisterScreen(navController: NavController) {
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // 🔹 Campo de Correo Electrónico
+                // Campo de Correo Electrónico
                 Text(
                     text = "Correo Electrónico",
                     fontSize = 14.sp,
@@ -120,6 +122,7 @@ fun UserRegisterScreen(navController: NavController) {
                     onValueChange = { email = it },
                     placeholder = { Text("Correo electrónico") },
                     singleLine = true,
+                    textStyle = TextStyle(color = Color.White),
                     leadingIcon = { Icon(Icons.Default.Email, contentDescription = "Email Icon") },
                     modifier = Modifier.fillMaxWidth(),
                     colors = TextFieldDefaults.outlinedTextFieldColors(
@@ -132,7 +135,7 @@ fun UserRegisterScreen(navController: NavController) {
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // 🔹 Campo de Contraseña
+                // Campo de Contraseña
                 Text(
                     text = "Contraseña",
                     fontSize = 14.sp,
@@ -149,6 +152,7 @@ fun UserRegisterScreen(navController: NavController) {
                     onValueChange = { password = it },
                     placeholder = { Text("********") },
                     singleLine = true,
+                    textStyle = TextStyle(color = Color.White),
                     leadingIcon = { Icon(Icons.Default.Lock, contentDescription = "Password Icon") },
                     visualTransformation = PasswordVisualTransformation(),
                     modifier = Modifier.fillMaxWidth(),
@@ -162,7 +166,7 @@ fun UserRegisterScreen(navController: NavController) {
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // 🔹 Campo de Confirmar Contraseña
+                // Campo de Confirmar Contraseña
                 Text(
                     text = "Confirmar Contraseña",
                     fontSize = 14.sp,
@@ -179,6 +183,7 @@ fun UserRegisterScreen(navController: NavController) {
                     onValueChange = { confirmPassword = it },
                     placeholder = { Text("********") },
                     singleLine = true,
+                    textStyle = TextStyle(color = Color.White),
                     leadingIcon = { Icon(Icons.Default.Lock, contentDescription = "Confirm Password Icon") },
                     visualTransformation = PasswordVisualTransformation(),
                     modifier = Modifier.fillMaxWidth(),
@@ -192,7 +197,7 @@ fun UserRegisterScreen(navController: NavController) {
 
                 Spacer(modifier = Modifier.height(20.dp))
 
-                // 🔹 Botón de Registrarse
+                // Botón de Registrarse
                 Button(
                     onClick = { /* Lógica de registro */ },
                     colors = ButtonDefaults.buttonColors(
@@ -213,7 +218,7 @@ fun UserRegisterScreen(navController: NavController) {
 
                 Spacer(modifier = Modifier.height(20.dp))
 
-                // 🔹 Texto de inicio de sesión
+                // Texto de inicio de sesión
                 val loginText = buildAnnotatedString {
                     append("¿Ya tienes cuenta? ")
                     pushStyle(SpanStyle(color = Color.White, fontWeight = FontWeight.Bold))
