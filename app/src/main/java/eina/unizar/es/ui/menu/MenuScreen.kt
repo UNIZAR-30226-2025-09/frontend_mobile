@@ -10,7 +10,9 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 //import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.rounded.Menu
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -45,9 +47,8 @@ fun HomeScreen(navController: NavController) {
     // ---- Barra de navegación inferior ----
     val bottomNavItems = listOf(
         Pair("Inicio", Icons.Default.Home),
-        Pair("Biblioteca", Icons.Default.Star),
-        //Pair("Premium", Icons.Default.Star),
-        Pair("Chat", Icons.Default.Star)
+        Pair("Buscador", Icons.Default.Search),
+        Pair("Biblioteca", Icons.Rounded.Menu),
     )
     var selectedItem by remember { mutableStateOf(0) }
 
@@ -62,6 +63,13 @@ fun HomeScreen(navController: NavController) {
                         selected = (selectedItem == index),
                         onClick = {
                             selectedItem = index
+                            if (selectedItem == 0) {
+                                navController.navigate("menu")
+                            } else if (selectedItem == 1) {
+                                //navController.navigate("b")
+                            } else if (selectedItem == 2) {
+                                navController.navigate("library")
+                            }
                             // Ej: navController.navigate("ruta_${label.lowercase()}") { ... }
                         },
                         icon = {
@@ -99,25 +107,25 @@ fun HomeScreen(navController: NavController) {
                         .padding(horizontal = 16.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    OutlinedTextField(
-                        value = searchText,
-                        onValueChange = { searchText = it },
-                        label = {
-                            Text("Buscar música o artistas", color = textColor)
-                        },
-                        textStyle = TextStyle(color = textColor),
-                        shape = RoundedCornerShape(16.dp),
-                        modifier = Modifier
-                            .fillMaxWidth(0.8f),
-                        colors = TextFieldDefaults.outlinedTextFieldColors(
-                            focusedBorderColor = buttonColor,
-                            unfocusedBorderColor = textColor,
-                            cursorColor = textColor
-                        ),
-                        keyboardOptions = KeyboardOptions.Default
-                    )
-
-                    Spacer(modifier = Modifier.width(8.dp))
+//                    OutlinedTextField(
+//                        value = searchText,
+//                        onValueChange = { searchText = it },
+//                        label = {
+//                            Text("Buscar música o artistas", color = textColor)
+//                        },
+//                        textStyle = TextStyle(color = textColor),
+//                        shape = RoundedCornerShape(16.dp),
+//                        modifier = Modifier
+//                            .fillMaxWidth(0.8f),
+//                        colors = TextFieldDefaults.outlinedTextFieldColors(
+//                            focusedBorderColor = buttonColor,
+//                            unfocusedBorderColor = textColor,
+//                            cursorColor = textColor
+//                        ),
+//                        keyboardOptions = KeyboardOptions.Default
+//                    )
+//
+//                    Spacer(modifier = Modifier.width(8.dp))
 
                     // Icono de usuario con menú desplegable
                     UserProfileMenu(navController)
