@@ -12,6 +12,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import eina.unizar.es.ui.auth.UserLoginScreen
 import eina.unizar.es.ui.auth.UserRegisterScreen
+import eina.unizar.es.ui.library.LibraryScreen
 import eina.unizar.es.ui.main.MainScreen
 import eina.unizar.es.ui.plans.PlansScreen
 import eina.unizar.es.ui.player.PlayerScreen
@@ -38,6 +39,7 @@ fun AppNavigator() {
                 composable("menu") {HomeScreen(navController)}
                 composable("playlist") { PlaylistScreen(navController) }
                 composable("settings") { UserSettings(navController) }
+                composable("library") { LibraryScreen(navController) }
             }
         }
     }
