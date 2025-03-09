@@ -17,6 +17,7 @@ import eina.unizar.es.ui.plans.PlansScreen
 import eina.unizar.es.ui.player.PlayerScreen
 import eina.unizar.es.ui.menu.HomeScreen
 import eina.unizar.es.ui.playlist.PlaylistScreen
+import eina.unizar.es.ui.user.UserSettings
 
 @Composable
 fun AppNavigator() {
@@ -36,6 +37,7 @@ fun AppNavigator() {
                 composable("register") { UserRegisterScreen(navController)  }
                 composable("menu") {HomeScreen(navController)}
                 composable("playlist") { PlaylistScreen(navController) }
+                composable("settings") { UserSettings(navController) }
             }
         }
     }

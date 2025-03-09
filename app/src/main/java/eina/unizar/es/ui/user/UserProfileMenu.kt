@@ -7,7 +7,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.ExitToApp
-import androidx.compose.material.icons.filled.Face
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -64,7 +64,7 @@ fun UserProfileMenu(navController: NavController, modifier: Modifier = Modifier)
                     navController.navigate("friends")
                 },
                 leadingIcon = {
-                    Icon(Icons.Default.Face, contentDescription = "Amigos", tint = Color.White)
+                    Icon(Icons.Default.Person, contentDescription = "Amigos", tint = Color.White)
                 }
             )
             Divider(
