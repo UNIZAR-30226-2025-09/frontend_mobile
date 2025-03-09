@@ -97,7 +97,7 @@ fun HeaderSection() {
             .fillMaxWidth()
             .background(
                 brush = Brush.verticalGradient(
-                    colors = listOf(Color(0xFF79E2FF), Color(0xFF339CFF)) // 🔹 Degradado azul
+                    colors = listOf(Color(0xFFB3D9FF), Color(0xFFB3D9FF)) // 🔹 Degradado azul
                 )
             )
             .padding(16.dp)
@@ -116,12 +116,12 @@ fun HeaderSection() {
             Spacer(modifier = Modifier.height(8.dp))
 
             // Nombre de usuario
-            Text("Kanye", color = Color.White, fontSize = 28.sp)
+            Text("Kanye", color = Color(0xFF121212), fontSize = 28.sp, fontWeight = FontWeight.Bold)
 
             Spacer(modifier = Modifier.height(4.dp))
 
             // Datos de usuario
-            Text("1 lista pública · 3 amigos", color = Color.White, fontSize = 14.sp)
+            Text("1 lista pública · 3 amigos", color = Color(0xFF121212), fontSize = 14.sp, fontWeight = FontWeight.Bold)
         }
     }
 
@@ -151,7 +151,7 @@ fun HeaderSection() {
         drawPath(
             path = path,
             brush = Brush.verticalGradient(
-                colors = listOf(Color(0xFF339CFF), Color(0xFFB3D9FF)), // Fusión con el fondo negro
+                colors = listOf(Color(0xFFB3D9FF), Color(0xFFB3D9FF)), // Fusión con el fondo negro
                 startY = 0f,
                 endY = height
             ),
@@ -176,9 +176,9 @@ fun ActionButton(text: String, icon: androidx.compose.ui.graphics.vector.ImageVe
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
         ) {
-            Icon(icon, contentDescription = text, tint = Color.Red)
+            Icon(icon, contentDescription = text, tint = Color(0xFFFF6B6B))
             Spacer(modifier = Modifier.width(8.dp))
-            Text(text, color = Color.Red, fontSize = 14.sp)
+            Text(text, color = Color(0xFFFF6B6B), fontSize = 14.sp)
         }
     }
 }
