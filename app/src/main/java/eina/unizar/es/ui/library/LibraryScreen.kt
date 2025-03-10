@@ -193,8 +193,8 @@ data class LibraryItem(val name: String, val type: String)
 fun getLibraryItems(filter: String): List<LibraryItem> {
     return when (filter) {
         "Playlists" -> listOf(
-            LibraryItem("Canciones que te gustan", "Playlist"),
-            LibraryItem("Playlist prueba", "Playlist")
+            LibraryItem("Canciones que te gustan", "Lista"),
+            LibraryItem("Vibra", "Lista")
         )
         else -> emptyList()
     }
