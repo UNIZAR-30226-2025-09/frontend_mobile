@@ -11,6 +11,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.example.musicapp.ui.song.SongScreen
 import com.stripe.android.paymentsheet.PaymentSheet
 import eina.unizar.es.ui.auth.UserLoginScreen
 import eina.unizar.es.ui.auth.UserRegisterScreen
@@ -42,13 +43,14 @@ fun AppNavigator(navController: NavController, paymentSheet: PaymentSheet, ) {
                 composable("player") { PlayerScreen() }
                 composable("plans") { PlansScreen(navController) }
                 composable("login") { UserLoginScreen(navController) }
-                composable("register") { UserRegisterScreen(navController)  }
-                composable("menu") {HomeScreen(navController)}
+                composable("register") { UserRegisterScreen(navController) }
+                composable("menu") { HomeScreen(navController) }
                 composable("playlist") { PlaylistScreen(navController) }
                 composable("settings") { UserSettings(navController) }
                 composable("library") { LibraryScreen(navController) }
                 composable("perfilEdit") { EditProfileScreen(navController) }
                 composable("search") { SearchScreen(navController) }
+                composable("song") { SongScreen(navController) }
 
             }
         }
