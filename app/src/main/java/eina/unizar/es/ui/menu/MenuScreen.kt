@@ -21,6 +21,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
@@ -30,6 +32,7 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import eina.unizar.es.R
 import eina.unizar.es.ui.components.UserProfileMenu // Asegúrate de tener este import y el Composable definido
+import eina.unizar.es.ui.navbar.BottomNavigationBar
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -56,6 +59,16 @@ fun HomeScreen(navController: NavController) {
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         UserProfileMenu(navController)
+
+                        // 🔹 Spacer para empujar el banner hacia la derecha
+                        Spacer(modifier = Modifier.weight(0.9f))
+
+                        VibraBanner(
+                            modifier = Modifier
+                                .align(Alignment.CenterVertically)
+                                .padding(end = 16.dp, top = 16.dp),
+                            false
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
@@ -64,29 +77,7 @@ fun HomeScreen(navController: NavController) {
             )
         },
         bottomBar = {
-            NavigationBar(containerColor = Color.Transparent) {
-                bottomNavItems.forEachIndexed { index, (label, icon) ->
-                    NavigationBarItem(
-                        selected = (selectedItem == index),
-                        onClick = {
-                            selectedItem = index
-                            when (index) {
-                                0 -> navController.navigate("menu")
-                                1 -> navController.navigate("search")
-                                2 -> navController.navigate("library")
-                            }
-                        },
-                        icon = { Icon(icon, contentDescription = label) },
-                        label = { Text(label, fontSize = 12.sp) },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = MaterialTheme.colorScheme.onBackground,
-                            unselectedIconColor = MaterialTheme.colorScheme.inverseSurface,
-                            selectedTextColor = MaterialTheme.colorScheme.onBackground,
-                            unselectedTextColor = MaterialTheme.colorScheme.inverseSurface,
-                        )
-                    )
-                }
-            }
+            BottomNavigationBar(navController)
         },
     ) { innerPadding ->
         Box(
@@ -189,8 +180,50 @@ fun HomeScreen(navController: NavController) {
                             Text(lista, color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.bodyMedium)
                         }
                     }
+
                 }
             }
+        }
+    }
+}
+
+/**
+ * Composable que dibuja un banner degradado con un logo y el texto "Vibra".
+ * El banner se muestra a la derecha. Reemplaza R.drawable.my_logo por el recurso de tu logo.
+ */
+@Composable
+fun VibraBanner(modifier: Modifier = Modifier, premium : Boolean) {
+    val bannerWidth = 160.dp
+    val bannerHeight = 50.dp
+    val gradientBrush = Brush.horizontalGradient(
+        colors = listOf(Color(0xFF004aad), Color(0xFF00a0d7))
+    )
+
+    Box(
+        modifier = modifier
+            .size(width = bannerWidth, height = bannerHeight)
+            .clip(RoundedCornerShape(8.dp))
+            .background(gradientBrush)
+            .padding(horizontal = 6.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Row(
+            modifier = Modifier.fillMaxSize(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            // Carga el logo (asegúrate de tener R.drawable.my_logo en res/drawable)
+            Image(
+                painter = painterResource(id = R.drawable.vibrablanco),
+                contentDescription = "Logo",
+                modifier = Modifier.size(45.dp)
+            )
+            Text(
+                text = if (premium) "Vibra" else "Hacerse Premium",
+                color = Color.White,
+                fontSize = if (premium) 8.sp else 20.sp,
+                modifier = Modifier.padding(end = 6.dp)
+            )
         }
     }
 }

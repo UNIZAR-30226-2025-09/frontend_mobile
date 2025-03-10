@@ -52,7 +52,7 @@ fun UserLoginScreen(navController: NavController) {
                     .padding(24.dp)
             ) {
                 Icon(
-                    painter = painterResource(id = R.drawable.vibrablanco),
+                    painter = painterResource(id = R.drawable.logoblanco),
                     contentDescription = "Logo de Vibra",
                     tint = Color.White,
                     modifier = Modifier.size(80.dp)
