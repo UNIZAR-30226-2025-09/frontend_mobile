@@ -7,7 +7,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.ExitToApp
-import androidx.compose.material.icons.filled.Face
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -24,7 +24,7 @@ fun UserProfileMenu(navController: NavController, modifier: Modifier = Modifier)
 
     Box(
         modifier = modifier.fillMaxWidth(),
-        contentAlignment = Alignment.TopEnd // Icono alineado a la derecha
+        contentAlignment = Alignment.TopStart // Icono alineado a la izqda
     ) {
         // Icono de usuario
         IconButton(
@@ -64,7 +64,7 @@ fun UserProfileMenu(navController: NavController, modifier: Modifier = Modifier)
                     navController.navigate("friends")
                 },
                 leadingIcon = {
-                    Icon(Icons.Default.Face, contentDescription = "Amigos", tint = Color.White)
+                    Icon(Icons.Default.Person, contentDescription = "Amigos", tint = Color.White)
                 }
             )
             Divider(
@@ -76,13 +76,13 @@ fun UserProfileMenu(navController: NavController, modifier: Modifier = Modifier)
             )
 
             DropdownMenuItem(
-                text = { Text("Cerrar Sesión", color = Color.Red) },
+                text = { Text("Cerrar Sesión", color = Color(0xFFFF6B6B)) },
                 onClick = {
                     expanded = false
                     // Lógica para cerrar sesión
                 },
                 leadingIcon = {
-                    Icon(Icons.Default.ExitToApp, contentDescription = "Cerrar Sesión", tint = Color.Red)
+                    Icon(Icons.Default.ExitToApp, contentDescription = "Cerrar Sesión", tint = Color(0xFFFF6B6B))
                 }
             )
         }
