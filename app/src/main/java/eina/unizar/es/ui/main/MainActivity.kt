@@ -7,6 +7,7 @@ import androidx.navigation.compose.rememberNavController
 import eina.unizar.es.ui.navigation.AppNavigator
 import com.stripe.android.paymentsheet.PaymentSheet
 import com.stripe.android.paymentsheet.PaymentSheetResult
+import eina.unizar.es.ui.theme.VibraAppTheme
 
 class MainActivity : ComponentActivity() {
     private lateinit var paymentSheet: PaymentSheet  // ✅ Declaramos el PaymentSheet aquí
@@ -24,8 +25,10 @@ class MainActivity : ComponentActivity() {
         }
 
         setContent {
-            val navController = rememberNavController()
-            AppNavigator(navController, paymentSheet) // ✅ Pasamos PaymentSheet a la pantalla
+            VibraAppTheme {
+                val navController = rememberNavController()
+                AppNavigator(navController, paymentSheet) // ✅ Pasamos PaymentSheet a la pantalla
+            }
         }
     }
 }
