@@ -1,102 +1,219 @@
-package eina.unizar.es.ui.song
+package com.example.musicapp.ui.song
 
-/*
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.rememberScrollableState
+import androidx.compose.foundation.gestures.scrollable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.FastForward
+import androidx.compose.material.icons.filled.FastRewind
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
-import coil.compose.rememberAsyncImagePainter
+import androidx.compose.ui.unit.sp
+import androidx.navigation.NavController
+import eina.unizar.es.R
+import eina.unizar.es.ui.theme.*
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PlayerScreen(
-    songId: String,                // El ID o nombre de la canción
-    onShowLyrics: (String) -> Unit // Acción para ver la letra
-) {
-    // Colores básicos
-    val backgroundColor = Color(0xFF000000)   // Negro
-    val textColor = Color(0xFFFFFFFF)         // Blanco
-    val buttonColor = Color(0xFF0D47A1)       // Azul oscuro
-
-    // Simulación de reproducción
+fun SongScreen(navController: NavController) {
     var isPlaying by remember { mutableStateOf(false) }
+    var progress by remember { mutableStateOf(0.1f) }
+    var lyricsExpanded by remember { mutableStateOf(false) } // Estado para expandir la letra
 
-    // Carátula y título ficticios
-    val songTitle = "Reproduciendo: $songId"
-    val imageUrl = "https://via.placeholder.com/300.png"
+    // Estado de desplazamiento
+    val scrollState = rememberScrollState()
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(backgroundColor)
-            .padding(16.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+    Scaffold(
+        containerColor = MaterialTheme.colorScheme.background
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .background(MaterialTheme.colorScheme.background)
+                .verticalScroll(scrollState),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Spacer(modifier = Modifier.height(16.dp)) // Bajamos más la imagen y la barra
 
-            // Imagen/caratula
+            // Botón para minimizar la pantalla de canción
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.Start
+            ) {
+                IconButton(onClick = { navController.popBackStack() }) {
+                    Icon(
+                        imageVector = Icons.Default.ExpandMore,
+                        contentDescription = "Minimizar",
+                        tint = MaterialTheme.colorScheme.onBackground,
+                        modifier = Modifier.size(32.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(74.dp))
+
+            // Imagen del álbum (más abajo y centrada)
             Image(
-                painter = rememberAsyncImagePainter(imageUrl),
-                contentDescription = "Carátula de la canción",
-                modifier = Modifier.size(200.dp)
+                painter = painterResource(id = R.drawable.kanyeperfil),
+                contentDescription = "Portada del álbum",
+                modifier = Modifier
+                    .size(320.dp)
+                    .clip(MaterialTheme.shapes.small)
+                    .background(Color.Gray, RoundedCornerShape(16.dp))
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(72.dp))
 
-            // Título
-            Text(songTitle, color = textColor)
+            // Información de la canción
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    text = "LA RANGER (feat. Myke Towers)",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "The Academy: Segunda Misión, Sech, Justin Quiles",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                )
+            }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(15.dp)) // Bajamos más la barra de progreso
 
-            // Botón para ver la letra
-            Button(
-                onClick = { onShowLyrics(songId) },
-                colors = ButtonDefaults.buttonColors(containerColor = buttonColor)
+            // 🔵 Barra de progreso
+            Slider(
+                value = progress,
+                onValueChange = { progress = it },
+                colors = SliderDefaults.colors(
+                    thumbColor = MaterialTheme.colorScheme.primary,
+                    activeTrackColor = MaterialTheme.colorScheme.primary
+                ),
+                modifier = Modifier.fillMaxWidth(0.85f)
+            )
+
+            // Tiempo transcurrido / Duración total
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth(0.85f)
+                    .padding(horizontal = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text("Ver Letra", color = textColor)
+                Text("0:03", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface)
+                Text("-3:46", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface)
             }
 
             Spacer(modifier = Modifier.height(16.dp))
 
             // Controles de reproducción
-            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                // Anterior
-                Button(
-                    onClick = { /* Lógica para ir a canción anterior */ },
-                    colors = ButtonDefaults.buttonColors(containerColor = buttonColor)
-                ) {
-                    Text("Anterior", color = textColor)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = { /* Acción: Anterior */ }) {
+                    Icon(Icons.Filled.FastRewind, contentDescription = "Anterior", tint = MaterialTheme.colorScheme.onBackground)
                 }
+                Spacer(modifier = Modifier.width(16.dp))
 
-                // Reproducir/Pausar
-                Button(
+                FloatingActionButton(
                     onClick = { isPlaying = !isPlaying },
-                    colors = ButtonDefaults.buttonColors(containerColor = buttonColor)
+                    containerColor = MaterialTheme.colorScheme.primary
                 ) {
-                    val icon: ImageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow
-                    val actionText = if (isPlaying) "Pausar" else "Reproducir"
-                    Icon(icon, contentDescription = null, tint = Color.White)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(actionText, color = textColor)
+                    Icon(
+                        imageVector = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                        contentDescription = if (isPlaying) "Pausar" else "Reproducir",
+                        tint = Color.White
+                    )
                 }
 
-                // Siguiente
-                Button(
-                    onClick = { /* Lógica para ir a canción siguiente */ },
-                    colors = ButtonDefaults.buttonColors(containerColor = buttonColor)
+                Spacer(modifier = Modifier.width(16.dp))
+                IconButton(onClick = { /* Acción: Siguiente */ }) {
+                    Icon(Icons.Filled.FastForward, contentDescription = "Siguiente", tint = MaterialTheme.colorScheme.onBackground)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(70.dp))
+
+            // Letra de la canción en un rectángulo deslizante
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(500.dp)
+                    .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
+                    .background(MaterialTheme.colorScheme.surface)
+                    .padding(16.dp)
+                    .scrollable(rememberScrollableState { delta ->
+                        if (delta > 0) {
+                            lyricsExpanded = true
+                        }
+                        delta
+                    }, orientation = Orientation.Vertical),
+                contentAlignment = Alignment.TopCenter
+            ) {
+                Column(
+                    modifier = Modifier.fillMaxSize(),
+
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Text("Siguiente", color = textColor)
+                    // 🔽 Indicador de que se puede deslizar para ver la letra
+                    Box(
+                        modifier = Modifier
+                            .width(50.dp)
+                            .height(6.dp)
+                            .clip(MaterialTheme.shapes.medium)
+                            .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Text(
+                        text = """
+                            LETRA
+                        """.trimIndent(),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Letra de la canción (desplazable)
+                    Text(
+                        text = """
+                            Primera línea de la canción
+                            Segunda línea de la canción
+                            Tercera línea de la canción
+                            Cuarta línea de la canción
+                            Quinta línea de la canción
+                            Sexta línea de la canción
+                            Séptima línea de la canción
+                            Octava línea de la canción
+                            Novena línea de la canción
+                            Décima línea de la canción
+                        """.trimIndent(),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
                 }
             }
         }
     }
 }
-*/
