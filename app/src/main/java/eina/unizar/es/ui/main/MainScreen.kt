@@ -1,6 +1,7 @@
 package eina.unizar.es.ui.main
 
 import android.media.MediaPlayer
+import android.util.Log
 import android.widget.ImageView
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
@@ -22,6 +23,8 @@ import androidx.compose.ui.viewinterop.AndroidView
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.engine.DiskCacheStrategy
 import eina.unizar.es.R
+import eina.unizar.es.data.model.network.ApiClient
+
 
 // Creamos variable para importar a la UI la nueva FontFamily
 val Rubik = FontFamily(
@@ -38,6 +41,9 @@ fun MainScreen(navController: NavController) {
         mediaPlayer = MediaPlayer.create(context, R.raw.music_background_inicio)
         mediaPlayer?.isLooping = true // Para que se repita automáticamente
         mediaPlayer?.start()
+        // Fetch de ejemplo
+        fetchPlaylists()
+        fetchSongs()
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -105,4 +111,17 @@ fun MainScreen(navController: NavController) {
             }
         }
     }
+}
+
+// Como se harían los FETCH
+// Método para obtener playlists y mostrar en Logcat
+suspend fun fetchPlaylists() {
+    val response = ApiClient.get("playlists")
+    Log.d("API_RESPONSE", "Playlists: $response")
+}
+
+// Método para obtener canciones y mostrar en Logcat
+suspend fun fetchSongs() {
+    val response = ApiClient.get("songs")
+    Log.d("API_RESPONSE", "Songs: $response")
 }
