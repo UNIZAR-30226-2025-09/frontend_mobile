@@ -151,7 +151,7 @@ fun SongScreen(navController: NavController) {
                 }
             }
 
-            Spacer(modifier = Modifier.height(70.dp))
+            Spacer(modifier = Modifier.height(60.dp))
 
             // Letra de la canción en un rectángulo deslizante
             Box(
@@ -183,7 +183,7 @@ fun SongScreen(navController: NavController) {
                             .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
                     )
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(18.dp))
 
                     Text(
                         text = """
