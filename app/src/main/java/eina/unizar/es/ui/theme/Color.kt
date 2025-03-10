@@ -5,7 +5,7 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 
 val VibraBlack = Color(0xFF121212)
-val VibraYellow = Color(0xFFEAD137)//0xFF79E2FF
+val VibraYellow = Color(0xFF79E2FF)//0xFF1ED760   0xFFEAD137
 val VibraWhite = Color(0xFFFFFFFF)
 val VibraGrey = Color(0xFFB3B3B3)
 
