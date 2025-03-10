@@ -17,6 +17,7 @@ val LightColorScheme = lightColorScheme(
     onBackground = VibraBlack,
     surface = VibraLightGrey,
     onSurface = VibraBlack,
+    inverseSurface = VibraDarkGrey,
 )
 
 val DarkColorScheme = darkColorScheme(
@@ -25,4 +26,5 @@ val DarkColorScheme = darkColorScheme(
     onBackground = VibraWhite,
     surface = VibraDarkGrey,
     onSurface = VibraWhite,
+    inverseSurface = VibraLightGrey,
 )

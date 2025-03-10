@@ -75,7 +75,7 @@ fun LibraryScreen(navController: NavController) {
             )
         },
         bottomBar = {
-            NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
+            NavigationBar(containerColor = MaterialTheme.colorScheme.background) {
                 bottomNavItems.forEachIndexed { index, (label, icon) ->
                     NavigationBarItem(
                         selected = (selectedItem == index),
@@ -90,17 +90,16 @@ fun LibraryScreen(navController: NavController) {
                         icon = { Icon(icon, contentDescription = label) },
                         label = { Text(label, fontSize = 12.sp) },
                         colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = MaterialTheme.colorScheme.primary,
-                            unselectedIconColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                            selectedTextColor = MaterialTheme.colorScheme.primary,
-                            unselectedTextColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                            indicatorColor = MaterialTheme.colorScheme.secondary // Amarillo personalizado
-                        )
+                            selectedIconColor = MaterialTheme.colorScheme.onBackground,
+                            unselectedIconColor = MaterialTheme.colorScheme.inverseSurface,
+                            selectedTextColor = MaterialTheme.colorScheme.onBackground,
+                            unselectedTextColor = MaterialTheme.colorScheme.inverseSurface,
+
+                            )
                     )
                 }
             }
         },
-        containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
         Column(
             modifier = Modifier
