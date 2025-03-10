@@ -16,6 +16,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
@@ -75,7 +76,7 @@ fun LibraryScreen(navController: NavController) {
             )
         },
         bottomBar = {
-            NavigationBar(containerColor = MaterialTheme.colorScheme.background) {
+            NavigationBar(containerColor = Color.Transparent) {
                 bottomNavItems.forEachIndexed { index, (label, icon) ->
                     NavigationBarItem(
                         selected = (selectedItem == index),

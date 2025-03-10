@@ -1,10 +1,14 @@
 package eina.unizar.es.ui.menu
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -18,185 +22,171 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import eina.unizar.es.R
 import eina.unizar.es.ui.components.UserProfileMenu // Asegúrate de tener este import y el Composable definido
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(navController: NavController) {
-    // Colores básicos
-    val backgroundColor = Color(0xFF000000)      // Negro
-    val textColor = Color(0xFFFFFFFF)            // Blanco
-    val cardBackgroundColor = Color(0xFF121212)  // Negro oscuro
-    val buttonColor = Color(0xFF0D47A1)          // Azul oscuro
 
-    // Estado para la búsqueda
-    var searchText by remember { mutableStateOf(TextFieldValue("")) }
+    val albumes = listOf("DeBÍ TiRAR MáS FOToS", "Easy Money Baby", "BUENAS NOCHES", "Un Verano Sin Ti")
+    val listas = listOf("Éxitos España", "Los 2000 España", "Top 50: Global")
 
-    // Dos listas de playlists para mostrarlas en filas diferentes
-    val playlistRecomendadas = listOf("Rock", "Pop", "Indie", "Jazz")
-    val playlistRecomendadas2 = listOf("Electrónica", "Reggaeton", "Trap", "Funk")
+    val cancionesRecomendadas = listOf("Canción A", "Canción B", "Canción C", "Canción D", "Canción E", "Canción F", "Canción G", "Canción H")
 
-    // Canciones recomendadas
-    val cancionesRecomendadas = listOf("Canción A", "Canción B", "Canción C", "Canción D")
-
-    // ---- Barra de navegación inferior ----
     val bottomNavItems = listOf(
         Pair("Inicio", Icons.Default.Home),
-        Pair("Buscador", Icons.Default.Search),
+        Pair("Buscar", Icons.Default.Search),
         Pair("Biblioteca", Icons.Rounded.Menu),
     )
     var selectedItem by remember { mutableStateOf(0) }
 
-    // Scaffold con bottomBar
     Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        UserProfileMenu(navController)
+                    }
+                },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background
+                )
+            )
+        },
         bottomBar = {
-            NavigationBar(
-                containerColor = Color(0xFF121212)
-            ) {
+            NavigationBar(containerColor = Color.Transparent) {
                 bottomNavItems.forEachIndexed { index, (label, icon) ->
                     NavigationBarItem(
                         selected = (selectedItem == index),
                         onClick = {
                             selectedItem = index
-                            if (selectedItem == 0) {
-                                navController.navigate("menu")
-                            } else if (selectedItem == 1) {
-                                navController.navigate("search")
-                            } else if (selectedItem == 2) {
-                                navController.navigate("library")
+                            when (index) {
+                                0 -> navController.navigate("menu")
+                                1 -> navController.navigate("search")
+                                2 -> navController.navigate("library")
                             }
-                            // Ej: navController.navigate("ruta_${label.lowercase()}") { ... }
                         },
-                        icon = {
-                            Icon(icon, contentDescription = label)
-                        },
-                        label = {
-                            Text(label, fontSize = 12.sp)
-                        },
+                        icon = { Icon(icon, contentDescription = label) },
+                        label = { Text(label, fontSize = 12.sp) },
                         colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = Color.White,
-                            unselectedIconColor = Color.Gray,
-                            selectedTextColor = Color.White,
-                            unselectedTextColor = Color.Gray,
-                            indicatorColor = buttonColor // Animación azul de selección
+                            selectedIconColor = MaterialTheme.colorScheme.onBackground,
+                            unselectedIconColor = MaterialTheme.colorScheme.inverseSurface,
+                            selectedTextColor = MaterialTheme.colorScheme.onBackground,
+                            unselectedTextColor = MaterialTheme.colorScheme.inverseSurface,
                         )
                     )
                 }
             }
         },
-        containerColor = backgroundColor
     ) { innerPadding ->
-        // Contenido principal
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .background(backgroundColor)
-                .padding(8.dp)
+                .background(MaterialTheme.colorScheme.background)
+                .padding(horizontal = 16.dp, vertical = 8.dp)
         ) {
             Column {
-                // Barra de búsqueda + icono de usuario
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                // Canciones recomendadas en Grid
+                Text("Canciones recomendadas", color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.titleLarge)
+                Spacer(modifier = Modifier.height(8.dp))
+
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(2),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    // Icono de usuario con menú desplegable
-                    UserProfileMenu(navController)
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Primera fila de playlists
-                Text("Listas Recomendadas", color = textColor)
-                Spacer(modifier = Modifier.height(8.dp))
-
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(playlistRecomendadas.size) { idx ->
-                        val playlist = playlistRecomendadas[idx]
-                        Card(
-                            modifier = Modifier
-                                .size(width = 120.dp, height = 80.dp)
-                                .clickable {
-                                    //navController.navigate("playlist/$playlist")
-                                    navController.navigate("playlist")
-                                },
-                            colors = CardDefaults.cardColors(containerColor = cardBackgroundColor),
-                            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp) // sombra
-                        ) {
-                            Box(
-                                modifier = Modifier.fillMaxSize(),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(playlist, color = textColor)
-                            }
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Segunda fila de playlists
-                Text("Otras Listas Recomendadas", color = textColor)
-                Spacer(modifier = Modifier.height(8.dp))
-
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(playlistRecomendadas2.size) { idx ->
-                        val playlist = playlistRecomendadas2[idx]
-                        Card(
-                            modifier = Modifier
-                                .size(width = 120.dp, height = 80.dp)
-                                .clickable {
-                                    // navController.navigate("playlist/$playlist")
-                                },
-                            colors = CardDefaults.cardColors(containerColor = cardBackgroundColor),
-                            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp) // sombra
-                        ) {
-                            Box(
-                                modifier = Modifier.fillMaxSize(),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(playlist, color = textColor)
-                            }
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Canciones recomendadas
-                Text("Canciones Recomendadas", color = textColor)
-                Spacer(modifier = Modifier.height(8.dp))
-
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(cancionesRecomendadas.size) { idx ->
-                        val cancion = cancionesRecomendadas[idx]
+                    items(cancionesRecomendadas) { cancion ->
                         Card(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable {
-                                    navController.navigate("song")
-                                },
-                            colors = CardDefaults.cardColors(containerColor = cardBackgroundColor),
-                            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp) // sombra
+                                .height(50.dp)
+                                .clickable { navController.navigate("song") },
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
                         ) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(16.dp),
-                                contentAlignment = Alignment.CenterStart
-                            ) {
-                                Text(cancion, color = textColor)
+                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                Text(cancion, color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.bodyLarge)
                             }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Álbumes populares
+                Text("Álbumes populares", color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.titleLarge)
+                Spacer(modifier = Modifier.height(8.dp))
+
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    items(albumes.size) { idx ->
+                        val album = albumes[idx]
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Card(
+                                modifier = Modifier
+                                    .size(120.dp)
+                                    .clickable { /* navController.navigate("album") */ },
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Image(
+                                        painter = painterResource(id = R.drawable.kanyeperfil), // 📌 Imagen dentro del cuadrado
+                                        contentDescription = "Álbum",
+                                        modifier = Modifier.size(120.dp)
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(album, color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.bodyMedium)
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Listas de reproducción recomendadas
+                Text("Listas para ti", color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.titleLarge)
+                Spacer(modifier = Modifier.height(8.dp))
+
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    items(listas.size) { idx ->
+                        val lista = listas[idx]
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Card(
+                                modifier = Modifier
+                                    .size(120.dp)
+                                    .clickable { navController.navigate("playlist") },
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Image(
+                                        painter = painterResource(id = R.drawable.kanyeperfil), // 📌 Imagen dentro del cuadrado
+                                        contentDescription = "Lista",
+                                        modifier = Modifier.size(120.dp)
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(lista, color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.bodyMedium)
                         }
                     }
                 }
