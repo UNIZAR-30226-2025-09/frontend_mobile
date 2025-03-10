@@ -16,14 +16,44 @@ val Typography = Typography(
         fontWeight = FontWeight.Bold,
         fontSize = 24.sp
     ),
+    titleMedium = TextStyle(
+        fontFamily = SansSerifFont,
+        fontWeight = FontWeight.Bold,
+        fontSize = 20.sp
+    ),
+    titleSmall = TextStyle(
+        fontFamily = SansSerifFont,
+        fontWeight = FontWeight.Bold,
+        fontSize = 18.sp
+    ),
     bodyLarge = TextStyle(
         fontFamily = SansSerifFont,
         fontWeight = FontWeight.Normal,
         fontSize = 16.sp
     ),
+    bodyMedium = TextStyle(
+        fontFamily = SansSerifFont,
+        fontWeight = FontWeight.Normal,
+        fontSize = 14.sp
+    ),
+    bodySmall = TextStyle(
+        fontFamily = SansSerifFont,
+        fontWeight = FontWeight.Normal,
+        fontSize = 12.sp
+    ),
     labelLarge = TextStyle(
         fontFamily = SansSerifFont,
         fontWeight = FontWeight.Medium,
         fontSize = 14.sp
-    )
+    ),
+    labelMedium = TextStyle(
+        fontFamily = SansSerifFont,
+        fontWeight = FontWeight.Medium,
+        fontSize = 12.sp
+    ),
+    labelSmall = TextStyle(
+        fontFamily = SansSerifFont,
+        fontWeight = FontWeight.Medium,
+        fontSize = 10.sp
+    ),
 )
