@@ -107,26 +107,6 @@ fun HomeScreen(navController: NavController) {
                         .padding(horizontal = 16.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-//                    OutlinedTextField(
-//                        value = searchText,
-//                        onValueChange = { searchText = it },
-//                        label = {
-//                            Text("Buscar música o artistas", color = textColor)
-//                        },
-//                        textStyle = TextStyle(color = textColor),
-//                        shape = RoundedCornerShape(16.dp),
-//                        modifier = Modifier
-//                            .fillMaxWidth(0.8f),
-//                        colors = TextFieldDefaults.outlinedTextFieldColors(
-//                            focusedBorderColor = buttonColor,
-//                            unfocusedBorderColor = textColor,
-//                            cursorColor = textColor
-//                        ),
-//                        keyboardOptions = KeyboardOptions.Default
-//                    )
-//
-//                    Spacer(modifier = Modifier.width(8.dp))
-
                     // Icono de usuario con menú desplegable
                     UserProfileMenu(navController)
                 }
