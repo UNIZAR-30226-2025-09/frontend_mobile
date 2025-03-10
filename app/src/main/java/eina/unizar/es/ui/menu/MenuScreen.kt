@@ -204,7 +204,7 @@ fun HomeScreen(navController: NavController) {
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable {
-                                    // navController.navigate("player/$cancion")
+                                    navController.navigate("song")
                                 },
                             colors = CardDefaults.cardColors(containerColor = cardBackgroundColor),
                             elevation = CardDefaults.cardElevation(defaultElevation = 4.dp) // sombra
