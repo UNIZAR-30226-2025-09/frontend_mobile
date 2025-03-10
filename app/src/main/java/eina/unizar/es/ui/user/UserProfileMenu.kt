@@ -23,7 +23,6 @@ fun UserProfileMenu(navController: NavController, modifier: Modifier = Modifier)
     var expanded by remember { mutableStateOf(false) }
 
     Box(
-        modifier = modifier.fillMaxWidth(),
         contentAlignment = Alignment.TopStart // Icono alineado a la izqda
     ) {
         // Icono de usuario
