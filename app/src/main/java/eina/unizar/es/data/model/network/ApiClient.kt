@@ -8,6 +8,7 @@ import java.net.URL
 
 object ApiClient {
     private const val BASE_URL = "http://10.0.2.2/request/api" // Usa la IP local del backend
+    //private const val BASE_URL = "http://164.90.160.181/request/api" // Usa la IP publica (nube) del backend
 
     /**
      * Método para realizar una petición GET en segundo plano.
