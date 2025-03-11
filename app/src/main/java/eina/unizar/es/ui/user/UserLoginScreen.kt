@@ -1,5 +1,7 @@
 package eina.unizar.es.ui.auth
 
+import android.util.Log
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -25,12 +27,18 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import eina.unizar.es.R
+import eina.unizar.es.data.model.network.ApiClient
+import kotlinx.coroutines.launch
+import org.json.JSONObject
+import androidx.compose.ui.platform.LocalContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun UserLoginScreen(navController: NavController) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    val coroutineScope = rememberCoroutineScope()
+    val context = LocalContext.current
 
     Box(
         modifier = Modifier
@@ -131,10 +139,14 @@ fun UserLoginScreen(navController: NavController) {
 
                 Button(
                     onClick = { /* Lógica de inicio de sesión */
-                            // Aquí pones la lógica de validación de inicio de sesión
-                            // Si es correcta, navegas a la pantalla menu:
-                            navController.navigate("menu")
-
+                        coroutineScope.launch {
+                            val loginSuccess = loginUser(email, password)
+                            if (loginSuccess) {
+                                navController.navigate("menu") //Navegar al menú si el login es correcto
+                            } else {
+                                Toast.makeText(context, "Credenciales incorrectas", Toast.LENGTH_LONG).show()
+                            }
+                        }
                     },
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Color(0xFF79E2FF),
@@ -179,5 +191,33 @@ fun UserLoginScreen(navController: NavController) {
                 Spacer(modifier = Modifier.height(8.dp))
             }
         }
+    }
+}
+
+/**
+ * Realiza la petición de login a la API y devuelve `true` si las credenciales son correctas.
+ */
+suspend fun loginUser(email: String, password: String): Boolean {
+    val jsonBody = JSONObject().apply {
+        put("mail", email)
+        put("password", password)
+    }
+    Log.d("LoginRequest", "JSON enviado: $jsonBody")
+
+    return try {
+        val response = ApiClient.post("user/login", jsonBody)
+        if (response != null) {
+            val jsonResponse = JSONObject(response)
+            if (jsonResponse.has("message") && jsonResponse.getString("message") == "Login exitoso") {
+                true //Login correcto
+            } else {
+                false //Credenciales incorrectas
+            }
+        } else {
+            false
+        }
+    } catch (e: Exception) {
+        e.printStackTrace()
+        false
     }
 }
