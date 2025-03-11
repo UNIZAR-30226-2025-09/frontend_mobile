@@ -1,5 +1,7 @@
 package eina.unizar.es.ui.auth
 
+import android.util.Log
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -26,6 +28,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import eina.unizar.es.R
+import eina.unizar.es.data.model.network.ApiClient
+import kotlinx.coroutines.launch
+import org.json.JSONObject
+import androidx.compose.ui.platform.LocalContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -34,6 +40,8 @@ fun UserRegisterScreen(navController: NavController) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
+    val coroutineScope = rememberCoroutineScope()
+    val context = LocalContext.current
 
     Box(
         modifier = Modifier
@@ -199,7 +207,16 @@ fun UserRegisterScreen(navController: NavController) {
 
                 // Botón de Registrarse
                 Button(
-                    onClick = { /* Lógica de registro */ },
+                    onClick = { /* Lógica de inicio de sesión */
+                        coroutineScope.launch {
+                            val loginSuccess = registerUser(username, email, password, confirmPassword)
+                            if (loginSuccess) {
+                                navController.navigate("menu") //Navegar al menú si el login es correcto
+                            } else {
+                                Toast.makeText(context, "Errror al registrarse", Toast.LENGTH_LONG).show()
+                            }
+                        }
+                    },
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Color(0xFF79E2FF),
                         contentColor = Color.Black
@@ -260,5 +277,48 @@ fun UserRegisterScreen(navController: NavController) {
                 )
             }
         }
+    }
+}
+
+/**
+ * Realiza la petición de registro a la API y devuelve `true` si el registro fue exitoso.
+ * Retorna `false` si hay un error o si las contraseñas no coinciden.
+ */
+suspend fun registerUser(username: String, email: String, password: String, confirmPassword: String): Boolean {
+    if (password != confirmPassword) {
+        Log.e("RegisterError", "Las contraseñas no coinciden")
+        return false
+    }
+
+    val jsonBody = JSONObject().apply {
+        put("nickname", username)
+        put("mail", email)
+        put("password", password)
+        put("style_fav", "rock") // Ajusta según la lógica de la app
+    }
+
+    Log.d("RegisterRequest", "JSON enviado: $jsonBody")
+
+    return try {
+        val response = ApiClient.post("user/register", jsonBody)
+        if (response != null) {
+            val jsonResponse = JSONObject(response)
+            val message = jsonResponse.optString("message", "")
+
+            if (message.contains("registrado con éxito", ignoreCase = true)) {
+                Log.d("RegisterSuccess", "Registro exitoso")
+                return true
+            } else {
+                Log.e("RegisterError", "Error en el registro: $message")
+                return false
+            }
+        } else {
+            Log.e("RegisterError", "El servidor respondió con null")
+            return false
+        }
+    } catch (e: Exception) {
+        e.printStackTrace()
+        Log.e("RegisterError", "Error de conexión: ${e.message}")
+        return false
     }
 }
