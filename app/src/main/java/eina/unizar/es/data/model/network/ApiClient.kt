@@ -1,4 +1,5 @@
 package eina.unizar.es.data.model.network
+import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -23,8 +24,8 @@ object ApiClient {
             val responseCode = connection.responseCode
             val response = connection.inputStream.bufferedReader().readText()
 
-            println("🔍 Código de respuesta: $responseCode")
-            println("📩 Respuesta del servidor: $response")
+            println("Código de respuesta: $responseCode")
+            println("Respuesta del servidor: $response")
 
             return@withContext if (responseCode == HttpURLConnection.HTTP_OK) {
                 response
@@ -59,19 +60,17 @@ object ApiClient {
             }
 
             val responseCode = connection.responseCode
-            val response = connection.inputStream.bufferedReader().readText()
+            Log.d("ApiClient", "Código de respuesta: $responseCode")
 
-            println("Código de respuesta: $responseCode")
-            println("Respuesta del servidor: $response")
-
-            return@withContext if (responseCode == HttpURLConnection.HTTP_OK) {
-                response
+            return@withContext if (responseCode in 200..299) { // Acepta códigos 2XX
+                connection.inputStream.bufferedReader().use { it.readText() } // Lee la respuesta correctamente
             } else {
-                null
+                Log.e("ApiClient", "Error en la respuesta del servidor: código $responseCode")
+                connection.errorStream?.bufferedReader()?.use { it.readText() } // Leer el mensaje de error si lo hay
             }
         } catch (e: Exception) {
             e.printStackTrace()
-            println("Error al conectar con el backend: ${e.message}")
+            Log.e("ApiClient", "Error de conexión con el backend: ${e.message}")
             null
         }
     }
