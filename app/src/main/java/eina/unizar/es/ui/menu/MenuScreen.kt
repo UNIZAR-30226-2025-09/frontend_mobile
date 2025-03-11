@@ -67,7 +67,8 @@ fun HomeScreen(navController: NavController) {
                             modifier = Modifier
                                 .align(Alignment.CenterVertically)
                                 .padding(end = 16.dp, top = 16.dp),
-                            false
+                            premium = false,  // Asumimos que el usuario NO es premium
+                            navController = navController // Pasamos el `navController`
                         )
                     }
                 },
@@ -192,7 +193,7 @@ fun HomeScreen(navController: NavController) {
  * El banner se muestra a la derecha. Reemplaza R.drawable.my_logo por el recurso de tu logo.
  */
 @Composable
-fun VibraBanner(modifier: Modifier = Modifier, premium : Boolean) {
+fun VibraBanner(modifier: Modifier = Modifier, premium: Boolean, navController: NavController) {
     val bannerWidth = 160.dp
     val bannerHeight = 50.dp
     val gradientBrush = Brush.horizontalGradient(
@@ -204,7 +205,12 @@ fun VibraBanner(modifier: Modifier = Modifier, premium : Boolean) {
             .size(width = bannerWidth, height = bannerHeight)
             .clip(RoundedCornerShape(8.dp))
             .background(gradientBrush)
-            .padding(horizontal = 6.dp),
+            .padding(horizontal = 6.dp)
+            .clickable {
+                if (!premium) {
+                    navController.navigate("payment") // Navegar a la pantalla de pago si NO es premium
+                }
+            },
         contentAlignment = Alignment.Center
     ) {
         Row(
@@ -212,7 +218,6 @@ fun VibraBanner(modifier: Modifier = Modifier, premium : Boolean) {
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            // Carga el logo (asegúrate de tener R.drawable.my_logo en res/drawable)
             Image(
                 painter = painterResource(id = R.drawable.vibrablanco),
                 contentDescription = "Logo",

@@ -16,31 +16,36 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.stripe.android.paymentsheet.PaymentSheet
 import com.stripe.android.PaymentConfiguration
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import eina.unizar.es.data.model.network.ApiClient
+import kotlinx.coroutines.launch
 import org.json.JSONObject
-import java.net.HttpURLConnection
-import java.net.URL
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PaymentScreen(navController: NavController, paymentSheet: PaymentSheet) { // ✅ Recibe el PaymentSheet desde MainActivity
+fun PaymentScreen(navController: NavController, paymentSheet: PaymentSheet) {
     val context = LocalContext.current as ComponentActivity
     var paymentIntentClientSecret by remember { mutableStateOf<String?>(null) }
     var isPaymentReady by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) {
+        // Inicializar configuración de Stripe
         PaymentConfiguration.init(
             context,
             "pk_test_51R0pjqP1jnBE1veqsiXWTUll0H44mEoupgzDAnrFyjZ9pUPNHZ3aGViTzT49nYDchBr0F6UhI6V7kMA3DV2OFi3Z00XUhmPX1A"
         )
 
-        val clientSecret = fetchPaymentIntent()
-        println("🔑 ClientSecret recibido: $clientSecret")
+        // Obtener el Client Secret desde la API de Stripe
+        coroutineScope.launch {
+            val clientSecret = fetchPaymentIntent()
+            println("🔑 ClientSecret recibido: $clientSecret")
 
-        if (clientSecret != null) {
-            paymentIntentClientSecret = clientSecret
-            isPaymentReady = true
+            if (clientSecret != null) {
+                paymentIntentClientSecret = clientSecret
+                isPaymentReady = true
+            } else {
+                isPaymentReady = false // Si falla, evitar mostrar "loading" indefinido
+            }
         }
     }
 
@@ -80,33 +85,11 @@ fun PaymentScreen(navController: NavController, paymentSheet: PaymentSheet) { //
     }
 }
 
+/**
+ * Obtiene el `clientSecret` para el pago desde la API de Stripe utilizando `ApiClient`.
+ */
 suspend fun fetchPaymentIntent(): String? {
-    return withContext(Dispatchers.IO) {
-        try {
-            val url = URL("http://10.0.2.2:8080/create-payment-intent")
-            val connection = url.openConnection() as HttpURLConnection
-            connection.requestMethod = "POST"
-            connection.setRequestProperty("Content-Type", "application/json")
-            connection.doOutput = true
-
-            val responseCode = connection.responseCode
-            val response = connection.inputStream.bufferedReader().readText()
-
-            println("🔍 Código de respuesta: $responseCode")
-            println("📩 Respuesta del servidor: $response")
-
-            if (responseCode == HttpURLConnection.HTTP_OK) {
-                val json = JSONObject(response)
-                connection.disconnect()
-                json.getString("clientSecret")
-            } else {
-                connection.disconnect()
-                null
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-            println("⚠ Error al conectar con el backend: ${e.message}")
-            null
-        }
+    return ApiClient.post("stripe/create-payment-intent", JSONObject())?.let {
+        JSONObject(it).getString("clientSecret")
     }
 }
