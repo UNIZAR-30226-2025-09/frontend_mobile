@@ -51,7 +51,7 @@ fun AppNavigator(navController: NavController, paymentSheet: PaymentSheet, ) {
                 composable("perfilEdit") { EditProfileScreen(navController) }
                 composable("search") { SearchScreen(navController) }
                 composable("song") { SongScreen(navController) }
-
+                composable("payment") { PaymentScreen(navController, paymentSheet) }
             }
         }
     }
