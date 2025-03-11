@@ -18,13 +18,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import eina.unizar.es.R
 import eina.unizar.es.ui.components.UserProfileMenu
+import eina.unizar.es.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -47,42 +47,7 @@ fun LibraryScreen(navController: NavController) {
     )
 
     Scaffold(
-        bottomBar = {
-            NavigationBar(containerColor = Color(0xFF121212)) {
-                bottomNavItems.forEachIndexed { index, (label, icon) ->
-                    NavigationBarItem(
-                        selected = (selectedItem == index),
-                        onClick = {
-                            selectedItem = index
-                            when (index) {
-                                0 -> navController.navigate("menu") // Inicio
-                                1 -> navController.navigate("search") // Buscador
-                                2 -> navController.navigate("library") // Biblioteca
-                            }
-                        },
-                        icon = { Icon(icon, contentDescription = label) },
-                        label = { Text(label, fontSize = 12.sp) },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = Color.White,
-                            unselectedIconColor = Color.Gray,
-                            selectedTextColor = Color.White,
-                            unselectedTextColor = Color.Gray,
-                            indicatorColor = Color(0xFF0D47A1) // Azul cuando está seleccionado
-                        )
-                    )
-                }
-            }
-        },
-        containerColor = Color.Black // Color de fondo
-    ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .background(Color.Black)
-                .padding(8.dp)
-        ) {
-            // Barra superior con perfil y lupa
+        topBar = {
             TopAppBar(
                 title = {
                     Row(
@@ -100,31 +65,65 @@ fun LibraryScreen(navController: NavController) {
                             Icon(
                                 imageVector = Icons.Default.Search,
                                 contentDescription = "Buscar",
-                                tint = Color.White
+                                tint = MaterialTheme.colorScheme.onBackground
                             )
                         }
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = Color.Black
+                    containerColor = MaterialTheme.colorScheme.background
                 )
             )
+        },
+        bottomBar = {
+            NavigationBar(containerColor = Color.Transparent) {
+                bottomNavItems.forEachIndexed { index, (label, icon) ->
+                    NavigationBarItem(
+                        selected = (selectedItem == index),
+                        onClick = {
+                            selectedItem = index
+                            when (index) {
+                                0 -> navController.navigate("menu") // Inicio
+                                1 -> navController.navigate("search") // Buscador
+                                2 -> navController.navigate("library") // Biblioteca
+                            }
+                        },
+                        icon = { Icon(icon, contentDescription = label) },
+                        label = { Text(label, fontSize = 12.sp) },
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = MaterialTheme.colorScheme.onBackground,
+                            unselectedIconColor = MaterialTheme.colorScheme.inverseSurface,
+                            selectedTextColor = MaterialTheme.colorScheme.onBackground,
+                            unselectedTextColor = MaterialTheme.colorScheme.inverseSurface,
 
+                            )
+                    )
+                }
+            }
+        },
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .background(MaterialTheme.colorScheme.background)
+                .padding(8.dp)
+        ) {
             // Si la búsqueda está activa, mostramos el cuadro de búsqueda debajo del perfil
             if (isSearching) {
                 OutlinedTextField(
                     value = searchText,
                     onValueChange = { searchText = it },
-                    placeholder = { Text("Buscar en tu biblioteca", color = Color.Gray) },
-                    textStyle = androidx.compose.ui.text.TextStyle(color = Color.White),
+                    placeholder = { Text("Buscar en tu biblioteca", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)) },
+                    textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onBackground),
                     shape = RoundedCornerShape(16.dp),
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 8.dp),
                     colors = TextFieldDefaults.outlinedTextFieldColors(
-                        focusedBorderColor = Color.White,
-                        unfocusedBorderColor = Color.Gray,
-                        cursorColor = Color.White
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                        cursorColor = MaterialTheme.colorScheme.primary
                     ),
                     singleLine = true,
                     trailingIcon = {
@@ -135,7 +134,7 @@ fun LibraryScreen(navController: NavController) {
                             Icon(
                                 imageVector = Icons.Default.Close,
                                 contentDescription = "Cerrar búsqueda",
-                                tint = Color.White
+                                tint = MaterialTheme.colorScheme.onBackground
                             )
                         }
                     }
@@ -145,9 +144,8 @@ fun LibraryScreen(navController: NavController) {
             // Título "Tu Biblioteca"
             Text(
                 text = "Tu Biblioteca",
-                color = Color.White,
-                fontWeight = FontWeight.Bold,
-                fontSize = 24.sp,
+                style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.onBackground,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
             )
 
@@ -160,8 +158,6 @@ fun LibraryScreen(navController: NavController) {
         }
     }
 }
-
-
 
 @Composable
 fun LibraryItem(item: LibraryItem) {
@@ -176,11 +172,20 @@ fun LibraryItem(item: LibraryItem) {
         )
         Spacer(modifier = Modifier.width(10.dp))
         Column {
-            Text(text = item.name, color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-            Text(text = item.type, color = Color.Gray, fontSize = 14.sp)
+            Text(
+                text = item.name,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+            Text(
+                text = item.type,
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+            )
         }
     }
 }
+
 
 // Datos simulados
 data class LibraryItem(val name: String, val type: String)
@@ -188,8 +193,8 @@ data class LibraryItem(val name: String, val type: String)
 fun getLibraryItems(filter: String): List<LibraryItem> {
     return when (filter) {
         "Playlists" -> listOf(
-            LibraryItem("Canciones que te gustan", "Playlist"),
-            LibraryItem("Playlist prueba", "Playlist")
+            LibraryItem("Canciones que te gustan", "Lista"),
+            LibraryItem("Vibra", "Lista")
         )
         else -> emptyList()
     }

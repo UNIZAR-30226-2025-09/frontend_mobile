@@ -11,8 +11,20 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.example.musicapp.ui.song.SongScreen
 import com.stripe.android.paymentsheet.PaymentSheet
+import eina.unizar.es.ui.auth.UserLoginScreen
+import eina.unizar.es.ui.auth.UserRegisterScreen
+import eina.unizar.es.ui.library.LibraryScreen
+import eina.unizar.es.ui.main.MainScreen
+import eina.unizar.es.ui.menu.HomeScreen
 import eina.unizar.es.ui.payments.PaymentScreen
+import eina.unizar.es.ui.plans.PlansScreen
+import eina.unizar.es.ui.player.PlayerScreen
+import eina.unizar.es.ui.playlist.PlaylistScreen
+import eina.unizar.es.ui.search.SearchScreen
+import eina.unizar.es.ui.user.EditProfileScreen
+import eina.unizar.es.ui.user.UserSettings
 
 @Composable
 fun AppNavigator(navController: NavController, paymentSheet: PaymentSheet, ) {
@@ -25,20 +37,21 @@ fun AppNavigator(navController: NavController, paymentSheet: PaymentSheet, ) {
                 startDestination = "main",
                 modifier = Modifier.padding(innerPadding)
             ) {
-                composable("main") { PaymentScreen(navController, paymentSheet) }
-                /*
+                //composable("main") { PaymentScreen(navController, paymentSheet) }
+
                 composable("main") { MainScreen(navController) }
                 composable("player") { PlayerScreen() }
                 composable("plans") { PlansScreen(navController) }
                 composable("login") { UserLoginScreen(navController) }
-                composable("register") { UserRegisterScreen(navController)  }
-                composable("menu") {HomeScreen(navController)}
+                composable("register") { UserRegisterScreen(navController) }
+                composable("menu") { HomeScreen(navController) }
                 composable("playlist") { PlaylistScreen(navController) }
                 composable("settings") { UserSettings(navController) }
                 composable("library") { LibraryScreen(navController) }
                 composable("perfilEdit") { EditProfileScreen(navController) }
                 composable("search") { SearchScreen(navController) }
-                */
+                composable("song") { SongScreen(navController) }
+
             }
         }
     }

@@ -15,6 +15,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.*
 import androidx.navigation.NavController
+import eina.unizar.es.ui.navbar.BottomNavigationBar // Importamos la NavigationBar
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -47,111 +48,123 @@ fun SearchScreen(navController: NavController) {
     val currentContainerColor = if (isFocused) searchBarFocusedColor else searchBarUnfocusedColor
     val currentTextColor = if (isFocused) searchTextFocusedColor else searchTextUnfocusedColor
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(backgroundColor)
-            .padding(16.dp)
-    ) {
-        // Título "Buscar" en grande
-        Text(
-            text = "Buscar",
-            fontSize = 32.sp,
-            color = textColor,
-            modifier = Modifier.padding(bottom = 16.dp)
-        )
-
-        // Barra de búsqueda ocupando todo el ancho
-        OutlinedTextField(
-            value = searchQuery,
-            onValueChange = { searchQuery = it },
-            label = { Text("Buscar...", color = currentTextColor) },
-            textStyle = TextStyle(color = currentTextColor),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
-            modifier = Modifier.fillMaxWidth(),
-            colors = TextFieldDefaults.outlinedTextFieldColors(
-                containerColor = currentContainerColor,
-                focusedBorderColor = buttonColor,
-                unfocusedBorderColor = currentTextColor,
-                cursorColor = currentTextColor,
-                focusedLabelColor = currentTextColor,
-                unfocusedLabelColor = currentTextColor
-            ),
-            interactionSource = interactionSource
-        )
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        // Título de historial, si hay búsquedas
-        if (searchHistory.isNotEmpty()) {
-            Text(
-                text = "Últimas búsquedas",
-                fontSize = 20.sp,
-                color = textColor,
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
-        }
-
-        // Lista de búsquedas recientes presentadas como banners (Cards)
-        LazyColumn(
-            modifier = Modifier.weight(1f)
+    // ✅ Usamos Scaffold para manejar la barra inferior correctamente
+    Scaffold(
+        bottomBar = { BottomNavigationBar(navController) },
+        containerColor = backgroundColor
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .background(backgroundColor)
+                .padding(16.dp)
         ) {
-            items(searchHistory) { result ->
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 8.dp),
-                    colors = CardDefaults.cardColors(containerColor = cardBackgroundColor),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(16.dp)
-                    ) {
-                        // Imagen placeholder (cuadrado)
-                        Box(
-                            modifier = Modifier
-                                .size(60.dp)
-                                .background(Color.DarkGray)
+            // Título "Buscar" en grande
+            Text(
+                text = "Buscar",
+                fontSize = 32.sp,
+                color = textColor,
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
+
+            // Barra de búsqueda ocupando todo el ancho
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                label = { Text("Buscar...", color = currentTextColor) },
+                textStyle = TextStyle(color = currentTextColor),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
+                modifier = Modifier.fillMaxWidth(),
+                colors = TextFieldDefaults.outlinedTextFieldColors(
+                    containerColor = currentContainerColor,
+                    focusedBorderColor = buttonColor,
+                    unfocusedBorderColor = currentTextColor,
+                    cursorColor = currentTextColor,
+                    focusedLabelColor = currentTextColor,
+                    unfocusedLabelColor = currentTextColor
+                ),
+                interactionSource = interactionSource
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // ✅ LazyColumn con `Modifier.weight(1f)` para que termine antes y no tape la navbar
+            LazyColumn(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+            ) {
+                // Título de historial, si hay búsquedas
+                if (searchHistory.isNotEmpty()) {
+                    item {
+                        Text(
+                            text = "Últimas búsquedas",
+                            fontSize = 20.sp,
+                            color = textColor,
+                            modifier = Modifier.padding(bottom = 8.dp)
                         )
-                        Spacer(modifier = Modifier.width(16.dp))
-                        Column {
-                            Text(
-                                text = result,
-                                fontSize = 18.sp,
-                                color = Color.White
+                    }
+                }
+
+                // Lista de búsquedas recientes presentadas como banners (Cards)
+                items(searchHistory) { result ->
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp),
+                        colors = CardDefaults.cardColors(containerColor = cardBackgroundColor),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(16.dp)
+                        ) {
+                            // Imagen placeholder (cuadrado)
+                            Box(
+                                modifier = Modifier
+                                    .size(60.dp)
+                                    .background(Color.DarkGray)
                             )
-                            // Si es "Canción", mostramos "Artista X", si no, "Playlist"
-                            if (result.startsWith("Canción")) {
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Column {
                                 Text(
-                                    text = "Artista X",
-                                    fontSize = 14.sp,
+                                    text = result,
+                                    fontSize = 18.sp,
                                     color = Color.White
                                 )
-                            } else {
-                                Text(
-                                    text = "Playlist",
-                                    fontSize = 14.sp,
-                                    color = Color.White
-                                )
+                                // Si es "Canción", mostramos "Artista X", si no, "Playlist"
+                                if (result.startsWith("Canción")) {
+                                    Text(
+                                        text = "Artista X",
+                                        fontSize = 14.sp,
+                                        color = Color.White
+                                    )
+                                } else {
+                                    Text(
+                                        text = "Playlist",
+                                        fontSize = 14.sp,
+                                        color = Color.White
+                                    )
+                                }
                             }
                         }
                     }
                 }
             }
-        }
 
-        // Botón para limpiar historial (estrecho y centrado)
-        if (searchHistory.isNotEmpty()) {
-            Button(
-                onClick = { searchHistory.clear() },
-                modifier = Modifier
-                    .width(200.dp)
-                    .align(Alignment.CenterHorizontally)
-                    .padding(top = 16.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = buttonColor)
-            ) {
-                Text("Limpiar historial", color = Color.White)
+            // ✅ Botón de limpiar historial (estrecho y centrado)
+            if (searchHistory.isNotEmpty()) {
+                Button(
+                    onClick = { searchHistory.clear() },
+                    modifier = Modifier
+                        .width(200.dp)
+                        .align(Alignment.CenterHorizontally)
+                        .padding(top = 16.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = buttonColor)
+                ) {
+                    Text("Limpiar historial", color = Color.White)
+                }
             }
         }
     }

@@ -45,7 +45,7 @@ fun PlansScreen(navController: NavController) {
                 buttonText = "Pasar a Gratuito",
                 buttonColor = Color(0xFFFFAFC1), // Rosado
                 textColor = Color(0xFFFFAFC1),
-                iconResId = R.drawable.vibrarosa, // Logo rosa
+                iconResId = R.drawable.logorosa, // Logo rosa
                 onClick = { navController.navigate("login") }
             )
 
@@ -64,7 +64,7 @@ fun PlansScreen(navController: NavController) {
                 buttonText = "Pasar a Premium",
                 buttonColor = Color(0xFFB0C4DE), // Azul
                 textColor = Color(0xFFB0C4DE),
-                iconResId = R.drawable.vibraazul, // Logo azul
+                iconResId = R.drawable.logoazul, // Logo azul
                 onClick = { navController.navigate("login") }
             )
         }
