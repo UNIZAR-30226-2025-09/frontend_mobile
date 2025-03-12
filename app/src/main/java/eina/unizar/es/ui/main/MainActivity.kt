@@ -10,12 +10,12 @@ import com.stripe.android.paymentsheet.PaymentSheetResult
 import eina.unizar.es.ui.theme.VibraAppTheme
 
 class MainActivity : ComponentActivity() {
-    private lateinit var paymentSheet: PaymentSheet  // ✅ Declaramos el PaymentSheet aquí
+    private lateinit var paymentSheet: PaymentSheet  // Declaramos el PaymentSheet aquí
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // ✅ Inicializamos PaymentSheet en onCreate()
+        // Inicializamos PaymentSheet en onCreate()
         paymentSheet = PaymentSheet(this) { result ->
             when (result) {
                 is PaymentSheetResult.Completed -> println("✅ Pago completado")
@@ -27,7 +27,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             VibraAppTheme {
                 val navController = rememberNavController()
-                AppNavigator(navController, paymentSheet) // ✅ Pasamos PaymentSheet a la pantalla
+                AppNavigator(navController, paymentSheet) // Pasamos PaymentSheet a la pantalla
             }
         }
     }

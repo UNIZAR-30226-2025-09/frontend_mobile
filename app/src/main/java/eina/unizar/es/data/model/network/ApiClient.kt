@@ -35,7 +35,7 @@ object ApiClient {
             }
         } catch (e: Exception) {
             e.printStackTrace()
-            println("⚠ Error al conectar con el backend: ${e.message}")
+            println("Error al conectar con el backend: ${e.message}")
             null
         }
     }
