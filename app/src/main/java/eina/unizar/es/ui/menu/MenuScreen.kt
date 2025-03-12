@@ -10,12 +10,9 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-//import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.rounded.Menu
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -25,30 +22,21 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import eina.unizar.es.R
-import eina.unizar.es.ui.components.UserProfileMenu // Asegúrate de tener este import y el Composable definido
+import eina.unizar.es.ui.components.UserProfileMenu
 import eina.unizar.es.ui.navbar.BottomNavigationBar
+import eina.unizar.es.ui.player.FloatingMusicPlayer
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(navController: NavController) {
-
     val albumes = listOf("DeBÍ TiRAR MáS FOToS", "Easy Money Baby", "BUENAS NOCHES", "Un Verano Sin Ti")
     val listas = listOf("Éxitos España", "Los 2000 España", "Top 50: Global")
 
     val cancionesRecomendadas = listOf("Canción A", "Canción B", "Canción C", "Canción D", "Canción E", "Canción F", "Canción G", "Canción H")
-
-    val bottomNavItems = listOf(
-        Pair("Inicio", Icons.Default.Home),
-        Pair("Buscar", Icons.Default.Search),
-        Pair("Biblioteca", Icons.Rounded.Menu),
-    )
-    var selectedItem by remember { mutableStateOf(0) }
 
     Scaffold(
         topBar = {
@@ -60,7 +48,6 @@ fun HomeScreen(navController: NavController) {
                     ) {
                         UserProfileMenu(navController)
 
-                        // 🔹 Spacer para empujar el banner hacia la derecha
                         Spacer(modifier = Modifier.weight(0.9f))
 
                         VibraBanner(
@@ -85,9 +72,11 @@ fun HomeScreen(navController: NavController) {
                 .fillMaxSize()
                 .padding(innerPadding)
                 .background(MaterialTheme.colorScheme.background)
-                .padding(horizontal = 16.dp, vertical = 8.dp)
+                .padding(horizontal = 16.dp, vertical = 0.dp)
         ) {
-            Column {
+            Column(
+                modifier = Modifier.fillMaxSize() // Aseguramos que la columna ocupa todo el espacio
+            ) {
                 // Canciones recomendadas en Grid
                 Text("Canciones recomendadas", color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.titleLarge)
                 Spacer(modifier = Modifier.height(8.dp))
@@ -96,7 +85,7 @@ fun HomeScreen(navController: NavController) {
                     columns = GridCells.Fixed(2),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.weight(1f) // La grilla ocupa la mayor parte del espacio
                 ) {
                     items(cancionesRecomendadas) { cancion ->
                         Card(
@@ -136,7 +125,7 @@ fun HomeScreen(navController: NavController) {
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Image(
-                                        painter = painterResource(id = R.drawable.kanyeperfil), // 📌 Imagen dentro del cuadrado
+                                        painter = painterResource(id = R.drawable.kanyeperfil),
                                         contentDescription = "Álbum",
                                         modifier = Modifier.size(120.dp)
                                     )
@@ -170,7 +159,7 @@ fun HomeScreen(navController: NavController) {
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Image(
-                                        painter = painterResource(id = R.drawable.kanyeperfil), // 📌 Imagen dentro del cuadrado
+                                        painter = painterResource(id = R.drawable.kanyeperfil),
                                         contentDescription = "Lista",
                                         modifier = Modifier.size(120.dp)
                                     )
@@ -180,7 +169,19 @@ fun HomeScreen(navController: NavController) {
                             Text(lista, color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.bodyMedium)
                         }
                     }
-
+                }
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    // Reproductor Flotante
+                    val isPlaying = remember { mutableStateOf(false) }
+                    FloatingMusicPlayer(
+                        title = "Mi canción",
+                        artist = "Artista",
+                        albumArt = R.drawable.kanyeperfil,
+                        isPlaying = isPlaying.value,
+                       // onPlayPauseClick = { isPlaying.value = !isPlaying.value },
+                       // onFavoriteClick = { /*TODO*/ },
+                       // onComputerClick = { /*TODO*/ }
+                    )
                 }
             }
         }
@@ -192,7 +193,7 @@ fun HomeScreen(navController: NavController) {
  * El banner se muestra a la derecha. Reemplaza R.drawable.my_logo por el recurso de tu logo.
  */
 @Composable
-fun VibraBanner(modifier: Modifier = Modifier, premium : Boolean) {
+fun VibraBanner(modifier: Modifier = Modifier, premium: Boolean) {
     val bannerWidth = 160.dp
     val bannerHeight = 50.dp
     val gradientBrush = Brush.horizontalGradient(
@@ -212,7 +213,6 @@ fun VibraBanner(modifier: Modifier = Modifier, premium : Boolean) {
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            // Carga el logo (asegúrate de tener R.drawable.my_logo en res/drawable)
             Image(
                 painter = painterResource(id = R.drawable.vibrablanco),
                 contentDescription = "Logo",
