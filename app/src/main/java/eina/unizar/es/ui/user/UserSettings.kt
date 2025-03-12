@@ -52,7 +52,11 @@ fun UserSettings(navController: NavController) {
                 shape = RoundedCornerShape(12.dp),
                 colors = CardDefaults.cardColors(containerColor = cardColor),
                 modifier = Modifier.fillMaxWidth()
-                    .border(2.dp, lighBlue, RoundedCornerShape(16.dp))
+                    .border(1.dp, Color(0xFFB0C4DE), RoundedCornerShape(16.dp))
+                    .background(
+                        color = Color.White.copy(alpha = 0.1f),
+                        shape = RoundedCornerShape(16.dp)
+                    )
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text("Tu plan", color = Color.Gray, fontSize = 12.sp)
@@ -116,12 +120,12 @@ fun HeaderSection() {
             Spacer(modifier = Modifier.height(8.dp))
 
             // Nombre de usuario
-            Text("Kanye", color = Color(0xFF121212), fontSize = 28.sp, fontWeight = FontWeight.Bold)
+            Text("Kanye", color = Color(0xFF1E1E1E), fontSize = 28.sp, fontWeight = FontWeight.Bold)
 
             Spacer(modifier = Modifier.height(4.dp))
 
             // Datos de usuario
-            Text("1 lista pública · 3 amigos", color = Color(0xFF121212), fontSize = 14.sp, fontWeight = FontWeight.Bold)
+            Text("1 lista pública · 3 amigos", color = Color(0xFF1E1E1E), fontSize = 14.sp)
         }
     }
 
@@ -129,7 +133,7 @@ fun HeaderSection() {
     Canvas(
         modifier = Modifier
             .fillMaxWidth()
-            .height(60.dp) // 🔹 Ajusta la altura del efecto
+            .height(60.dp) // Ajusta la altura del efecto
     ) {
         val width = size.width
         val height = size.height

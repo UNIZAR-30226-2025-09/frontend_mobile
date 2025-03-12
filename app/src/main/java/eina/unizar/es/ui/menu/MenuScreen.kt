@@ -1,54 +1,39 @@
 package eina.unizar.es.ui.menu
 
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.animation.animateColor
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-//import androidx.compose.material.icons.filled.Chat
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.rounded.Menu
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
+import androidx.compose.ui.*
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.stripe.android.paymentsheet.PaymentSheet
 import eina.unizar.es.R
-import eina.unizar.es.ui.components.UserProfileMenu // Asegúrate de tener este import y el Composable definido
+import eina.unizar.es.ui.components.UserProfileMenu
 import eina.unizar.es.ui.navbar.BottomNavigationBar
+import eina.unizar.es.ui.payments.PaymentScreen
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen(navController: NavController) {
-
-    val albumes = listOf("DeBÍ TiRAR MáS FOToS", "Easy Money Baby", "BUENAS NOCHES", "Un Verano Sin Ti")
-    val listas = listOf("Éxitos España", "Los 2000 España", "Top 50: Global")
-
-    val cancionesRecomendadas = listOf("Canción A", "Canción B", "Canción C", "Canción D", "Canción E", "Canción F", "Canción G", "Canción H")
-
-    val bottomNavItems = listOf(
-        Pair("Inicio", Icons.Default.Home),
-        Pair("Buscar", Icons.Default.Search),
-        Pair("Biblioteca", Icons.Rounded.Menu),
-    )
-    var selectedItem by remember { mutableStateOf(0) }
+fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet) {
+    var showPaymentDialog by remember { mutableStateOf(false) } // Estado para mostrar pop-up
 
     Scaffold(
         topBar = {
@@ -60,15 +45,15 @@ fun HomeScreen(navController: NavController) {
                     ) {
                         UserProfileMenu(navController)
 
-                        // 🔹 Spacer para empujar el banner hacia la derecha
                         Spacer(modifier = Modifier.weight(0.9f))
 
+                        // Hacerse Premium activa el pop-up en lugar de cambiar de pantalla
                         VibraBanner(
                             modifier = Modifier
                                 .align(Alignment.CenterVertically)
                                 .padding(end = 16.dp, top = 16.dp),
-                            premium = false,  // Asumimos que el usuario NO es premium
-                            navController = navController // Pasamos el `navController`
+                            premium = false,
+                            onPremiumClick = { showPaymentDialog = true } // Mostrar pop-up
                         )
                     }
                 },
@@ -77,9 +62,7 @@ fun HomeScreen(navController: NavController) {
                 )
             )
         },
-        bottomBar = {
-            BottomNavigationBar(navController)
-        },
+        bottomBar = { BottomNavigationBar(navController) },
     ) { innerPadding ->
         Box(
             modifier = Modifier
@@ -89,7 +72,6 @@ fun HomeScreen(navController: NavController) {
                 .padding(horizontal = 16.dp, vertical = 8.dp)
         ) {
             Column {
-                // Canciones recomendadas en Grid
                 Text("Canciones recomendadas", color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.titleLarge)
                 Spacer(modifier = Modifier.height(8.dp))
 
@@ -99,7 +81,7 @@ fun HomeScreen(navController: NavController) {
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    items(cancionesRecomendadas) { cancion ->
+                    items(listOf("Canción A", "Canción B", "Canción C", "Canción D", "Canción E", "Canción F", "Canción G", "Canción H", "Canción I", "Canción J")) { cancion ->
                         Card(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -122,8 +104,7 @@ fun HomeScreen(navController: NavController) {
                 Spacer(modifier = Modifier.height(8.dp))
 
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    items(albumes.size) { idx ->
-                        val album = albumes[idx]
+                    items(listOf("DeBÍ TiRAR MáS FOToS", "Easy Money Baby", "Gaxur Gang", "Marietuco Tiradera", "Buenas Noches", "Buenos Dias", "Buenas Tardes")) { album ->
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Card(
                                 modifier = Modifier
@@ -132,12 +113,9 @@ fun HomeScreen(navController: NavController) {
                                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                                 elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
                             ) {
-                                Box(
-                                    modifier = Modifier.fillMaxSize(),
-                                    contentAlignment = Alignment.Center
-                                ) {
+                                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                                     Image(
-                                        painter = painterResource(id = R.drawable.kanyeperfil), // 📌 Imagen dentro del cuadrado
+                                        painter = painterResource(id = R.drawable.kanyeperfil),
                                         contentDescription = "Álbum",
                                         modifier = Modifier.size(120.dp)
                                     )
@@ -156,8 +134,7 @@ fun HomeScreen(navController: NavController) {
                 Spacer(modifier = Modifier.height(8.dp))
 
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    items(listas.size) { idx ->
-                        val lista = listas[idx]
+                    items(listOf("Éxitos España", "Top 50: Global")) { lista ->
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Card(
                                 modifier = Modifier
@@ -166,12 +143,9 @@ fun HomeScreen(navController: NavController) {
                                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                                 elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
                             ) {
-                                Box(
-                                    modifier = Modifier.fillMaxSize(),
-                                    contentAlignment = Alignment.Center
-                                ) {
+                                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                                     Image(
-                                        painter = painterResource(id = R.drawable.kanyeperfil), // 📌 Imagen dentro del cuadrado
+                                        painter = painterResource(id = R.drawable.kanyeperfil),
                                         contentDescription = "Lista",
                                         modifier = Modifier.size(120.dp)
                                     )
@@ -181,40 +155,60 @@ fun HomeScreen(navController: NavController) {
                             Text(lista, color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.bodyMedium)
                         }
                     }
-
                 }
             }
         }
+
+        // Mostrar pop-up si el usuario pulsa en "Hacerse Premium" + Logica de esPremium?
+        if (showPaymentDialog) {
+            PaymentScreen(
+                onDismiss = { showPaymentDialog = false },
+                paymentSheet = paymentSheet
+            )
+        }
     }
 }
+
 
 /**
  * Composable que dibuja un banner degradado con un logo y el texto "Vibra".
  * El banner se muestra a la derecha. Reemplaza R.drawable.my_logo por el recurso de tu logo.
  */
 @Composable
-fun VibraBanner(modifier: Modifier = Modifier, premium: Boolean, navController: NavController) {
+fun VibraBanner(modifier: Modifier = Modifier, premium: Boolean, onPremiumClick: () -> Unit) {
     val bannerWidth = 160.dp
     val bannerHeight = 50.dp
     val gradientBrush = Brush.horizontalGradient(
         colors = listOf(Color(0xFF004aad), Color(0xFF00a0d7))
+    )
+    // Animación infinita para el borde
+    val infiniteTransition = rememberInfiniteTransition()
+    val animatedBorderColor by infiniteTransition.animateColor(
+        initialValue = Color(0xFFB0C4DE), // Azul claro inicial
+        targetValue = Color(0xFF00D4FF), // Azul neón vibrante
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1200, easing = FastOutSlowInEasing), // Transición más rápida y dinámica
+            repeatMode = RepeatMode.Reverse
+        )
     )
 
     Box(
         modifier = modifier
             .size(width = bannerWidth, height = bannerHeight)
             .clip(RoundedCornerShape(8.dp))
-            .background(gradientBrush)
+            .border(2.dp, animatedBorderColor, RoundedCornerShape(16.dp))
+            .background(gradientBrush, shape = RoundedCornerShape(16.dp))
             .padding(horizontal = 6.dp)
             .clickable {
                 if (!premium) {
-                    navController.navigate("payment") // Navegar a la pantalla de pago si NO es premium
+                    onPremiumClick() // Desplegar Pop-up
                 }
             },
         contentAlignment = Alignment.Center
     ) {
         Row(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize()
+                .clip(RoundedCornerShape(16)),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
