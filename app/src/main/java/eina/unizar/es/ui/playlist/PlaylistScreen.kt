@@ -1,6 +1,6 @@
 package eina.unizar.es.ui.playlist
 
-
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -23,11 +23,14 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import eina.unizar.es.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 
@@ -285,6 +288,7 @@ fun PlaylistScreen(navController: NavController) {
 // Lista de canciones: Cada banner con imagen a la izquierda y título/artista a la derecha
             items(sortedSongs) { song ->
                 val artist = songArtistMap[song] ?: "Artista Desconocido"
+                var showSongOptionsBottomSheet by remember { mutableStateOf(false) } // Estado para mostrar el BottomSheet de opciones de la canción
                 Box(
                     modifier = Modifier.fillMaxWidth(),
                     contentAlignment = Alignment.Center
@@ -293,7 +297,7 @@ fun PlaylistScreen(navController: NavController) {
                         modifier = Modifier
                             .fillMaxWidth(0.9f)
                             .clickable {
-// Acción al pulsar en la canción (simulada)
+                                // Acción al pulsar en la canción (simulada)
                             },
                         colors = CardDefaults.cardColors(containerColor = cardBackgroundColor),
                         elevation = CardDefaults.cardElevation(defaultElevation = 10.dp)
@@ -304,14 +308,14 @@ fun PlaylistScreen(navController: NavController) {
                                 .padding(16.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-// Imagen de la canción (cuadrado)
+                            // Imagen de la canción (cuadrado)
                             Box(
                                 modifier = Modifier
                                     .size(60.dp)
                                     .background(Color.DarkGray) // Placeholder de la imagen
                             )
                             Spacer(modifier = Modifier.width(16.dp))
-                            Column {
+                            Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     text = song,
                                     color = textColor,
@@ -323,61 +327,177 @@ fun PlaylistScreen(navController: NavController) {
                                     style = TextStyle(fontSize = 14.sp)
                                 )
                             }
+                            IconButton(onClick = { showSongOptionsBottomSheet = true }) {
+                                Icon(
+                                    Icons.Default.MoreVert,
+                                    contentDescription = "Opciones de la canción",
+                                    tint = textColor
+                                )
+                            }
                         }
                     }
                 }
                 Spacer(modifier = Modifier.height(12.dp))
+
+                // BottomSheet para opciones de la canción (dentro del items)
+                if (showSongOptionsBottomSheet) {
+                    ModalBottomSheet(
+                        onDismissRequest = { showSongOptionsBottomSheet = false },
+                        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+                    ) {
+                        SongOptionsBottomSheetContent(
+                            onDismiss = { showSongOptionsBottomSheet = false },
+                            songTitle = song, // Pasa el título de la canción
+                            artistName = artist // Pasa el nombre del artista
+                        )
+                    }
+                }
+
+
+// Mostrar el BottomSheet de la playlist (fuera del items)
+            if (showBottomSheet) {
+                ModalBottomSheet(
+                    onDismissRequest = { showBottomSheet = false },
+                    sheetState = sheetState
+                ) {
+                    BottomSheetContent(
+                        playlistImage = R.drawable.kanyeperfil, // Reemplaza con tu imagen
+                        playlistTitle = "Mi Playlist", // Reemplaza con el título
+                        playlistAuthor = "KanyeWest", // Reemplaza con el autor
+                        onDismiss = { showBottomSheet = false }
+                    )
+                }
+            }
             }
         }
     }
-    // Mostrar el BottomSheet si showBottomSheet es true
-    if (showBottomSheet) {
-        ModalBottomSheet(
-            onDismissRequest = { showBottomSheet = false },
-            sheetState = sheetState
-        ) {
-            BottomSheetContent { showBottomSheet = false } // Contenido del BottomSheet
-        }
-    }
-
 }
 
+            /**
+             * Contenido del Bottom Sheet con las opciones de la playlist.
+             */
+            @Composable
+            fun BottomSheetContent(
+                playlistImage: Int, // Recibe la imagen de la playlist
+                playlistTitle: String, // Recibe el título de la playlist
+                playlistAuthor: String, // Recibe el autor de la playlist
+                onDismiss: () -> Unit
+            ) {
+                val textColor = Color.White
 
-/**
- * Contenido del Bottom Sheet con las opciones de la playlist.
- */
-@Composable
-fun BottomSheetContent(onDismiss: () -> Unit) {
-    val textColor = Color.White
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
+                ) {
+                    // Imagen, título y autor de la playlist en fila
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Image(
+                            painter = painterResource(id = playlistImage),
+                            contentDescription = null,
+                            modifier = Modifier.size(50.dp) // Imagen más pequeña
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column {
+                            Text(playlistTitle, color = textColor, fontSize = 16.sp)
+                            Text("de $playlistAuthor", color = Color.Gray, fontSize = 12.sp)
+                        }
+                    }
 
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(16.dp)
-    ) {
-        Text("Opciones de la Playlist", color = textColor, fontSize = 18.sp)
-        Spacer(modifier = Modifier.height(8.dp))
-        PlaylistOptionItem("Añadir Canción", onDismiss)
-        PlaylistOptionItem("Eliminar Canción", onDismiss)
-        PlaylistOptionItem("Compartir", onDismiss)
-        PlaylistOptionItem("Descargar", onDismiss)
-        Spacer(modifier = Modifier.height(16.dp))
-    }
-}
+                    Spacer(modifier = Modifier.height(16.dp))
 
-/**
- * Item de la lista de opciones en el Bottom Sheet.
- */
-@Composable
-fun PlaylistOptionItem(text: String, onClick: () -> Unit) {
-    Text(
-        text = text,
-        color = Color.White,
-        fontSize = 16.sp,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp)
-            .clickable { onClick() }
-    )
-}
+                    // Opciones de la playlist centradas
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        PlaylistOptionItem("Añadir Canción", onDismiss)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        PlaylistOptionItem("Eliminar Canción", onDismiss)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        PlaylistOptionItem("Compartir", onDismiss)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        PlaylistOptionItem("Descargar", onDismiss)
+                    }
 
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
+            }
+
+            /**
+             * Item de la lista de opciones en el Bottom Sheet.
+             */
+            @Composable
+            fun PlaylistOptionItem(text: String, onClick: () -> Unit) {
+                Text(
+                    text = text,
+                    color = Color.White,
+                    fontSize = 16.sp,
+                    modifier = Modifier
+                        .padding(vertical = 8.dp)
+                        .clickable { onClick() }
+                )
+            }
+
+            @Composable
+            fun SongOptionsBottomSheetContent(
+                onDismiss: () -> Unit,
+                songTitle: String,
+                artistName: String
+            ) {
+                val textColor = Color.White
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
+                ) {
+                    Text(
+                        songTitle,
+                        color = textColor,
+                        fontSize = 18.sp,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Text(
+                        "de $artistName",
+                        color = Color.Gray,
+                        fontSize = 14.sp,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                    SongOptionItem("Añadir a lista", onDismiss)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    SongOptionItem("Añadir a la biblioteca", onDismiss)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    SongOptionItem("Añadir a la cola", onDismiss)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    SongOptionItem("Eliminar de la lista", onDismiss)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    SongOptionItem("Compartir", onDismiss)
+                }
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
+            }
+
+            @Composable
+            fun SongOptionItem(text: String, onClick: () -> Unit) {
+                Text(
+                    text = text,
+                    color = Color.White,
+                    fontSize = 16.sp,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp)
+                        .clickable { onClick() }
+                )
+            }
