@@ -31,12 +31,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import eina.unizar.es.R
+import eina.unizar.es.data.model.network.ApiClient.get
+import eina.unizar.es.ui.song.Song
+import org.json.JSONObject
 
 @OptIn(ExperimentalMaterial3Api::class)
 
 @Composable
 
-fun PlaylistScreen(navController: NavController) {
+fun PlaylistScreen(navController: NavController, playlistId: String?) {
 
 // Colores básicos
     val backgroundColor = Color(0xFF000000) // Negro
@@ -102,15 +105,52 @@ fun PlaylistScreen(navController: NavController) {
         ((scrollOffset) / (maxOffset / 2)).coerceIn(0f, 1f)
     }
 
+
+    // Estado para almacenar la información de la playlist y sus canciones
+    var playlistInfo by remember { mutableStateOf<Playlist?>(null) }
+    var songs by remember { mutableStateOf<List<Song>>(emptyList()) }
+
+    // Llamar a la API para obtener los datos de la playlist seleccionada
+    LaunchedEffect(playlistId) {
+        playlistId?.let {
+            val response = get("playlists/$it") // Llamamos a la API
+            response?.let {
+                val jsonObject = JSONObject(response)
+                playlistInfo = Playlist(
+                    id = jsonObject.getString("id"),
+                    title = jsonObject.getString("name"),
+                    imageUrl = jsonObject.getString("front_page"),
+                    //author = jsonObject.getString("author") habra que hacer un get con el id
+                )
+                // Obtener las canciones de la playlist
+                val songsArray = jsonObject.getJSONArray("songs")
+                val songList = mutableListOf<Song>()
+                for (i in 0 until songsArray.length()) {
+                    val songObject = songsArray.getJSONObject(i)
+                    songList.add(
+                        Song(
+                            id = songObject.getString("id"),
+                            title = songObject.getString("name"),
+                            //artist = songObject.getString("artist")
+                        )
+                    )
+                }
+                songs = songList
+            }
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
-                    Text(
-                        text = playlistTitle,
-                        color = textColor,
-                        modifier = Modifier.alpha(topTitleAlpha)
-                    )
+                    playlistInfo?.let {
+                        Text(
+                            text = it.title,
+                            color = textColor,
+                            modifier = Modifier.alpha(topTitleAlpha)
+                        )
+                    }
                 },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
@@ -146,11 +186,13 @@ fun PlaylistScreen(navController: NavController) {
                             .background(Color.Gray) // Placeholder para la portada
                     )
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = playlistTitle,
-                        color = textColor,
-                        style = TextStyle(fontSize = 20.sp)
-                    )
+                    playlistInfo?.let {
+                        Text(
+                            text = it.title,
+                            color = textColor,
+                            style = TextStyle(fontSize = 20.sp)
+                        )
+                    }
                     Text(
                         text = playlistAuthor,
                         color = textColor,

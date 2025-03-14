@@ -37,6 +37,9 @@ import eina.unizar.es.ui.player.FloatingMusicPlayer
 import eina.unizar.es.ui.payments.PaymentScreen
 import eina.unizar.es.ui.playlist.Playlist
 import org.json.JSONArray
+import coil.compose.AsyncImage
+import androidx.compose.ui.Modifier
+import androidx.compose.foundation.layout.size
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -58,7 +61,7 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet) {
                     Playlist(
                         id = jsonObject.getString("id"),
                         title = jsonObject.getString("name"),
-                        //imageUrl = jsonObject.getString("image_url")
+                        imageUrl = jsonObject.getString("front_page")
                     )
                 )
             }
@@ -224,7 +227,9 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet) {
                                 Card(
                                     modifier = Modifier
                                         .size(120.dp)
-                                        .clickable { navController.navigate("playlist") },
+                                        .clickable {
+                                            navController.navigate("playlist/${playlist.id}") // PASAMOS EL ID
+                                        },
                                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                                     elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
                                 ) {
@@ -232,11 +237,10 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet) {
                                         modifier = Modifier.fillMaxSize(),
                                         contentAlignment = Alignment.Center
                                     ) {
-                                        // Aquí debes cargar la imagen de la playlist desde playlist.imageUrl
-                                        // Por ahora, usamos una imagen de ejemplo
-                                        Image(
-                                            painter = painterResource(id = R.drawable.kanyeperfil), // Reemplaza con la imagen de la playlist
-                                            contentDescription = "Lista",
+                                        // Aquí cargamos la imagen de la playlist desde playlist.imageUrl
+                                        AsyncImage(
+                                            model = playlist.imageUrl, // Usa la URL o la ruta de la imagen
+                                            contentDescription = "Álbum",
                                             modifier = Modifier.size(120.dp)
                                         )
                                     }
