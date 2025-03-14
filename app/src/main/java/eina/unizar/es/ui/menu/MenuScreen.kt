@@ -1,5 +1,6 @@
 package eina.unizar.es.ui.menu
 
+import android.content.Context
 import androidx.compose.animation.animateColor
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
@@ -20,13 +21,14 @@ import androidx.compose.ui.*
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.stripe.android.paymentsheet.PaymentSheet
 import eina.unizar.es.R
-import eina.unizar.es.ui.components.UserProfileMenu
+import eina.unizar.es.ui.user.UserProfileMenu
 import eina.unizar.es.ui.navbar.BottomNavigationBar
 import eina.unizar.es.ui.payments.PaymentScreen
 

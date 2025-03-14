@@ -40,6 +40,7 @@ android {
 }
 
 dependencies {
+    implementation("com.squareup.okhttp3:okhttp:4.9.3")
     implementation("com.stripe:stripe-android:20.50.0") // SDK de Stripe
     implementation("com.github.bumptech.glide:glide:4.15.1")
     implementation("com.github.bumptech.glide:okhttp3-integration:4.15.1")

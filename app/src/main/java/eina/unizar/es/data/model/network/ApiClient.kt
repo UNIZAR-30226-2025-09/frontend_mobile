@@ -1,10 +1,19 @@
 package eina.unizar.es.data.model.network
+import android.content.Context
 import android.util.Log
+import android.widget.Toast
+import androidx.navigation.NavController
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
+import okhttp3.RequestBody
 import org.json.JSONObject
+import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
+import okhttp3.*
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.RequestBody.Companion.toRequestBody
 
 object ApiClient {
     private const val BASE_URL = "http://10.0.2.2/request/api" // Usa la IP local del backend
@@ -73,6 +82,116 @@ object ApiClient {
             e.printStackTrace()
             Log.e("ApiClient", "Error de conexión con el backend: ${e.message}")
             null
+        }
+    }
+
+
+    /*
+     * Función para realizar una solicitud HTTP POST con encabezados personalizados.
+     *
+     * @param endpoint Ruta del recurso en la API (ejemplo: "user/login").
+     * @param jsonBody Cuerpo de la solicitud en formato JSON.
+     * @param context Contexto de la aplicación, utilizado para acceder a SharedPreferences si es necesario.
+     * @param responseHeaders Mapa mutable donde se almacenarán las cabeceras de la respuesta.
+     *
+     * @return La respuesta del servidor en formato String o `null` en caso de error.
+     */
+
+    fun postWithHeaders(
+        endpoint: String,
+        jsonBody: JSONObject,
+        context: Context,
+        responseHeaders: MutableMap<String, String>
+    ): String? {
+        val client = OkHttpClient()
+        val mediaType = "application/json; charset=utf-8".toMediaTypeOrNull()
+        val body = jsonBody.toString().toRequestBody(mediaType)
+
+        val request = Request.Builder()
+            .url("$BASE_URL/$endpoint") // Para emulador Android
+            .post(body)
+            .addHeader("Content-Type", "application/json")
+            .build()
+
+        return try {
+            client.newCall(request).execute().use { response ->
+                val responseBody = response.body?.string()
+
+                // Extraer todas las cabeceras
+                for ((name, value) in response.headers) {
+                    responseHeaders[name] = value
+                }
+
+                // Log para verificar si el token está en la cabecera
+                val token = responseHeaders["Authorization"]
+                if (!token.isNullOrEmpty()) {
+                    Log.d("API", "Token recibido: $token")
+                } else {
+                    Log.e("API", "No se recibió el token en la cabecera")
+                }
+
+                if (!response.isSuccessful) {
+                    Log.e("API", "Error en la respuesta: código ${response.code}")
+                    null
+                } else {
+                    responseBody
+                }
+            }
+        } catch (e: IOException) {
+            Log.e("API", "Error en la petición: ${e.message}", e)
+            null
+        }
+    }
+
+
+    /**
+     * Función para cerrar sesión eliminando el token almacenado.
+     */
+    suspend fun logoutUser(context: Context, navController: NavController) {
+        withContext(Dispatchers.IO) {
+            try {
+                val sharedPreferences = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+                val token = sharedPreferences.getString("auth_token", null)
+
+                if (token.isNullOrEmpty()) {
+                    Log.e("Logout", "No hay token guardado, no se puede cerrar sesión")
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(context, "Error: No has iniciado sesión", Toast.LENGTH_LONG).show()
+                    }
+                    return@withContext
+                }
+
+                val jsonBody = JSONObject()  // No enviamos datos, solo la petición con el token
+                val headers = mutableMapOf<String, String>("Authorization" to "Bearer $token")
+
+                val response = ApiClient.postWithHeaders("user/logout", jsonBody, context, headers)
+
+                if (response != null) {
+                    // Eliminar el token de SharedPreferences
+                    sharedPreferences.edit().remove("auth_token").apply()
+
+                    Log.d("Logout", "Sesión cerrada correctamente")
+
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(context, "Sesión cerrada correctamente", Toast.LENGTH_LONG).show()
+
+                        // Navegar al login y limpiar historial de navegación
+                        navController.navigate("login") {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    }
+                } else {
+                    Log.e("Logout", "Error al cerrar sesión: respuesta nula")
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(context, "Error al cerrar sesión", Toast.LENGTH_LONG).show()
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("LogoutError", "Error cerrando sesión: ${e.message}")
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(context, "Error inesperado al cerrar sesión", Toast.LENGTH_LONG).show()
+                }
+            }
         }
     }
 }

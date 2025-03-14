@@ -1,5 +1,6 @@
 package eina.unizar.es.ui.auth
 
+import android.content.Context
 import android.util.Log
 import android.widget.Toast
 import androidx.compose.foundation.background
@@ -31,6 +32,8 @@ import eina.unizar.es.data.model.network.ApiClient
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -140,7 +143,7 @@ fun UserLoginScreen(navController: NavController) {
                 Button(
                     onClick = { /* Lógica de inicio de sesión */
                         coroutineScope.launch {
-                            val loginSuccess = loginUser(email, password)
+                            val loginSuccess = loginUser(context,email, password)
                             if (loginSuccess) {
                                 navController.navigate("menu") //Navegar al menú si el login es correcto
                             } else {
@@ -197,27 +200,64 @@ fun UserLoginScreen(navController: NavController) {
 /**
  * Realiza la petición de login a la API y devuelve `true` si las credenciales son correctas.
  */
-suspend fun loginUser(email: String, password: String): Boolean {
-    val jsonBody = JSONObject().apply {
-        put("mail", email)
-        put("password", password)
-    }
-    Log.d("LoginRequest", "JSON enviado: $jsonBody")
-
-    return try {
-        val response = ApiClient.post("user/login", jsonBody)
-        if (response != null) {
-            val jsonResponse = JSONObject(response)
-            if (jsonResponse.has("message") && jsonResponse.getString("message") == "Login exitoso") {
-                true //Login correcto
-            } else {
-                false //Credenciales incorrectas
-            }
-        } else {
-            false
+suspend fun loginUser(context: Context, email: String, password: String): Boolean {
+    return withContext(Dispatchers.IO) {
+        val jsonBody = JSONObject().apply {
+            put("mail", email)
+            put("password", password)
         }
-    } catch (e: Exception) {
-        e.printStackTrace()
-        false
+
+        Log.d("LoginRequest", "JSON enviado: $jsonBody")
+
+        try {
+            val responseHeaders = mutableMapOf<String, String>()
+            val response = ApiClient.postWithHeaders("user/login", jsonBody, context, responseHeaders)
+
+            if (response != null) {
+                val jsonResponse = JSONObject(response)
+                val httpStatus = jsonResponse.optInt("status", 200) // Por si el backend devuelve código HTTP en JSON
+
+                // Verificamos si el servidor ha respondido correctamente
+                if (httpStatus in 200..299) {
+
+                    // Intentar recuperar el token desde la cabecera
+                    var token = responseHeaders["Authorization"]?.replace("Bearer ", "")
+
+                    // Si no está en la cabecera, buscarlo en el JSON de respuesta
+                    if (token.isNullOrEmpty() && jsonResponse.has("token")) {
+                        token = jsonResponse.getString("token")
+                    }
+
+                    if (!token.isNullOrEmpty()) {
+                        val sharedPreferences = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+                        sharedPreferences.edit().putString("auth_token", token).apply()  // Cambiado a apply() para mejor rendimiento
+
+                        Log.d("Login", "Token guardado correctamente: $token")
+
+                        withContext(Dispatchers.Main) {
+                            Toast.makeText(context, "Inicio de Sesión Exitoso", Toast.LENGTH_LONG).show()
+                        }
+
+                        return@withContext true
+                    } else {
+                        Log.e("LoginError", "No se recibió el token ni en la cabecera ni en el JSON")
+                    }
+                } else {
+                    Log.e("LoginError", "Respuesta del servidor con error: Código HTTP $httpStatus")
+                }
+            } else {
+                Log.e("LoginError", "Respuesta nula del servidor")
+            }
+
+            return@withContext false
+        } catch (e: Exception) {
+            Log.e("LoginError", "Error en loginUser: ${e.message}", e)
+            return@withContext false
+        }
     }
 }
+
+
+
+
+

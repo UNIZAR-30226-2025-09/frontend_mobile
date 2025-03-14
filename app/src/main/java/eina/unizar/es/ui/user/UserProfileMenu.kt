@@ -1,4 +1,4 @@
-package eina.unizar.es.ui.components
+package eina.unizar.es.ui.user
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -15,17 +15,21 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import kotlinx.coroutines.launch
+import eina.unizar.es.data.model.network.ApiClient
 
 @Composable
 fun UserProfileMenu(navController: NavController, modifier: Modifier = Modifier) {
     var expanded by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
+    val context = LocalContext.current
 
     Box(
-        contentAlignment = Alignment.TopStart // Icono alineado a la izqda
+        contentAlignment = Alignment.TopStart
     ) {
-        // Icono de usuario
         IconButton(
             onClick = { expanded = true },
         ) {
@@ -33,18 +37,17 @@ fun UserProfileMenu(navController: NavController, modifier: Modifier = Modifier)
                 imageVector = Icons.Default.AccountCircle,
                 contentDescription = "Usuario",
                 tint = Color.White,
-                modifier = Modifier.size(50.dp) // Aumentamos el tamaño del icono
+                modifier = Modifier.size(50.dp)
             )
         }
 
-        // Menú desplegable con bordes redondeados y gris claro
         DropdownMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false },
             modifier = Modifier
-                .clip(RoundedCornerShape(4.dp)) // Bordes redondeados
-                .border(1.dp, Color(0xFFCCCCCC), RoundedCornerShape(5.dp)) // 🔹 Borde gris claro
-                .background(Color(0xFF1E1E1E)) // Fondo oscuro
+                .clip(RoundedCornerShape(4.dp))
+                .border(1.dp, Color(0xFFCCCCCC), RoundedCornerShape(5.dp))
+                .background(Color(0xFF1E1E1E))
         ) {
             DropdownMenuItem(
                 text = { Text("Ajustes", color = Color.White) },
@@ -67,18 +70,20 @@ fun UserProfileMenu(navController: NavController, modifier: Modifier = Modifier)
                 }
             )
             Divider(
-                color = Color(0x33CCCCCC), // Línea separadora en gris claro
+                color = Color(0x33CCCCCC),
                 thickness = 1.dp,
                 modifier = Modifier
-                    .width(120.dp) // La línea es más corta, dejando los extremos vacíos
-                    .align(Alignment.CenterHorizontally) // Centra la línea dentro del menú
+                    .width(120.dp)
+                    .align(Alignment.CenterHorizontally)
             )
 
             DropdownMenuItem(
                 text = { Text("Cerrar Sesión", color = Color(0xFFFF6B6B)) },
                 onClick = {
                     expanded = false
-                    // Lógica para cerrar sesión
+                    coroutineScope.launch {
+                        ApiClient.logoutUser(context, navController)
+                    }
                 },
                 leadingIcon = {
                     Icon(Icons.Default.ExitToApp, contentDescription = "Cerrar Sesión", tint = Color(0xFFFF6B6B))
