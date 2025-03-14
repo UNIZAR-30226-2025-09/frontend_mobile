@@ -143,6 +143,7 @@ fun UserLoginScreen(navController: NavController) {
                             val loginSuccess = loginUser(email, password)
                             if (loginSuccess) {
                                 navController.navigate("menu") //Navegar al menú si el login es correcto
+                                Toast.makeText(context, "Sesión iniciada con éxito", Toast.LENGTH_LONG).show()
                             } else {
                                 Toast.makeText(context, "Credenciales incorrectas", Toast.LENGTH_LONG).show()
                             }
