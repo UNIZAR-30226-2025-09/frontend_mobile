@@ -17,7 +17,7 @@ import eina.unizar.es.ui.auth.UserLoginScreen
 import eina.unizar.es.ui.auth.UserRegisterScreen
 import eina.unizar.es.ui.library.LibraryScreen
 import eina.unizar.es.ui.main.MainScreen
-import eina.unizar.es.ui.menu.HomeScreen
+import eina.unizar.es.ui.menu.MenuScreen
 import eina.unizar.es.ui.plans.PlansScreen
 import eina.unizar.es.ui.player.FloatingMusicPlayer
 import eina.unizar.es.ui.playlist.PlaylistScreen
@@ -36,21 +36,18 @@ fun AppNavigator(navController: NavController, paymentSheet: PaymentSheet, ) {
                 startDestination = "main",
                 modifier = Modifier.padding(innerPadding)
             ) {
-                //composable("main") { PaymentScreen(navController, paymentSheet) }
-
                 composable("main") { MainScreen(navController) }
                 composable("player") { FloatingMusicPlayer("tituloPrueba", "AlbumPrueba", 1 , true) }
                 composable("plans") { PlansScreen(navController) }
                 composable("login") { UserLoginScreen(navController) }
                 composable("register") { UserRegisterScreen(navController) }
-                composable("menu") { HomeScreen(navController) }
+                composable("menu") { MenuScreen(navController, paymentSheet) }
                 composable("playlist") { PlaylistScreen(navController) }
                 composable("settings") { UserSettings(navController) }
                 composable("library") { LibraryScreen(navController) }
                 composable("perfilEdit") { EditProfileScreen(navController) }
                 composable("search") { SearchScreen(navController) }
                 composable("song") { SongScreen(navController) }
-
             }
         }
     }
