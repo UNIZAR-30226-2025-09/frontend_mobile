@@ -14,6 +14,10 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.rounded.Menu
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.*
@@ -28,6 +32,7 @@ import com.stripe.android.paymentsheet.PaymentSheet
 import eina.unizar.es.R
 import eina.unizar.es.ui.components.UserProfileMenu
 import eina.unizar.es.ui.navbar.BottomNavigationBar
+import eina.unizar.es.ui.player.FloatingMusicPlayer
 import eina.unizar.es.ui.payments.PaymentScreen
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -69,8 +74,12 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet) {
                 .fillMaxSize()
                 .padding(innerPadding)
                 .background(MaterialTheme.colorScheme.background)
-                .padding(horizontal = 16.dp, vertical = 8.dp)
+                .padding(horizontal = 16.dp, vertical = 0.dp)
         ) {
+            Column(
+                modifier = Modifier.fillMaxSize() // Aseguramos que la columna ocupa todo el espacio
+            ) {
+                // Canciones recomendadas en Grid
             Column {
                 Text("Canciones recomendadas", color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.titleLarge)
                 Spacer(modifier = Modifier.height(8.dp))
@@ -79,7 +88,7 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet) {
                     columns = GridCells.Fixed(2),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.weight(1f) // La grilla ocupa la mayor parte del espacio
                 ) {
                     items(listOf("Canción A", "Canción B", "Canción C", "Canción D", "Canción E", "Canción F", "Canción G", "Canción H", "Canción I", "Canción J")) { cancion ->
                         Card(
@@ -155,6 +164,19 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet) {
                             Text(lista, color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.bodyMedium)
                         }
                     }
+                }
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    // Reproductor Flotante
+                    val isPlaying = remember { mutableStateOf(false) }
+                    FloatingMusicPlayer(
+                        title = "Mi canción",
+                        artist = "Artista",
+                        albumArt = R.drawable.kanyeperfil,
+                        isPlaying = isPlaying.value,
+                       // onPlayPauseClick = { isPlaying.value = !isPlaying.value },
+                       // onFavoriteClick = { /*TODO*/ },
+                       // onComputerClick = { /*TODO*/ }
+                    )
                 }
             }
         }
