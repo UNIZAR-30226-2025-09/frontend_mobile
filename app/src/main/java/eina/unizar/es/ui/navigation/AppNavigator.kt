@@ -19,7 +19,7 @@ import eina.unizar.es.ui.library.LibraryScreen
 import eina.unizar.es.ui.main.MainScreen
 import eina.unizar.es.ui.menu.MenuScreen
 import eina.unizar.es.ui.plans.PlansScreen
-import eina.unizar.es.ui.player.PlayerScreen
+import eina.unizar.es.ui.player.FloatingMusicPlayer
 import eina.unizar.es.ui.playlist.PlaylistScreen
 import eina.unizar.es.ui.search.SearchScreen
 import eina.unizar.es.ui.user.EditProfileScreen
@@ -37,7 +37,7 @@ fun AppNavigator(navController: NavController, paymentSheet: PaymentSheet, ) {
                 modifier = Modifier.padding(innerPadding)
             ) {
                 composable("main") { MainScreen(navController) }
-                composable("player") { PlayerScreen() }
+                composable("player") { FloatingMusicPlayer("tituloPrueba", "AlbumPrueba", 1 , true) }
                 composable("plans") { PlansScreen(paymentSheet,navController) }
                 composable("login") { UserLoginScreen(navController) }
                 composable("register") { UserRegisterScreen(navController) }
