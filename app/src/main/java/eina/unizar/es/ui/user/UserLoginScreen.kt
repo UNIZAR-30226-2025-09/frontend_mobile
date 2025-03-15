@@ -43,6 +43,17 @@ fun UserLoginScreen(navController: NavController) {
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
 
+    LaunchedEffect(Unit) {
+        val sharedPreferences = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+        val token = sharedPreferences.getString("auth_token", null)
+
+        if (!token.isNullOrEmpty()) {
+            navController.navigate("menu") {
+                popUpTo(0) { inclusive = true }
+            }
+        }
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()

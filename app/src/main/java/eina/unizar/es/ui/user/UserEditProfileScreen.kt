@@ -17,6 +17,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Fill
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -25,22 +26,43 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import eina.unizar.es.data.model.network.ApiClient
+import eina.unizar.es.data.model.network.getUserData
+import eina.unizar.es.data.model.network.updateUserProfile
 import eina.unizar.es.ui.main.Rubik
+import kotlinx.coroutines.launch
 
 @Composable
 fun EditProfileScreen(navController: NavController) {
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     val backgroundColor = Color(0xFF000000)   // Negro
-    val textColor = Color(0xFFFFFFFF)         // Blanco
-    val buttonColor = Color(0xFF79E2FF)       // Azul claro
+    var username by remember { mutableStateOf("") }
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var isLoading by remember { mutableStateOf(true) } // Controla la carga de datos
 
-    var username by remember { mutableStateOf("warapmamn") }
-    var email by remember { mutableStateOf("warapmamn@gmail.com") }
-    var password by remember { mutableStateOf("******") }
+    // Cargar datos del usuario cuando se abre la pantalla
+    LaunchedEffect(Unit) {
+        coroutineScope.launch {
+            val userData = getUserData(context)
+            if (userData != null) {
+                username = (userData["nickname"] ?: "").toString()
+                email = (userData["mail"] ?: "").toString()
+                password = "" // No mostrar la contraseña real
+            }
+            isLoading = false
+        }
+    }
 
-    Box(
-        modifier = Modifier.fillMaxSize()
-    ) {
-        // Fondo con olas
+    if (isLoading) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator(color = Color.White)
+        }
+    } else {
+        Box(
+            modifier = Modifier.fillMaxSize()
+        ) // Fondo con olas
         Canvas(
             modifier = Modifier
                 .fillMaxSize()
@@ -70,53 +92,56 @@ fun EditProfileScreen(navController: NavController) {
                 style = Fill
             )
         }
-
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            // Título
-            Text(
-                "Editar perfil",
-                color = textColor,
-                fontSize = 26.sp,
-                fontFamily = Rubik,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(top = 85.dp, bottom = 8.dp)
-            )
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Campos de texto
-            TextFieldWithLabel(label = "Nombre de usuario", value = username, onValueChange = { username = it }, isUsername = true)
-            Spacer(modifier = Modifier.height(16.dp))
-            TextFieldWithLabel(label = "Correo electrónico", value = email, onValueChange = { email = it }, isEmail = true)
-            Spacer(modifier = Modifier.height(16.dp))
-            TextFieldWithLabel(label = "Contraseña", value = password, onValueChange = { password = it }, isPassword = true)
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Botones
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                TextButton(onClick = { navController.popBackStack() }) {
-                    Text("Cancelar", color = Color.White)
-                }
-                Button(
-                    onClick = { /* Guardar cambios */ },
-                    colors = ButtonDefaults.buttonColors(containerColor = buttonColor),
-                    shape = RoundedCornerShape(50.dp),
+                // Título
+                Text(
+                    "Editar perfil",
+                    color = Color.White,
+                    fontSize = 26.sp,
+                    fontFamily = Rubik,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(top = 85.dp, bottom = 8.dp)
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Campos de texto
+                TextFieldWithLabel(label = "Nombre de usuario", value = username, onValueChange = { username = it }, isUsername = true)
+                Spacer(modifier = Modifier.height(16.dp))
+                TextFieldWithLabel(label = "Correo electrónico", value = email, onValueChange = { email = it }, isEmail = true)
+                Spacer(modifier = Modifier.height(16.dp))
+                TextFieldWithLabel(label = "Nueva Contraseña", value = password, onValueChange = { password = it }, isPassword = true)
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Botones
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text("Guardar perfil", color = Color.Black, fontWeight = FontWeight.Bold)
+                    TextButton(onClick = { navController.popBackStack() }) {
+                        Text("Cancelar", color = Color.White)
+                    }
+                    Button(
+                        onClick = {
+                            coroutineScope.launch {
+                                updateUserProfile(context, username, email, password, navController)
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF79E2FF)),
+                        shape = RoundedCornerShape(50.dp),
+                    ) {
+                        Text("Guardar perfil", color = Color.Black, fontWeight = FontWeight.Bold)
+                    }
                 }
             }
         }
     }
-}
 
 // Composable para los campos de texto
 @OptIn(ExperimentalMaterial3Api::class)
@@ -135,9 +160,9 @@ fun TextFieldWithLabel(
         OutlinedTextField(
             value = value,
             onValueChange = onValueChange,
-            placeholder = { Text(label, color = Color(0xFFBBBBBB)) }, // Placeholder en gris claro
+            placeholder = { Text(label, color = Color(0xFFBBBBBB)) },
             singleLine = true,
-            textStyle = TextStyle(color = Color.White), // Texto que escribe el usuario en blanco
+            textStyle = TextStyle(color = Color.White),
             leadingIcon = {
                 if (isEmail) Icon(Icons.Default.Email, contentDescription = "Email Icon", tint = Color.White)
                 if (isPassword) Icon(Icons.Default.Lock, contentDescription = "Password Icon", tint = Color.White)
@@ -146,7 +171,7 @@ fun TextFieldWithLabel(
             visualTransformation = if (isPassword) PasswordVisualTransformation() else VisualTransformation.None,
             modifier = Modifier.fillMaxWidth(),
             colors = TextFieldDefaults.outlinedTextFieldColors(
-                cursorColor = Color.White, // Cursor en blanco
+                cursorColor = Color.White,
                 focusedBorderColor = Color.Gray,
                 unfocusedBorderColor = Color.DarkGray
             ),

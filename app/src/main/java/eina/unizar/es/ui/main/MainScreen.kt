@@ -1,5 +1,6 @@
 package eina.unizar.es.ui.main
 
+import android.content.Context
 import android.media.MediaPlayer
 import android.util.Log
 import android.widget.ImageView
@@ -38,12 +39,24 @@ fun MainScreen(navController: NavController) {
 
     // Musica en segundo plano
     LaunchedEffect(Unit) {
+        /*
         mediaPlayer = MediaPlayer.create(context, R.raw.music_background_inicio)
         mediaPlayer?.isLooping = true // Para que se repita automáticamente
         mediaPlayer?.start()
+        */
         // Fetch de ejemplo
         fetchPlaylists()
         fetchSongs()
+
+        val sharedPreferences = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+        val token = sharedPreferences.getString("auth_token", null)
+
+        if (!token.isNullOrEmpty()) {
+            navController.navigate("menu") {
+                popUpTo(0) { inclusive = true }
+            }
+        }
+
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
