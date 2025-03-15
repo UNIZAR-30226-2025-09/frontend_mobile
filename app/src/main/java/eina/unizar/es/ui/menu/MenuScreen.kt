@@ -1,6 +1,5 @@
 package eina.unizar.es.ui.menu
 
-import android.content.Context
 import android.util.Log
 import androidx.compose.animation.animateColor
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -16,10 +15,6 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.rounded.Menu
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.*
@@ -31,7 +26,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import com.stripe.android.PaymentConfiguration
 import com.stripe.android.paymentsheet.PaymentSheet
 import eina.unizar.es.R
 import eina.unizar.es.data.model.network.getUserData
@@ -40,7 +34,6 @@ import eina.unizar.es.ui.navbar.BottomNavigationBar
 import eina.unizar.es.ui.player.FloatingMusicPlayer
 import eina.unizar.es.ui.payments.PaymentScreen
 import kotlinx.coroutines.launch
-import androidx.compose.ui.platform.LocalContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
