@@ -29,12 +29,20 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.stripe.android.paymentsheet.PaymentSheet
 import eina.unizar.es.R
+import eina.unizar.es.data.model.network.ApiClient.get
+//import eina.unizar.es.ui.components.UserProfileMenu
 import eina.unizar.es.data.model.network.getUserData
 import eina.unizar.es.ui.main.Rubik
 import eina.unizar.es.ui.user.UserProfileMenu
 import eina.unizar.es.ui.navbar.BottomNavigationBar
 import eina.unizar.es.ui.player.FloatingMusicPlayer
 import eina.unizar.es.ui.payments.PaymentScreen
+import eina.unizar.es.ui.playlist.Playlist
+import org.json.JSONArray
+import coil.compose.AsyncImage
+import androidx.compose.ui.Modifier
+import androidx.compose.foundation.layout.size
+import eina.unizar.es.ui.song.Song
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -54,6 +62,76 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
                 }
             }
     }
+
+    var playlists by remember { mutableStateOf<List<Playlist>>(emptyList()) }
+    var albums by remember { mutableStateOf<List<Playlist>>(emptyList()) }
+
+    var songs by remember { mutableStateOf<List<Song>>(emptyList()) }
+
+    // Cargar playlists desde el backend
+    LaunchedEffect(Unit) {
+        val response = get("playlists") // Llamada a la API
+        response?.let {
+            val jsonArray = JSONArray(it)
+            val fetchedPlaylists = mutableListOf<Playlist>()
+
+            for (i in 0 until jsonArray.length()) {
+                val jsonObject = jsonArray.getJSONObject(i)
+                fetchedPlaylists.add(
+                    Playlist(
+                        id = jsonObject.getString("id"),
+                        title = jsonObject.getString("name"),
+                        idAutor = jsonObject.getString("user_id"),
+                        idArtista = jsonObject.getString("artist_id"),
+                        description = jsonObject.getString("description"),
+                        esPublica = jsonObject.getString("type"),
+                        esAlbum = jsonObject.getString("typeP"),
+                        imageUrl = jsonObject.getString("front_page")
+                    )
+                )
+            }
+            playlists = fetchedPlaylists
+        }
+
+        val albumsAux = mutableListOf<Playlist>() // Lista para álbumes
+        val listasDeReproduccionAux = mutableListOf<Playlist>() // Lista para playlists
+
+        for (playlist in playlists) {
+            if (playlist.esAlbum == "album") {
+                albumsAux.add(playlist)
+            } else {
+                listasDeReproduccionAux.add(playlist)
+            }
+        }
+
+        albums = albumsAux;
+        playlists = listasDeReproduccionAux;
+
+
+        // Canciones de la parte superior de recomendaciones
+        val responseS = get("songs") // Llamada a la API para obtener canciones
+        responseS?.let {
+            val jsonArray = JSONArray(it)
+            val fetchedSongs = mutableListOf<Song>()
+
+            for (i in 0 until 8) {
+                val jsonObject = jsonArray.getJSONObject(i)
+                fetchedSongs.add(
+                    Song(
+                        id = jsonObject.getInt("id"),
+                        name = jsonObject.getString("name"),
+                        duration = jsonObject.getInt("duration"),
+                        photo_video = jsonObject.getString("photo_video"),
+                        url_mp3 = jsonObject.getString("url_mp3"),
+                        letra = jsonObject.getString("lyrics")
+                    )
+                )
+            }
+            songs = fetchedSongs
+        }
+
+    }
+
 
     Scaffold(
         topBar = {
@@ -110,25 +188,12 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         modifier = Modifier.weight(1f) // La grilla ocupa la mayor parte del espacio
                     ) {
-                        items(
-                            listOf(
-                                "Canción A",
-                                "Canción B",
-                                "Canción C",
-                                "Canción D",
-                                "Canción E",
-                                "Canción F",
-                                "Canción G",
-                                "Canción H",
-                                "Canción I",
-                                "Canción J"
-                            )
-                        ) { cancion ->
+                        items(songs) { cancion ->
                             Card(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(50.dp)
-                                    .clickable { navController.navigate("song") },
+                                    .clickable {  navController.navigate("song/${cancion.id}") }, // PASAMOS EL ID
                                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                                 elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
                             ) {
@@ -137,7 +202,7 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(
-                                        cancion,
+                                        text = cancion.name,
                                         color = MaterialTheme.colorScheme.onSurface,
                                         style = MaterialTheme.typography.bodyLarge
                                     )
@@ -157,22 +222,14 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
                     Spacer(modifier = Modifier.height(8.dp))
 
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                        items(
-                            listOf(
-                                "DeBÍ TiRAR MáS FOToS",
-                                "Easy Money Baby",
-                                "Gaxur Gang",
-                                "Marietuco Tiradera",
-                                "Buenas Noches",
-                                "Buenos Dias",
-                                "Buenas Tardes"
-                            )
-                        ) { album ->
+                        items(albums) { album ->
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Card(
                                     modifier = Modifier
                                         .size(120.dp)
-                                        .clickable { /* navController.navigate("album") */ },
+                                        .clickable {
+                                            navController.navigate("playlist/${album.id}")
+                                        }, // PASAMOS EL ID
                                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                                     elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
                                 ) {
@@ -180,6 +237,7 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
                                         modifier = Modifier.fillMaxSize(),
                                         contentAlignment = Alignment.Center
                                     ) {
+                                        // Hay que poner su foto pero no me encuentra la ruta
                                         Image(
                                             painter = painterResource(id = R.drawable.kanyeperfil),
                                             contentDescription = "Álbum",
@@ -189,7 +247,7 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
                                 }
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
-                                    album,
+                                    text = album.title,
                                     color = MaterialTheme.colorScheme.onSurface,
                                     style = MaterialTheme.typography.bodyMedium
                                 )
@@ -208,12 +266,14 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
                     Spacer(modifier = Modifier.height(8.dp))
 
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                        items(listOf("Éxitos España", "Top 50: Global")) { lista ->
+                        items(playlists) { playlist ->
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Card(
                                     modifier = Modifier
                                         .size(120.dp)
-                                        .clickable { navController.navigate("playlist") },
+                                        .clickable {
+                                            navController.navigate("playlist/${playlist.id}") // PASAMOS EL ID
+                                        },
                                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                                     elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
                                 ) {
@@ -221,16 +281,17 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
                                         modifier = Modifier.fillMaxSize(),
                                         contentAlignment = Alignment.Center
                                     ) {
-                                        Image(
-                                            painter = painterResource(id = R.drawable.kanyeperfil),
-                                            contentDescription = "Lista",
+                                        // Aquí cargamos la imagen de la playlist desde playlist.imageUrl
+                                        AsyncImage(
+                                            model = playlist.imageUrl, // Usa la URL o la ruta de la imagen
+                                            contentDescription = "Álbum",
                                             modifier = Modifier.size(120.dp)
                                         )
                                     }
                                 }
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
-                                    lista,
+                                    playlist.title, // Cambiado lista a playlist.title
                                     color = MaterialTheme.colorScheme.onSurface,
                                     style = MaterialTheme.typography.bodyMedium
                                 )
