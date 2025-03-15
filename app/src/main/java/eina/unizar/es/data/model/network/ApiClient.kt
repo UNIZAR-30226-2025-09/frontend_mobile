@@ -228,39 +228,6 @@ suspend fun getUserData(context: Context): Map<String, Any>? {
     }
 }
 
-
-/*
- * Función para actualizar el perfil del usuario
- */
-suspend fun updateUserProfile(context: Context, username: String, email: String, password: String, navController: NavController) {
-    withContext(Dispatchers.IO) {
-        try {
-            val sharedPreferences = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
-            val token = sharedPreferences.getString("auth_token", null) ?: return@withContext
-
-            val jsonBody = JSONObject().apply {
-                put("nickname", username)
-                put("mail", email)
-                if (password.isNotBlank()) put("password", password)
-            }
-
-            val headers = mutableMapOf("Authorization" to "Bearer $token")
-            val response = putWithHeaders("user/update", jsonBody, context, headers)
-
-            withContext(Dispatchers.Main) {
-                if (response != null) {
-                    Toast.makeText(context, "Perfil actualizado correctamente", Toast.LENGTH_LONG).show()
-                    navController.popBackStack()
-                } else {
-                    Toast.makeText(context, "Error al actualizar el perfil", Toast.LENGTH_LONG).show()
-                }
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-    }
-}
-
 /**
  * Realiza una petición GET con encabezados personalizados (ej. `Authorization: Bearer <TOKEN>`).
  *
