@@ -38,7 +38,7 @@ fun AppNavigator(navController: NavController, paymentSheet: PaymentSheet, ) {
             ) {
                 composable("main") { MainScreen(navController) }
                 composable("player") { FloatingMusicPlayer("tituloPrueba", "AlbumPrueba", 1 , true) }
-                composable("plans") { PlansScreen(navController) }
+                composable("plans") { PlansScreen(paymentSheet,navController) }
                 composable("login") { UserLoginScreen(navController) }
                 composable("register") { UserRegisterScreen(navController) }
                 composable("menu") { MenuScreen(navController, paymentSheet) }
