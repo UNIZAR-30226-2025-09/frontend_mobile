@@ -1,5 +1,6 @@
 package eina.unizar.es.data.model.network
 import android.content.Context
+import android.content.SharedPreferences
 import android.util.Log
 import android.widget.Toast
 import androidx.navigation.NavController
@@ -335,5 +336,63 @@ suspend fun putWithHeaders(endpoint: String, jsonBody: JSONObject, context: Cont
             Log.e("API", "Error en la petición PUT: ${e.message}", e)
             null
         }
+    }
+}
+
+/**
+ * Realiza una petición HTTP POST al servidor para actualizar el estado de `is_premium` del usuario autenticado.
+ *
+ * **Función**: Envía una solicitud al endpoint `user/premium` para cambiar el estado de suscripción del usuario.
+ * **Autenticación**: Se obtiene el **token JWT** desde `SharedPreferences` y se envía en la cabecera `Authorization`.
+ * **Manejo de errores**:
+ *   - Si no hay token disponible, se muestra un error en el log y la función devuelve `null`.
+ *   - Si la petición falla, se captura el error y se muestra en el log.
+ *   - Si la respuesta es inválida (`401 Unauthorized` o similar), devuelve `null`.
+ *
+ * @param endpoint Endpoint de la API (ejemplo: `"user/premium"`).
+ * @param jsonBody Cuerpo de la solicitud en formato JSON.
+ * @param context Contexto para obtener SharedPreferences.
+ * @return Respuesta del servidor en formato `String`, o `null` en caso de error.
+ */
+suspend fun postTokenPremium(
+    endpoint: String,
+    jsonBody: JSONObject,
+    context: Context
+): String? = withContext(Dispatchers.IO) {
+    try {
+        // Obtener el token desde SharedPreferences
+        val sharedPreferences: SharedPreferences = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+        val token = sharedPreferences.getString("auth_token", null)
+
+        if (token.isNullOrEmpty()) {
+            Log.e("API", "Token no disponible")
+            return@withContext null
+        }
+
+        val client = OkHttpClient()
+        val mediaType = "application/json; charset=utf-8".toMediaTypeOrNull()
+        val body = jsonBody.toString().toRequestBody(mediaType)
+
+        val request = Request.Builder()
+            .url("$BASE_URL/$endpoint") // Construcción de la URL
+            .post(body) // Método POST
+            .addHeader("Content-Type", "application/json")
+            .addHeader("Authorization", "Bearer $token") // Se envía el token aquí
+            .build()
+
+        client.newCall(request).execute().use { response ->
+            val responseBody = response.body?.string()
+
+            if (!response.isSuccessful) {
+                Log.e("API", "Error en la respuesta: código ${response.code}, mensaje: ${responseBody}")
+                return@withContext null
+            } else {
+                Log.d("API", "Respuesta exitosa: $responseBody")
+                return@withContext responseBody
+            }
+        }
+    } catch (e: IOException) {
+        Log.e("API", "Error en la petición: ${e.message}", e)
+        return@withContext null
     }
 }

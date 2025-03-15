@@ -23,7 +23,7 @@ import com.stripe.android.paymentsheet.PaymentSheet
 import eina.unizar.es.R
 import eina.unizar.es.data.model.network.ApiClient
 import eina.unizar.es.data.model.network.getUserData
-import kotlinx.coroutines.delay
+import eina.unizar.es.data.model.network.postTokenPremium
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 
@@ -91,20 +91,28 @@ fun PlansScreen(paymentSheet: PaymentSheet, navController: NavController) {
                 onClick = {
                     if (previousRoute == "settings") {
                         if (!isPremium) {
-                            Toast.makeText(context, "Ya eres usuario Gratuito", Toast.LENGTH_LONG)
-                                .show()
+                            Toast.makeText(context, "Ya eres usuario Gratuito", Toast.LENGTH_LONG).show()
                         } else {
                             coroutineScope.launch {
-                                val response = ApiClient.post("user/premium", JSONObject().apply {
-                                    put("is_premium", false)
-                                })
-                                if (response != null) {
-                                    isPremium = false
-                                    Toast.makeText(context, "Has cambiado a Plan Gratuito", Toast.LENGTH_LONG).show()
-                                } else {
-                                    Toast.makeText(context, "Error al cambiar a gratuito", Toast.LENGTH_LONG).show()
+                                try {
+                                    val jsonBody = JSONObject().apply {
+                                        put("is_premium", false)  // Cambiar a gratuito
+                                    }
+
+                                    val response = postTokenPremium("user/premium", jsonBody, context)
+
+                                    if (response != null) {
+                                        isPremium = false
+                                        Toast.makeText(context, "Has cambiado a Plan Gratuito", Toast.LENGTH_LONG).show()
+                                    } else {
+                                        Toast.makeText(context, "Error al cambiar a gratuito", Toast.LENGTH_LONG).show()
+                                    }
+                                } catch (e: Exception) {
+                                    Log.e("PlanChangeError", "Error al cambiar a gratuito: ${e.message}")
+                                    Toast.makeText(context, "Error al procesar la solicitud", Toast.LENGTH_LONG).show()
                                 }
                             }
+
                         }
                     }
                     navController.popBackStack()
@@ -149,9 +157,6 @@ fun PlansScreen(paymentSheet: PaymentSheet, navController: NavController) {
 }
 
 
-
-
-
 @Composable
 fun PlanCard(
     title: String,
@@ -161,17 +166,17 @@ fun PlanCard(
     buttonText: String,
     buttonColor: Color,
     textColor: Color,
-    iconResId: Int, // 🔹 Se agrega el logo como parámetro
+    iconResId: Int, // Se agrega el logo como parámetro
     onClick: () -> Unit
 ) {
     Card(
-        shape = RoundedCornerShape(16.dp), // 🔹 Esquinas redondeadas
+        shape = RoundedCornerShape(16.dp), // Esquinas redondeadas
         modifier = Modifier
-            .fillMaxWidth(0.9f) // 🔹 Ancho de la tarjeta
-            .height(350.dp) // 🔹 Altura fija
-            .border(2.dp, Color.Gray, RoundedCornerShape(16.dp)) // 🔹 Borde con esquinas redondeadas
-            .background(Color(0xFF2E2E2E), shape = RoundedCornerShape(16.dp)), // 🔹 Asegura que el fondo respete las esquinas
-        colors = CardDefaults.cardColors(containerColor = Color.Transparent) // 🔹 Evita fondo adicional de la Card
+            .fillMaxWidth(0.9f) // Ancho de la tarjeta
+            .height(350.dp) // Altura fija
+            .border(2.dp, Color.Gray, RoundedCornerShape(16.dp)) // Borde con esquinas redondeadas
+            .background(Color(0xFF2E2E2E), shape = RoundedCornerShape(16.dp)), // Asegura que el fondo respete las esquinas
+        colors = CardDefaults.cardColors(containerColor = Color.Transparent) // Evita fondo adicional de la Card
     ) {
         Column(
             modifier = Modifier
