@@ -8,9 +8,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavController
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.example.musicapp.ui.song.SongScreen
 import com.stripe.android.paymentsheet.PaymentSheet
 import eina.unizar.es.ui.auth.UserLoginScreen
@@ -42,12 +44,24 @@ fun AppNavigator(navController: NavController, paymentSheet: PaymentSheet, ) {
                 composable("login") { UserLoginScreen(navController) }
                 composable("register") { UserRegisterScreen(navController) }
                 composable("menu") { MenuScreen(navController, paymentSheet) }
-                composable("playlist") { PlaylistScreen(navController) }
+                composable(
+                    "playlist/{playlistId}",
+                    arguments = listOf(navArgument("playlistId") { type = NavType.StringType })
+                ) { backStackEntry ->
+                    val playlistId = backStackEntry.arguments?.getString("playlistId")
+                    PlaylistScreen(navController, playlistId)
+                }
                 composable("settings") { UserSettings(navController) }
                 composable("library") { LibraryScreen(navController) }
                 composable("perfilEdit") { EditProfileScreen(navController) }
                 composable("search") { SearchScreen(navController) }
-                composable("song") { SongScreen(navController) }
+                composable(
+                    "song/{songId}",
+                    arguments = listOf(navArgument("songId") { type = NavType.StringType })
+                ) { backStackEntry ->
+                    val songId = backStackEntry.arguments?.getString("songId")
+                    SongScreen(navController, songId)
+                }
             }
         }
     }

@@ -1,5 +1,6 @@
 package com.example.musicapp.ui.song
 
+import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.Orientation
@@ -21,22 +22,67 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.media3.common.MediaItem
+import androidx.media3.exoplayer.ExoPlayer
 import androidx.navigation.NavController
 import eina.unizar.es.R
+import eina.unizar.es.data.model.network.ApiClient.get
+import eina.unizar.es.ui.playlist.Playlist
+import eina.unizar.es.ui.song.Song
 import eina.unizar.es.ui.theme.*
+import org.json.JSONObject
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SongScreen(navController: NavController) {
+fun SongScreen(navController: NavController, songId: String?) {
     var isPlaying by remember { mutableStateOf(false) }
     var progress by remember { mutableStateOf(0.1f) }
     var lyricsExpanded by remember { mutableStateOf(false) } // Estado para expandir la letra
 
+    var songInfo by remember { mutableStateOf<Song?>(null) }
+
     // Estado de desplazamiento
     val scrollState = rememberScrollState()
+
+
+
+
+    LaunchedEffect(songId) {
+        songId?.let {
+            val response = get("songs/$it") // Llamamos a la API
+            response?.let {
+                val jsonObject = JSONObject(response)
+                songInfo = Song(
+                    id = jsonObject.getInt("id"),
+                    name = jsonObject.getString("name"),
+                    duration = jsonObject.getInt("duration"),
+                    photo_video = jsonObject.getString("photo_video"),
+                    url_mp3 = jsonObject.getString("url_mp3"),
+                    letra = jsonObject.getString("lyrics")
+                )
+            }
+        }
+    }
+
+
+// Para reproducir la cancion
+    val context = LocalContext.current
+    val exoPlayer = remember {
+        ExoPlayer.Builder(context).build().apply {
+            val mediaItem = songInfo?.let { MediaItem.fromUri(it.url_mp3) }
+            if (mediaItem != null) {
+                setMediaItem(mediaItem)
+            } else {
+                Log.d("El objeto es nulo", "Error")
+            }
+            prepare()
+        }
+    }
+
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background
@@ -84,13 +130,15 @@ fun SongScreen(navController: NavController) {
 
             // Información de la canción
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(
-                    text = "LA RANGER (feat. Myke Towers)",
-                    style = MaterialTheme.typography.titleLarge,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
+                songInfo?.let {
+                    Text(
+                        text = it.name,
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                }
                 Spacer(modifier = Modifier.height(4.dp))
-                Text(
+                Text( //Hay que sacar el artista y ponerlo aqui
                     text = "The Academy: Segunda Misión, Sech, Justin Quiles",
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
@@ -135,7 +183,8 @@ fun SongScreen(navController: NavController) {
                 Spacer(modifier = Modifier.width(16.dp))
 
                 FloatingActionButton(
-                    onClick = { isPlaying = !isPlaying },
+                    onClick = { isPlaying = !isPlaying
+                              exoPlayer.play()},
                     containerColor = MaterialTheme.colorScheme.primary
                 ) {
                     Icon(
@@ -196,22 +245,13 @@ fun SongScreen(navController: NavController) {
                     Spacer(modifier = Modifier.height(16.dp))
 
                     // Letra de la canción (desplazable)
-                    Text(
-                        text = """
-                            Primera línea de la canción
-                            Segunda línea de la canción
-                            Tercera línea de la canción
-                            Cuarta línea de la canción
-                            Quinta línea de la canción
-                            Sexta línea de la canción
-                            Séptima línea de la canción
-                            Octava línea de la canción
-                            Novena línea de la canción
-                            Décima línea de la canción
-                        """.trimIndent(),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onBackground
-                    )
+                    songInfo?.let {
+                        Text(
+                            text = it.letra,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onBackground
+                        )
+                    }
                 }
             }
         }
