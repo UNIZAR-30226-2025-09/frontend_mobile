@@ -22,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
@@ -31,12 +32,18 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import eina.unizar.es.R
+import eina.unizar.es.data.model.network.ApiClient.get
+import eina.unizar.es.ui.song.Song
+import org.json.JSONArray
+import org.json.JSONObject
+import androidx.media3.common.MediaItem
+import androidx.media3.exoplayer.ExoPlayer
 
 @OptIn(ExperimentalMaterial3Api::class)
 
 @Composable
 
-fun PlaylistScreen(navController: NavController) {
+fun PlaylistScreen(navController: NavController, playlistId: String?) {
 
 // Colores básicos
     val backgroundColor = Color(0xFF000000) // Negro
@@ -94,6 +101,12 @@ fun PlaylistScreen(navController: NavController) {
     var showBottomSheet by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState()
 
+    // Reproducir la musica
+    val context = LocalContext.current
+    var exoPlayer: ExoPlayer? by remember { mutableStateOf(null) }
+//val audioUrl = "URL_DEL_ARCHIVO_DE_AUDIO" // Reemplaza con la URL de tu archivo de audio
+
+
 
 // Alpha para el título en el TopAppBar: aparece gradualmente conforme se hace scroll
     val topTitleAlpha = if (lazyListState.firstVisibleItemIndex > 0) {
@@ -102,15 +115,72 @@ fun PlaylistScreen(navController: NavController) {
         ((scrollOffset) / (maxOffset / 2)).coerceIn(0f, 1f)
     }
 
+
+    // Estado para almacenar la información de la playlist y sus canciones
+    var playlistInfo by remember { mutableStateOf<Playlist?>(null) }
+    var songs by remember { mutableStateOf<List<Song>>(emptyList()) }
+    val songList = mutableListOf<Song>()
+    // Llamar a la API para obtener los datos de la playlist seleccionada
+    LaunchedEffect(playlistId) {
+        playlistId?.let {
+            val response = get("playlists/$it") // Llamamos a la API
+            response?.let {
+                val jsonObject = JSONObject(response)
+                playlistInfo = Playlist(
+                    id = jsonObject.getString("id"),
+                    title = jsonObject.getString("name"),
+                    imageUrl = jsonObject.getString("front_page"),
+                    idAutor = jsonObject.getString("user_id"),
+                    idArtista = jsonObject.getString("artist_id"),
+                    description = jsonObject.getString("description"),
+                    esPublica = jsonObject.getString("type"),
+                    esAlbum = jsonObject.getString("typeP"),
+                    //author = jsonObject.getString("author") habra que hacer un get con el id
+                )
+            }
+        }
+
+        val response = get("songs") // Llamada a la API para obtener canciones
+        response?.let {
+            val jsonArray = JSONArray(it)
+            val fetchedSongs = mutableListOf<Song>()
+
+            for (i in 0 until jsonArray.length()) {
+                val jsonObject = jsonArray.getJSONObject(i)
+                fetchedSongs.add(
+                    Song(
+                        id = jsonObject.getInt("id"),
+                        name = jsonObject.getString("name"),
+                        duration = jsonObject.getInt("duration"),
+                        letra = jsonObject.getString("lyrics"),
+                        photo_video = jsonObject.getString("photo_video"),
+                        url_mp3 = jsonObject.getString("url_mp3")
+                    )
+                )
+            }
+            songs = fetchedSongs
+        }
+    }
+
+
+    /*************************************************************************
+     * Añadir aqui un bucle que solo coja las canciones que estan relacionadas
+     * con nuestra playlist
+     *************************************************************************/
+
+
+
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
-                    Text(
-                        text = playlistTitle,
-                        color = textColor,
-                        modifier = Modifier.alpha(topTitleAlpha)
-                    )
+                    playlistInfo?.let {
+                        Text(
+                            text = it.title,
+                            color = textColor,
+                            modifier = Modifier.alpha(topTitleAlpha)
+                        )
+                    }
                 },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
@@ -146,11 +216,13 @@ fun PlaylistScreen(navController: NavController) {
                             .background(Color.Gray) // Placeholder para la portada
                     )
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = playlistTitle,
-                        color = textColor,
-                        style = TextStyle(fontSize = 20.sp)
-                    )
+                    playlistInfo?.let {
+                        Text(
+                            text = it.title,
+                            color = textColor,
+                            style = TextStyle(fontSize = 20.sp)
+                        )
+                    }
                     Text(
                         text = playlistAuthor,
                         color = textColor,
@@ -286,9 +358,12 @@ fun PlaylistScreen(navController: NavController) {
 // Separador
             item { Spacer(modifier = Modifier.height(26.dp)) }
 // Lista de canciones: Cada banner con imagen a la izquierda y título/artista a la derecha
-            items(sortedSongs) { song ->
-                val artist = songArtistMap[song] ?: "Artista Desconocido"
+            items(songs) { song ->
+                //val artist = songArtistMap[song] ?: "Artista Desconocido"
                 var showSongOptionsBottomSheet by remember { mutableStateOf(false) } // Estado para mostrar el BottomSheet de opciones de la canción
+                // Reproducir la musica
+               // val context = LocalContext.current
+               // var exoPlayer: ExoPlayer? by remember { mutableStateOf(null) }
                 Box(
                     modifier = Modifier.fillMaxWidth(),
                     contentAlignment = Alignment.Center
@@ -297,7 +372,14 @@ fun PlaylistScreen(navController: NavController) {
                         modifier = Modifier
                             .fillMaxWidth(0.9f)
                             .clickable {
-                                // Acción al pulsar en la canción (simulada)
+                                val urlCompleta = "http://10.0.2.2:5001/${(song.url_mp3).removePrefix("/")}"
+                                exoPlayer?.release()
+                                exoPlayer = ExoPlayer.Builder(context).build().apply {
+                                    val mediaItem = MediaItem.fromUri(urlCompleta)
+                                    setMediaItem(mediaItem)
+                                    prepare()
+                                    play()
+                                }
                             },
                         colors = CardDefaults.cardColors(containerColor = cardBackgroundColor),
                         elevation = CardDefaults.cardElevation(defaultElevation = 10.dp)
@@ -317,12 +399,12 @@ fun PlaylistScreen(navController: NavController) {
                             Spacer(modifier = Modifier.width(16.dp))
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    text = song,
+                                    text = song.name,
                                     color = textColor,
                                     style = TextStyle(fontSize = 18.sp)
                                 )
                                 Text(
-                                    text = artist,
+                                    text = /*song.artist*/"Artista de prueba",
                                     color = textColor,
                                     style = TextStyle(fontSize = 14.sp)
                                 )
@@ -347,8 +429,8 @@ fun PlaylistScreen(navController: NavController) {
                     ) {
                         SongOptionsBottomSheetContent(
                             onDismiss = { showSongOptionsBottomSheet = false },
-                            songTitle = song, // Pasa el título de la canción
-                            artistName = artist // Pasa el nombre del artista
+                            songTitle = song.name, // Pasa el título de la canción
+                            artistName = /*artist*/ "Artista de prueba" // Pasa el nombre del artista
                         )
                     }
                 }
