@@ -26,7 +26,7 @@ import eina.unizar.es.ui.user.EditProfileScreen
 import eina.unizar.es.ui.user.UserSettings
 
 @Composable
-fun AppNavigator(navController: NavController, paymentSheet: PaymentSheet, ) {
+fun AppNavigator(navController: NavController, paymentSheet: PaymentSheet, isPremium: Boolean, ) {
     val navController: NavHostController = rememberNavController()
 
     Scaffold { innerPadding ->
@@ -38,12 +38,12 @@ fun AppNavigator(navController: NavController, paymentSheet: PaymentSheet, ) {
             ) {
                 composable("main") { MainScreen(navController) }
                 composable("player") { FloatingMusicPlayer("tituloPrueba", "AlbumPrueba", 1 , true) }
-                composable("plans") { PlansScreen(paymentSheet,navController) }
+                composable("plans") { PlansScreen(paymentSheet,navController,isPremium) }
                 composable("login") { UserLoginScreen(navController) }
                 composable("register") { UserRegisterScreen(navController) }
-                composable("menu") { MenuScreen(navController, paymentSheet) }
+                composable("menu") { MenuScreen(navController, paymentSheet, isPremium) }
                 composable("playlist") { PlaylistScreen(navController) }
-                composable("settings") { UserSettings(navController) }
+                composable("settings") { UserSettings(navController, isPremium) }
                 composable("library") { LibraryScreen(navController) }
                 composable("perfilEdit") { EditProfileScreen(navController) }
                 composable("search") { SearchScreen(navController) }

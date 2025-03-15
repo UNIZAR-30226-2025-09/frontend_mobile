@@ -34,12 +34,12 @@ import eina.unizar.es.ui.main.Rubik
 import kotlinx.coroutines.launch
 
 @Composable
-fun UserSettings(navController: NavController) {
+fun UserSettings(navController: NavController, isPremium: Boolean) {
     val backgroundColor = Color(0xFF000000)   // Fondo negro
     val cardColor = Color(0xFF121212)         // Tarjetas gris oscuro
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
-    var isPremium by remember { mutableStateOf(false) }  // Estado para el plan del usuario
+    var isPremium by remember { mutableStateOf(isPremium) }  // Estado para el plan del usuario
 
     // Cargar datos del usuario cuando se abra la pantalla
     LaunchedEffect(Unit) {

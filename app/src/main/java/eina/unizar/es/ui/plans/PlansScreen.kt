@@ -21,20 +21,25 @@ import androidx.navigation.NavController
 import com.stripe.android.PaymentConfiguration
 import com.stripe.android.paymentsheet.PaymentSheet
 import eina.unizar.es.R
-import eina.unizar.es.data.model.network.ApiClient
 import eina.unizar.es.data.model.network.getUserData
 import eina.unizar.es.data.model.network.postTokenPremium
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 
 @Composable
-fun PlansScreen(paymentSheet: PaymentSheet, navController: NavController) {
+fun PlansScreen(paymentSheet: PaymentSheet, navController: NavController, isPremium: Boolean) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
-    var isPremium by remember { mutableStateOf(false) }
+    var isPremium by remember { mutableStateOf(isPremium) }
     var isPaymentReady by remember { mutableStateOf(false) }
     var paymentIntentClientSecret by remember { mutableStateOf<String?>(null) }
     val previousRoute = navController.previousBackStackEntry?.destination?.route
+
+    // Sincronizar `isPremium` con `SharedPreferences` cuando cambia
+    LaunchedEffect(Unit) {
+        isPremium = getPremiumStatus(context)
+        Log.d("PlansScreen", "isPremium actualizado: $isPremium")
+    }
 
     LaunchedEffect(Unit) {
         if (previousRoute == "settings") {
@@ -115,7 +120,9 @@ fun PlansScreen(paymentSheet: PaymentSheet, navController: NavController) {
 
                         }
                     }
-                    navController.popBackStack()
+                    else{
+                        navController.popBackStack()
+                    }
                 }
             )
 
@@ -149,7 +156,9 @@ fun PlansScreen(paymentSheet: PaymentSheet, navController: NavController) {
                             } ?: Toast.makeText(context, "Error al obtener clientSecret", Toast.LENGTH_LONG).show()
                         }
                     }
-                    navController.popBackStack()
+                    else{
+                        navController.popBackStack()
+                    }
                 }
             )
         }
@@ -244,4 +253,10 @@ fun PlanCard(
             }
         }
     }
+}
+
+// Función para obtener `isPremium` de SharedPreferences
+fun getPremiumStatus(context: Context): Boolean {
+    val sharedPreferences = context.getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
+    return sharedPreferences.getBoolean("is_premium", false)
 }

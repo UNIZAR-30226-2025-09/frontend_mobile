@@ -1,5 +1,6 @@
 package eina.unizar.es.ui.menu
 
+import android.content.Context
 import android.util.Log
 import androidx.compose.animation.animateColor
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -29,6 +30,7 @@ import androidx.navigation.NavController
 import com.stripe.android.paymentsheet.PaymentSheet
 import eina.unizar.es.R
 import eina.unizar.es.data.model.network.getUserData
+import eina.unizar.es.ui.main.Rubik
 import eina.unizar.es.ui.user.UserProfileMenu
 import eina.unizar.es.ui.navbar.BottomNavigationBar
 import eina.unizar.es.ui.player.FloatingMusicPlayer
@@ -37,10 +39,10 @@ import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet) {
+fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremium: Boolean) {
     val context = LocalContext.current
     var showPaymentDialog by remember { mutableStateOf(false) } // Estado para mostrar pop-up
-    var isPremium by remember { mutableStateOf(false) }
+    var isPremium by remember { mutableStateOf(isPremium) }
     val coroutineScope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) {
@@ -64,16 +66,16 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet) {
                         UserProfileMenu(navController)
 
                         Spacer(modifier = Modifier.weight(0.9f))
-                        if (!isPremium) {
+                        //if (!isPremium) {
                             // Hacerse Premium activa el pop-up en lugar de cambiar de pantalla
                             VibraBanner(
                                 modifier = Modifier
                                     .align(Alignment.CenterVertically)
                                     .padding(end = 16.dp, top = 16.dp, bottom = 16.dp),
-                                premium = false,
+                                premium = isPremium,
                                 onPremiumClick = { showPaymentDialog = true } // Mostrar pop-up
                             )
-                        }
+                        //}
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
@@ -312,10 +314,12 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet) {
                     modifier = Modifier.size(45.dp)
                 )
                 Text(
-                    text = if (premium) "Vibra" else "Hacerse Premium",
+                    text = if (premium) "VIBRA" else "Hacerse Premium",
                     color = Color.White,
-                    fontSize = if (premium) 8.sp else 20.sp,
-                    modifier = Modifier.padding(end = 6.dp)
+                    fontSize = if (premium) 25.sp else 20.sp,
+                    modifier = Modifier.then(if (premium) Modifier.padding(end = 26.dp)
+                        else Modifier.padding(end = 6.dp)),
+                    fontFamily = Rubik
                 )
             }
         }
