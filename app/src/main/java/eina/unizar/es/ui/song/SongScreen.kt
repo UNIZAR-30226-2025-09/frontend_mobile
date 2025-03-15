@@ -68,21 +68,9 @@ fun SongScreen(navController: NavController, songId: String?) {
         }
     }
 
-
-// Para reproducir la cancion
+// Reproducir la musica
     val context = LocalContext.current
-    val exoPlayer = remember {
-        ExoPlayer.Builder(context).build().apply {
-            val mediaItem = songInfo?.let { MediaItem.fromUri(it.url_mp3) }
-            if (mediaItem != null) {
-                setMediaItem(mediaItem)
-            } else {
-                Log.d("El objeto es nulo", "Error")
-            }
-            prepare()
-        }
-    }
-
+    var exoPlayer: ExoPlayer? by remember { mutableStateOf(null) }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background
@@ -183,8 +171,25 @@ fun SongScreen(navController: NavController, songId: String?) {
                 Spacer(modifier = Modifier.width(16.dp))
 
                 FloatingActionButton(
-                    onClick = { isPlaying = !isPlaying
-                              exoPlayer.play()},
+                    onClick = {
+                        isPlaying = !isPlaying
+                        val urlCompleta = "http://10.0.2.2:5001/${(songInfo?.url_mp3)?.removePrefix("/")}"
+                        if (exoPlayer == null) { // Si el ExoPlayer no existe, lo creamos
+                            exoPlayer = ExoPlayer.Builder(context).build().apply {
+                                val mediaItem = MediaItem.fromUri(urlCompleta)
+                                setMediaItem(mediaItem)
+                                prepare()
+                                if (isPlaying) {
+                                    play()
+                                }
+                            }
+                        } else { // Si ya existe, controlamos la reproducción
+                            if (isPlaying) {
+                                exoPlayer!!.play()
+                            } else {
+                                exoPlayer!!.pause()
+                            }
+                        }},
                     containerColor = MaterialTheme.colorScheme.primary
                 ) {
                     Icon(
@@ -254,6 +259,12 @@ fun SongScreen(navController: NavController, songId: String?) {
                     }
                 }
             }
+        }
+    }
+    // Liberar el ExoPlayer cuando el Composable se destruye
+    DisposableEffect(Unit) {
+        onDispose {
+            exoPlayer?.release()
         }
     }
 }
