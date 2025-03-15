@@ -1,5 +1,6 @@
 package eina.unizar.es.ui.playlist
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -7,9 +8,11 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
@@ -20,37 +23,49 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import eina.unizar.es.R
 
 @OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun PlaylistScreen(navController: NavController) {
-    // Colores básicos
-    val backgroundColor = Color(0xFF000000)       // Negro
-    val textColor = Color(0xFFFFFFFF)             // Blanco
-    val cardBackgroundColor = Color(0xFF121212)   // Negro un poco más claro
-    val buttonColor = Color(0xFF0D47A1)           // Azul oscuro
 
-    // Datos simulados de la playlist
+@Composable
+
+fun PlaylistScreen(navController: NavController) {
+
+// Colores básicos
+    val backgroundColor = Color(0xFF000000) // Negro
+    val textColor = Color(0xFFFFFFFF) // Blanco
+    val cardBackgroundColor = Color(0xFF121212) // Negro un poco más claro
+    val buttonColor = Color(0xFF0D47A1) // Azul oscuro
+
+
+// Datos simulados de la playlist
     val playlistTitle = "Playlist: Rock"
     val playlistAuthor = "Autor: John Doe"
 
-    // Simulación de 20 canciones y sus artistas
+
+// Simulación de 20 canciones y sus artistas
+
     val allSongs = (1..20).map { "Canción $it" }
     val songArtistMap = allSongs.associateWith { song ->
         val number = song.filter { it.isDigit() }
         "Artista $number"
     }
 
-    // Estados para búsqueda y orden
+
+// Estados para búsqueda y orden
+
     var searchText by remember { mutableStateOf(TextFieldValue("")) }
     var sortOption by remember { mutableStateOf("Título") }
     val filteredSongs = allSongs.filter { it.contains(searchText.text, ignoreCase = true) }
     val sortedSongs = remember(filteredSongs, sortOption) {
+
         when (sortOption) {
             "Título" -> filteredSongs.sortedBy { it }
             "Añadido recientemente" -> filteredSongs.reversed()
@@ -59,19 +74,28 @@ fun PlaylistScreen(navController: NavController) {
         }
     }
 
-    // Estado para mostrar/ocultar la barra de búsqueda
+// Estado para mostrar/ocultar la barra de búsqueda
+
     var showSearch by remember { mutableStateOf(false) }
 
-    // Estado del LazyColumn para detectar scroll y aplicar efecto en el header
+// Estado del LazyColumn para detectar scroll y aplicar efecto en el header
+
     val lazyListState = rememberLazyListState()
     val imageSize = 150.dp
     val maxOffset = with(LocalDensity.current) { imageSize.toPx() }
     val scrollOffset = lazyListState.firstVisibleItemScrollOffset.toFloat()
     val collapseFraction = (scrollOffset / maxOffset).coerceIn(0f, 1f)
-    // Ajustamos solo la opacidad (sin escala) con Modifier.alpha
+
+// Ajustamos solo la opacidad (sin escala) con Modifier.alpha
+
     val imageAlpha = 1f - collapseFraction
 
-    // Alpha para el título en el TopAppBar: aparece gradualmente conforme se hace scroll
+    // Estado para controlar la visibilidad del BottomSheet
+    var showBottomSheet by remember { mutableStateOf(false) }
+    val sheetState = rememberModalBottomSheetState()
+
+
+// Alpha para el título en el TopAppBar: aparece gradualmente conforme se hace scroll
     val topTitleAlpha = if (lazyListState.firstVisibleItemIndex > 0) {
         1f
     } else {
@@ -109,7 +133,7 @@ fun PlaylistScreen(navController: NavController) {
                 .padding(innerPadding)
                 .background(backgroundColor)
         ) {
-            // Header: Portada, título y autor
+// Header: Portada, título y autor
             item {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -134,7 +158,7 @@ fun PlaylistScreen(navController: NavController) {
                     )
                 }
             }
-            // Fila para la búsqueda: si showSearch es true, se muestra la barra de búsqueda que deja espacio para el icono de reproducir
+// Fila para la búsqueda: si showSearch es true, se muestra la barra de búsqueda que deja espacio para el icono de reproducir
             item {
                 Row(
                     modifier = Modifier
@@ -148,6 +172,7 @@ fun PlaylistScreen(navController: NavController) {
                             onValueChange = { searchText = it },
                             label = { Text("Buscar en playlist", color = textColor) },
                             modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(16.dp),
                             textStyle = TextStyle(color = textColor),
                             colors = TextFieldDefaults.outlinedTextFieldColors(
                                 focusedBorderColor = buttonColor,
@@ -172,7 +197,7 @@ fun PlaylistScreen(navController: NavController) {
                     Spacer(modifier = Modifier.width(8.dp))
                     IconButton(
                         onClick = {
-                            // Acción para reproducir la playlist (simulada)
+// Acción para reproducir la playlist (simulada)
                         },
                         modifier = Modifier
                             .size(48.dp)
@@ -187,7 +212,7 @@ fun PlaylistScreen(navController: NavController) {
                     }
                 }
             }
-            // Fila con dropdown para ordenar y botón de añadir (Add)
+// Fila con dropdown para ordenar y botón de añadir (Add)
             item {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -233,7 +258,7 @@ fun PlaylistScreen(navController: NavController) {
                     Spacer(modifier = Modifier.width(8.dp))
                     IconButton(
                         onClick = {
-                            // Acción para añadir una canción (simulada)
+// Acción para añadir una canción (simulada)
                         },
                         modifier = Modifier.size(48.dp)
                     ) {
@@ -243,13 +268,27 @@ fun PlaylistScreen(navController: NavController) {
                             tint = textColor
                         )
                     }
+                    Spacer(modifier = Modifier.width(2.dp)) // Espacio entre iconos
+                    IconButton(
+                        onClick = {
+                            showBottomSheet = true // Mostrar el BottomSheet al hacer clic
+                        },
+                        modifier = Modifier.size(25.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.MoreVert,
+                            contentDescription = "Más opciones",
+                            tint = textColor
+                        )
+                    }
                 }
             }
-            // Separador
+// Separador
             item { Spacer(modifier = Modifier.height(26.dp)) }
-            // Lista de canciones: Cada banner con imagen a la izquierda y título/artista a la derecha
+// Lista de canciones: Cada banner con imagen a la izquierda y título/artista a la derecha
             items(sortedSongs) { song ->
                 val artist = songArtistMap[song] ?: "Artista Desconocido"
+                var showSongOptionsBottomSheet by remember { mutableStateOf(false) } // Estado para mostrar el BottomSheet de opciones de la canción
                 Box(
                     modifier = Modifier.fillMaxWidth(),
                     contentAlignment = Alignment.Center
@@ -276,7 +315,7 @@ fun PlaylistScreen(navController: NavController) {
                                     .background(Color.DarkGray) // Placeholder de la imagen
                             )
                             Spacer(modifier = Modifier.width(16.dp))
-                            Column {
+                            Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     text = song,
                                     color = textColor,
@@ -288,11 +327,177 @@ fun PlaylistScreen(navController: NavController) {
                                     style = TextStyle(fontSize = 14.sp)
                                 )
                             }
+                            IconButton(onClick = { showSongOptionsBottomSheet = true }) {
+                                Icon(
+                                    Icons.Default.MoreVert,
+                                    contentDescription = "Opciones de la canción",
+                                    tint = textColor
+                                )
+                            }
                         }
                     }
                 }
                 Spacer(modifier = Modifier.height(12.dp))
+
+                // BottomSheet para opciones de la canción (dentro del items)
+                if (showSongOptionsBottomSheet) {
+                    ModalBottomSheet(
+                        onDismissRequest = { showSongOptionsBottomSheet = false },
+                        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+                    ) {
+                        SongOptionsBottomSheetContent(
+                            onDismiss = { showSongOptionsBottomSheet = false },
+                            songTitle = song, // Pasa el título de la canción
+                            artistName = artist // Pasa el nombre del artista
+                        )
+                    }
+                }
+
+
+// Mostrar el BottomSheet de la playlist (fuera del items)
+            if (showBottomSheet) {
+                ModalBottomSheet(
+                    onDismissRequest = { showBottomSheet = false },
+                    sheetState = sheetState
+                ) {
+                    BottomSheetContent(
+                        playlistImage = R.drawable.kanyeperfil, // Reemplaza con tu imagen
+                        playlistTitle = "Mi Playlist", // Reemplaza con el título
+                        playlistAuthor = "KanyeWest", // Reemplaza con el autor
+                        onDismiss = { showBottomSheet = false }
+                    )
+                }
+            }
             }
         }
     }
 }
+
+            /**
+             * Contenido del Bottom Sheet con las opciones de la playlist.
+             */
+            @Composable
+            fun BottomSheetContent(
+                playlistImage: Int, // Recibe la imagen de la playlist
+                playlistTitle: String, // Recibe el título de la playlist
+                playlistAuthor: String, // Recibe el autor de la playlist
+                onDismiss: () -> Unit
+            ) {
+                val textColor = Color.White
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
+                ) {
+                    // Imagen, título y autor de la playlist en fila
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Image(
+                            painter = painterResource(id = playlistImage),
+                            contentDescription = null,
+                            modifier = Modifier.size(50.dp) // Imagen más pequeña
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column {
+                            Text(playlistTitle, color = textColor, fontSize = 16.sp)
+                            Text("de $playlistAuthor", color = Color.Gray, fontSize = 12.sp)
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Opciones de la playlist centradas
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        PlaylistOptionItem("Añadir Canción", onDismiss)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        PlaylistOptionItem("Eliminar Canción", onDismiss)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        PlaylistOptionItem("Compartir", onDismiss)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        PlaylistOptionItem("Descargar", onDismiss)
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
+            }
+
+            /**
+             * Item de la lista de opciones en el Bottom Sheet.
+             */
+            @Composable
+            fun PlaylistOptionItem(text: String, onClick: () -> Unit) {
+                Text(
+                    text = text,
+                    color = Color.White,
+                    fontSize = 16.sp,
+                    modifier = Modifier
+                        .padding(vertical = 8.dp)
+                        .clickable { onClick() }
+                )
+            }
+
+            @Composable
+            fun SongOptionsBottomSheetContent(
+                onDismiss: () -> Unit,
+                songTitle: String,
+                artistName: String
+            ) {
+                val textColor = Color.White
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
+                ) {
+                    Text(
+                        songTitle,
+                        color = textColor,
+                        fontSize = 18.sp,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Text(
+                        "de $artistName",
+                        color = Color.Gray,
+                        fontSize = 14.sp,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                    SongOptionItem("Añadir a lista", onDismiss)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    SongOptionItem("Añadir a la biblioteca", onDismiss)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    SongOptionItem("Añadir a la cola", onDismiss)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    SongOptionItem("Eliminar de la lista", onDismiss)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    SongOptionItem("Compartir", onDismiss)
+                }
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
+            }
+
+            @Composable
+            fun SongOptionItem(text: String, onClick: () -> Unit) {
+                Text(
+                    text = text,
+                    color = Color.White,
+                    fontSize = 16.sp,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp)
+                        .clickable { onClick() }
+                )
+            }
