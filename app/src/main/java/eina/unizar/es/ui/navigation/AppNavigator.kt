@@ -55,7 +55,13 @@ fun AppNavigator(navController: NavController, paymentSheet: PaymentSheet, ) {
                 composable("library") { LibraryScreen(navController) }
                 composable("perfilEdit") { EditProfileScreen(navController) }
                 composable("search") { SearchScreen(navController) }
-                composable("song") { SongScreen(navController) }
+                composable(
+                    "song/{songId}",
+                    arguments = listOf(navArgument("songId") { type = NavType.StringType })
+                ) { backStackEntry ->
+                    val songId = backStackEntry.arguments?.getString("songId")
+                    SongScreen(navController, songId)
+                }
             }
         }
     }

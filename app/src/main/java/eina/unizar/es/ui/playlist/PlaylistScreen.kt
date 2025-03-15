@@ -1,6 +1,5 @@
 package eina.unizar.es.ui.playlist
 
-import android.media.MediaPlayer
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -131,6 +130,11 @@ fun PlaylistScreen(navController: NavController, playlistId: String?) {
                     id = jsonObject.getString("id"),
                     title = jsonObject.getString("name"),
                     imageUrl = jsonObject.getString("front_page"),
+                    idAutor = jsonObject.getString("user_id"),
+                    idArtista = jsonObject.getString("artist_id"),
+                    description = jsonObject.getString("description"),
+                    esPublica = jsonObject.getString("type"),
+                    esAlbum = jsonObject.getString("typeP"),
                     //author = jsonObject.getString("author") habra que hacer un get con el id
                 )
             }
@@ -148,6 +152,7 @@ fun PlaylistScreen(navController: NavController, playlistId: String?) {
                         id = jsonObject.getInt("id"),
                         name = jsonObject.getString("name"),
                         duration = jsonObject.getInt("duration"),
+                        letra = jsonObject.getString("lyrics"),
                         photo_video = jsonObject.getString("photo_video"),
                         url_mp3 = jsonObject.getString("url_mp3")
                     )
