@@ -35,7 +35,7 @@ import com.stripe.android.PaymentConfiguration
 import com.stripe.android.paymentsheet.PaymentSheet
 import eina.unizar.es.R
 import eina.unizar.es.data.model.network.ApiClient.get
-import eina.unizar.es.ui.components.UserProfileMenu
+//import eina.unizar.es.ui.components.UserProfileMenu
 import eina.unizar.es.data.model.network.getUserData
 import eina.unizar.es.ui.user.UserProfileMenu
 import eina.unizar.es.ui.navbar.BottomNavigationBar
