@@ -1,5 +1,6 @@
 package eina.unizar.es.ui.user
 
+import android.util.Log
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -18,23 +19,40 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import eina.unizar.es.R
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.graphics.*
-import androidx.compose.ui.graphics.drawscope.Fill
-
+import androidx.compose.ui.platform.LocalContext
+import eina.unizar.es.data.model.network.ApiClient
+import eina.unizar.es.data.model.network.getUserData
+import eina.unizar.es.ui.main.Rubik
+import kotlinx.coroutines.launch
 
 @Composable
 fun UserSettings(navController: NavController) {
     val backgroundColor = Color(0xFF000000)   // Fondo negro
     val cardColor = Color(0xFF121212)         // Tarjetas gris oscuro
-    val lighBlue = Color(0xFF79E2FF)
+    val coroutineScope = rememberCoroutineScope()
+    val context = LocalContext.current
+    var isPremium by remember { mutableStateOf(false) }  // Estado para el plan del usuario
+
+    // Cargar datos del usuario cuando se abra la pantalla
+    LaunchedEffect(Unit) {
+        coroutineScope.launch {
+            val userData = getUserData(context)
+            if (userData != null) {
+                isPremium = userData["is_premium"] as Boolean
+                Log.d("UserData", "isPremium asignado: $isPremium") // Verifica si is_premium se asigna correctamente
+            }
+        }
+    }
+
+
 
     Column(
         modifier = Modifier
@@ -44,50 +62,61 @@ fun UserSettings(navController: NavController) {
         // Cabecera superior con foto de perfil y nombre
         HeaderSection()
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(20.dp))
 
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(modifier = Modifier.padding(horizontal = 16.dp)) {
             // Tarjeta del plan
             Card(
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(containerColor = cardColor),
                 modifier = Modifier.fillMaxWidth()
-                    .border(1.dp, Color(0xFFB0C4DE), RoundedCornerShape(16.dp))
-                    .background(
-                        color = Color.White.copy(alpha = 0.1f),
-                        shape = RoundedCornerShape(16.dp)
-                    )
+                    .border(1.dp, Color(0xFF79E2FF), RoundedCornerShape(16.dp))
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Text("Tu plan", color = Color.Gray, fontSize = 12.sp)
+                    Text("Tu plan", color = Color.Gray, fontSize = 14.sp)
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text("Premium", color = Color.White, fontSize = 20.sp)
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text("Tu próxima factura es de 4,99 € y se emite el 8/4/25.", color = Color.Gray, fontSize = 14.sp)
-                    Text("Visa acabada en 2555", color = Color.Gray, fontSize = 14.sp)
+                    Text(
+                        if (isPremium) "Premium" else "Gratuito",
+                        color = Color.White,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(5.dp))
+                    Text(
+                        if (isPremium) "Tu próxima factura es de 4,99 € y se emite al inicio de cada mes."
+                        else "Plan gratuito disponible para siempre.",
+                        color = Color.Gray,
+                        fontSize = 14.sp
+                    )
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
             // Sección "Gestión Perfil"
             SettingsSection(title = "Gestión Perfil", items = listOf(
                 Pair("Editar Perfil", "perfilEdit"),
             ), navController)
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
             // Sección "Suscripción"
             SettingsSection(title = "Suscripción", items = listOf(
-                Pair("Suscripciones disponibles", "plans"),
-                Pair("Administrar la suscripción", "plansManage"),
-                Pair("Cancelar suscripción", "plansCancel")
+                Pair("Administrar Suscripciones", "plans"),
             ), navController)
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
             // Sección Cerrar Sesión
-            ActionButton(text = "Cerrar Sesión", icon = Icons.Default.ExitToApp, navController, "logOut")
+            ActionButton(
+                text = "Cerrar Sesión",
+                icon = Icons.Default.ExitToApp,
+                onClickAction = {
+                    coroutineScope.launch {
+                        ApiClient.logoutUser(context, navController)  // Llama a la función logout
+                    }
+                }
+            )
 
             Spacer(modifier = Modifier.height(50.dp))
         }
@@ -96,15 +125,25 @@ fun UserSettings(navController: NavController) {
 
 @Composable
 fun HeaderSection() {
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+    var nickname by remember { mutableStateOf("Cargando...") }  // Estado inicial
+
+    // Llamada a la API cuando la pantalla se carga
+    LaunchedEffect(Unit) {
+        coroutineScope.launch {
+            val userData = getUserData(context)
+            if (userData != null) {
+                nickname =
+                    (userData["nickname"] ?: "Usuario").toString()  // Si no hay nickname, usa "Usuario"
+            }
+        }
+    }
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .background(
-                brush = Brush.verticalGradient(
-                    colors = listOf(Color(0xFFB3D9FF), Color(0xFFB3D9FF)) // 🔹 Degradado azul
-                )
-            )
-            .padding(16.dp)
+            .background(Color(0xFFB3D9FF))
+            .padding(24.dp)
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
             // Imagen de perfil
@@ -117,18 +156,14 @@ fun HeaderSection() {
                     .background(Color.Gray)
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
             // Nombre de usuario
-            Text("Kanye", color = Color(0xFF1E1E1E), fontSize = 28.sp, fontWeight = FontWeight.Bold)
+            Text(nickname, color = Color(0xFF2E2E2E), fontSize = 26.sp, fontWeight = FontWeight.Bold, fontFamily = Rubik)
 
             Spacer(modifier = Modifier.height(4.dp))
-
-            // Datos de usuario
-            Text("1 lista pública · 3 amigos", color = Color(0xFF1E1E1E), fontSize = 14.sp)
         }
     }
-
     // Efecto de Derrame con Ondas en la parte inferior del Header
     Canvas(
         modifier = Modifier
@@ -166,12 +201,13 @@ fun HeaderSection() {
 
 // Botón de acción
 @Composable
-fun ActionButton(text: String, icon: androidx.compose.ui.graphics.vector.ImageVector, navController: NavController, route: String) {
+fun ActionButton(text: String, icon: androidx.compose.ui.graphics.vector.ImageVector, onClickAction: () -> Unit) {
     Card(
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = Color(0xFF121212)),
         modifier = Modifier
-            .clickable { navController.navigate(route) }
+            .fillMaxWidth()
+            .clickable { onClickAction() }
     ) {
         Row(
             modifier = Modifier
@@ -181,8 +217,8 @@ fun ActionButton(text: String, icon: androidx.compose.ui.graphics.vector.ImageVe
             horizontalArrangement = Arrangement.Center
         ) {
             Icon(icon, contentDescription = text, tint = Color(0xFFFF6B6B))
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(text, color = Color(0xFFFF6B6B), fontSize = 14.sp)
+            Spacer(modifier = Modifier.width(10.dp))
+            Text(text, color = Color(0xFFFF6B6B), fontSize = 16.sp, fontWeight = FontWeight.Bold)
         }
     }
 }
@@ -191,12 +227,12 @@ fun ActionButton(text: String, icon: androidx.compose.ui.graphics.vector.ImageVe
 @Composable
 fun SettingsSection(title: String, items: List<Pair<String, String>>, navController: NavController) {
     Card(
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = Color(0xFF121212)),
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text(title, color = Color.Gray, fontSize = 14.sp)
+            Text(title, color = Color.Gray, fontSize = 14.sp, fontWeight = FontWeight.Bold)
             Spacer(modifier = Modifier.height(8.dp))
             items.forEach { (text, route) ->
                 Row(
@@ -213,4 +249,3 @@ fun SettingsSection(title: String, items: List<Pair<String, String>>, navControl
         }
     }
 }
-

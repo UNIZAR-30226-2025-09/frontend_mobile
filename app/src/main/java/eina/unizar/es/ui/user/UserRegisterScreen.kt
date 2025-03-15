@@ -207,13 +207,14 @@ fun UserRegisterScreen(navController: NavController) {
 
                 // Botón de Registrarse
                 Button(
-                    onClick = { /* Lógica de inicio de sesión */
+                    onClick = {
                         coroutineScope.launch {
                             val loginSuccess = registerUser(username, email, password, confirmPassword)
                             if (loginSuccess) {
-                                navController.navigate("menu") //Navegar al menú si el login es correcto
+                                navController.navigate("login")
+                                Toast.makeText(context, "Cuenta creada correctamente", Toast.LENGTH_LONG).show()
                             } else {
-                                Toast.makeText(context, "Errror al registrarse", Toast.LENGTH_LONG).show()
+                                Toast.makeText(context, "Error al registrarse", Toast.LENGTH_LONG).show()
                             }
                         }
                     },

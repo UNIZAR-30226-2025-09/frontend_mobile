@@ -23,7 +23,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import eina.unizar.es.R
-import eina.unizar.es.ui.components.UserProfileMenu
+import eina.unizar.es.ui.user.UserProfileMenu
 import eina.unizar.es.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
