@@ -18,8 +18,8 @@ import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.RequestBody.Companion.toRequestBody
 
 object ApiClient {
-    const val BASE_URL = "http://10.0.2.2/request/api" // Usa la IP local del backend
-    //private const val BASE_URL = "http://164.90.160.181/request/api" // Usa la IP publica (nube) del backend
+    //const val BASE_URL = "http://10.0.2.2/request/api" // Usa la IP local del backend
+    const val BASE_URL = "http://164.90.160.181/request/api" // Usa la IP publica (nube) del backend
 
     /**
      * Método para realizar una petición GET en segundo plano.
@@ -225,39 +225,6 @@ suspend fun getUserData(context: Context): Map<String, Any>? {
             Log.e("UserData", "Error al obtener los datos del usuario", e)
         }
         return@withContext null
-    }
-}
-
-
-/*
- * Función para actualizar el perfil del usuario
- */
-suspend fun updateUserProfile(context: Context, username: String, email: String, password: String, navController: NavController) {
-    withContext(Dispatchers.IO) {
-        try {
-            val sharedPreferences = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
-            val token = sharedPreferences.getString("auth_token", null) ?: return@withContext
-
-            val jsonBody = JSONObject().apply {
-                put("nickname", username)
-                put("mail", email)
-                if (password.isNotBlank()) put("password", password)
-            }
-
-            val headers = mutableMapOf("Authorization" to "Bearer $token")
-            val response = putWithHeaders("user/update", jsonBody, context, headers)
-
-            withContext(Dispatchers.Main) {
-                if (response != null) {
-                    Toast.makeText(context, "Perfil actualizado correctamente", Toast.LENGTH_LONG).show()
-                    navController.popBackStack()
-                } else {
-                    Toast.makeText(context, "Error al actualizar el perfil", Toast.LENGTH_LONG).show()
-                }
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
     }
 }
 

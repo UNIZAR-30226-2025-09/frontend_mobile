@@ -16,10 +16,6 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.rounded.Menu
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.*
@@ -31,12 +27,12 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import com.stripe.android.PaymentConfiguration
 import com.stripe.android.paymentsheet.PaymentSheet
 import eina.unizar.es.R
 import eina.unizar.es.data.model.network.ApiClient.get
 //import eina.unizar.es.ui.components.UserProfileMenu
 import eina.unizar.es.data.model.network.getUserData
+import eina.unizar.es.ui.main.Rubik
 import eina.unizar.es.ui.user.UserProfileMenu
 import eina.unizar.es.ui.navbar.BottomNavigationBar
 import eina.unizar.es.ui.player.FloatingMusicPlayer
@@ -48,14 +44,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.foundation.layout.size
 import eina.unizar.es.ui.song.Song
 import kotlinx.coroutines.launch
-import androidx.compose.ui.platform.LocalContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet) {
+fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremium: Boolean) {
     val context = LocalContext.current
     var showPaymentDialog by remember { mutableStateOf(false) } // Estado para mostrar pop-up
-    var isPremium by remember { mutableStateOf(false) }
+    var isPremium by remember { mutableStateOf(isPremium) }
     val coroutineScope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) {
@@ -149,16 +144,16 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet) {
                         UserProfileMenu(navController)
 
                         Spacer(modifier = Modifier.weight(0.9f))
-                        if (!isPremium) {
+                        //if (!isPremium) {
                             // Hacerse Premium activa el pop-up en lugar de cambiar de pantalla
                             VibraBanner(
                                 modifier = Modifier
                                     .align(Alignment.CenterVertically)
                                     .padding(end = 16.dp, top = 16.dp, bottom = 16.dp),
-                                premium = false,
+                                premium = isPremium,
                                 onPremiumClick = { showPaymentDialog = true } // Mostrar pop-up
                             )
-                        }
+                        //}
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
@@ -380,10 +375,12 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet) {
                     modifier = Modifier.size(45.dp)
                 )
                 Text(
-                    text = if (premium) "Vibra" else "Hacerse Premium",
+                    text = if (premium) "VIBRA" else "Hacerse Premium",
                     color = Color.White,
-                    fontSize = if (premium) 8.sp else 20.sp,
-                    modifier = Modifier.padding(end = 6.dp)
+                    fontSize = if (premium) 25.sp else 20.sp,
+                    modifier = Modifier.then(if (premium) Modifier.padding(end = 26.dp)
+                        else Modifier.padding(end = 6.dp)),
+                    fontFamily = Rubik
                 )
             }
         }

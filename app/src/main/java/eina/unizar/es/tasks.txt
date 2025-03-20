@@ -1,0 +1,183 @@
+PANTALLAS (FUNCIONALIADADES + MEJORAS + ESTETICA)
+----------------------------------------------------------------------------------
+A -> AÑADIR , M -> MEJORAR
+ORDEN DE PRIORIDAD -> 1 (IMPRESCINDIBLE), 2 (NECESARIO), 3 (CAPRICHO),  f(MAS ADELANTE)
+(cabde destacar que algunas de las funcionalidades que estan aqui no se encuentran
+    representadas como requisitos)
+(probar en vuestros móviles)
+----------------------------------------------------------------------------------
+
+0. TODAS LAS PANTALLAS:
+    - Funcionalidades:
+        · (3&f) Mostrar la canción como "notificación"
+    - Mejoras:
+        ·
+    - Estetica:
+        · Revisar todos los colores de pantallas, fondos, titulos, etc
+        · Revisar tipografía, tamaños, tipos, etc
+        · Tamaños parecidos en las componentes de las diferentes pantallas.
+        · En resumen, revisar estética general de la aplicación y que sea muy parecida en todas las pantallas.
+
+
+1. Pantalla de inicio:
+    - Funcionalidades :
+        · (3) Entra solo tras x secs.
+    - Mejoras:
+        · Quitar boton de comenzar
+    - Estetica (nada)
+
+2. Pantalla de inicio de sesión:
+    - Funcionalidades :
+        · (2) ¿Has olvidado tu contraseña?
+    - Mejoras (nada)
+    - Estetica:
+        · Quitar el recuadro que contiene toda la pantalla
+        · Ajustar componentes al nuevo tamaño
+        · Cambiar el texto "Iniciar Sesion en Vibra" por "Iniciar sesión" y que se muestre centrado.
+        · Cambiar el texto "¿No tienes una cuenta? Registrate en Vibra"
+                    por "¿No tienes una cuenta? Registrate" y que se muestre centrado.
+        · Adaptar dimensiones del botón "Continuar" (ajustadas al tamaño de la palabra).
+        · Agrandar un poco el texto de encima de los inputBox
+        · Quitar el inputText de los box de texto
+
+3. Pantalla de registro:
+    - Funcionalidades:
+        · (1) No permitir crear cuentas con valores inválidos (null, repes, etc)
+        · (1) Tras registrarse mostrar la pantalla de las opciones de suscripción
+        · (2) Mayor especificación del pop up en caso de error.
+    - Mejoras:
+        · Quitar la opción de ver las suscripciones en la propia pantalla de registro
+    - Estetica:
+        · Quitar el recuadro que contiene toda la pantalla
+        · Ajustar componentes al nuevo tamaño
+        · Adaptar dimensiones del botón "Registrarse" (ajustadas al tamaño de la palabra).
+        · Agrandar un poco el texto de encima de los inputBox
+        · Quitar el inputText de los box de texto
+
+4. Pantalla de Planes premium:
+    - Funcionalidades:
+        · (2) Si la cuenta es premium que no se muestre la opción de hacerse premium, sino que se
+            muestre una única opción de anular suscripción y que se cambie al plan gratuito.
+    - Mejoras:
+    - Estetica:
+
+5. Pantalla de Editar perfil:
+    - Funcionalidades:
+        · (1) No permitir editar a valores nulos o ya existentes.
+        · (2) Mayor especificación del pop up en caso de error.
+    - Mejoras:
+        · Las dos primeras inputBoxes no muestran un teclado, sino una barra lateral extraña.
+            Cambiarlo tal y como está en la tercera inputBox donde si se muestra el teclado.
+        · ¿Es necesario el botón de cancelar?.
+    - Estetica:
+        · Botón de "Guardar perfil" centrado, más grande, y poner la letra en blanco.
+
+6. Reproductor:
+    - Funcionalidades:
+        · (1) Hacer que sea independiente de la pantalla, que se muestre siempre por encima.
+        · (1) Conectar con la canción.
+        · (1) Al pulsar sobre él dirigir a la pantalla de la canción.
+        · (1) Poder pausar la canción.
+        · (1) Poder dar like a la canción.
+        · (f) 'icono de ordenador' muestre donde se está reproduciendo.
+        · (3) al deslizar hacia la derecha o izquierda saltar canción o ir a la canción anterior.
+    - Mejoras:
+        · Hacer que cambie el icono de play a pause cuando se pulse.
+    - Estetica:
+        · Agrandar un poco el ancho del reproductor.
+        · Hacer un poco transparente el reproductor (no hacer transparente la imagen y la letra).
+        · Igualar el tamaño de los iconos.
+
+7. Pantalla de Menu:
+    - Funcionalidades:
+        · (1) Al pulsar en las canciones de arriba no redirigir a la pantalla de la cancion sino que
+            se empiece a reproducir en el reproductor.
+        · (1) Gestionar las canciones, listas y albumes recomendados, es decir que se generen y se muestren.
+        · (1) Conectar albumes y listas con la base de datos y que se muestre el contenido.
+        · (2) Mostrar las imagenes junto a las canciones; y en albumes y listas.
+        · (f) Añadir icono de chat en la cabecera y conectarlo correctamente.
+    - Mejoras:
+        · Buscar alternativas al box de "Hacerse Premium", ya que no queda bien ahí.
+    - Estetica:
+        · Ajustar texto de las box canciones para que se pegue a la imagen y que si no cabe ponga "..."
+        · Que no se corten las canciones.
+        · Revisar tamaños de las boxes canciones.
+        · Si no cabe un nombre de una playlist poner "..."
+
+8. Pantalla de Playlist/Listas:
+    - Funcionalidades:
+        · (0) Diría que faltan requisitos por añadir a la pantalla
+            (eliminar playlist, invitar colaboradores, no se si más), revisarlo.
+
+        · (1) Mostrar las canciones que contiene en la BD.
+        · (1) Poder reproducir dandole al boton de play y que cambie a pause.
+        · (1) Poder pausar dandole de nuevo.
+        · (1) Al pulsar sobre una canción reproducirla en el reproductor, no llevar a la pantalla de la canción
+        · (1) Mostrar la imagen de portada y la de las canciones.
+        · (1) Poder buscar dentro de lista/playlist.
+        · (1) Comprobar si funciona "Ordenar por".
+        · (1) Poder añadir nuevas canciones.
+        · (2) Al pulsar los ... de la playlist/lista salen varias opciones (añadir cancion, eliminar, compartir, etc)
+            hay que llevar a cabo todas esas funcionalidades (a lo mejor hacen falta nuevas pantallas)
+        · (2) Al pulsar los ... de las canciones salen varias opciones (añadir a lista, añadir a la biblioteca, etc)
+            hay que llevar a cabo todas esas funcionalidades (a lo mejor hacen falta nuevas pantallas)
+    - Mejoras:
+        · Al dar a la lupa no se muestra el teclado, hacer que salga el teclado.
+    - Estetica:
+        · Reducir el tamaño de las boxes de las canciones
+        · Al pulsar sobre los ... de la lista se oscurece demasiado el resto de la pantalla.
+        · Las distintas opciones de los ... de listas y de canciones se podrían disponer de una forma mas bonita.
+        · El + y los ... de la lista podrían quedar bien pegados a la derecha, o al menos los ...
+
+9. Pantalla de Canción:
+    - Funcionalidades:
+        · (0) No se si faltan funcionalidades, revisar listado de requisitos y añadirlas si faltan.
+            (Así de primeras falta el like, añadirla a playlists, compartirla, el modo aleatorio, repetir, etc)
+
+        · (1) Cuando se entra en esta pantalla no se muestra el reproductor.
+        · (1) Coordinar con el reproductor (si estaba en play o pause, tiempo de la canción, etc)
+        · (1) Poder pausar y reanudar la canción
+        · (1) Poder saltar la canción actual y volver a la cancion anterior.
+        · (1) Mostrar la imagen, titulo, artista, letra correspondiente en la BD.
+        · (1) Hacer funcional la barra de avance de la cancion (poder avanzar y/o echar para atrás)
+        · (1) Actualizar el tiempo reproducido y el tiempo que falta por reproducir de debajo de la barra.
+        · (2) Revisar si cabe la letra.
+
+    - Mejoras:
+        · Cuando sacas la letra de la canción para volver a no verla hay que deslizar obligatoriamente
+            fuera de la sección de la letra, estaría bien que al deslizar sobre el espacio de la letra
+            se volviese también.
+    - Estetica:
+        · Como en el resto de pantallas revisar color, letra, etc.
+
+10. Pantalla de biblioteca:
+    - Funcionalidades:
+        · (0) Comprobar si faltan funcionalidades (crear nuevas playlist, ordenar, eliminar, etc)
+
+        · (1) Conectar con la BD y mostrar la biblioteca real del usuario
+        · (1) Al pulsar sobre las listas/playlist redirigir bien.
+    - Mejoras:
+        ·
+    - Estetica:
+        · Tras pulsar en la lupa para buscar, el box para escribir que se muestre en la cabecera y
+            desaparezca la lupa, ahora se muestra justo debajo de la cabecera. Se podría dejar así.
+
+11. Pantalla de búsqueda:
+    - Funcionalidades:
+        · (0) Comprobar si faltan funcionalidades (... en los items para añadirlos a playlists, dar like, etc)
+
+        · (1) Poder buscar canciones, listas o playlists y que si existen en la BD se muestren.
+        · (1) Poder operar con los items que se busquen.
+        · (1) Si se pulsa sobre una canción reproducirla.
+        · (1) Si se pulsa sobre una lista o playlist abrir la pantalla de dicha elección.
+        · (1) Hacer que "limpiar historial" lo borre también de la BD y no solo en ese momento de ejecución.
+    - Mejoras:
+        · Al pulsar sobre el box no sale el teclado
+        · Revisar si merece tener la pena un botón limpiar historial tan expuesto ya que se puede pulsar
+            sobre él por error, a lo mejor convendría poner ... arriba a la derecha y que ahí se pueda limpiar
+        · No se muestra el icono del usuario, diría que habría que meterlo
+
+    - Estetica:
+        · Revisar tamaño de boxes de canciones y supongo que también listas y playlists.
+        · El botón "Limpiar historial" parece tener un color no correcto
+        · El título "Buscar" de la cabecera no parece seguir ninguno de los formatos preestablecidos.
