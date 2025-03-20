@@ -372,7 +372,7 @@ fun PlaylistScreen(navController: NavController, playlistId: String?) {
                         modifier = Modifier
                             .fillMaxWidth(0.9f)
                             .clickable {
-                                val urlCompleta = "http://10.0.2.2:5001/${(song.url_mp3).removePrefix("/")}"
+                                val urlCompleta = "http://164.90.160.181:5001/${(song.url_mp3).removePrefix("/")}"
                                 exoPlayer?.release()
                                 exoPlayer = ExoPlayer.Builder(context).build().apply {
                                     val mediaItem = MediaItem.fromUri(urlCompleta)
