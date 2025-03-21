@@ -47,12 +47,12 @@ import kotlin.time.Duration.Companion.milliseconds
 fun SongScreen(navController: NavController, songId: String?) {
     var isPlaying by remember { mutableStateOf(false) }
     var progress by remember { mutableStateOf(0.1f) }
-    var lyricsExpanded by remember { mutableStateOf(false) } // Estado para expandir la letra
+    var lyricsExpanded by remember { mutableStateOf(true) } // Estado para expandir la letra
 
     var songInfo by remember { mutableStateOf<Song?>(null) }
     var currentSongIndex by remember { mutableIntStateOf(0)}
 
-
+    var songChanged by remember { mutableStateOf(false) }
     var songs by remember { mutableStateOf<List<Song>>(emptyList()) }
 
     // Estado de desplazamiento
@@ -168,29 +168,8 @@ fun SongScreen(navController: NavController, songId: String?) {
             Spacer(modifier = Modifier.height(15.dp)) // Bajamos más la barra de progreso
 
             // Reemplaza el Slider y los Text con SongProgress
-            SongProgress(exoPlayer = exoPlayer)
-            /*// 🔵 Barra de progreso
-            Slider(
-                value = progress,
-                onValueChange = { progress = it },
-                colors = SliderDefaults.colors(
-                    thumbColor = MaterialTheme.colorScheme.primary,
-                    activeTrackColor = MaterialTheme.colorScheme.primary
-                ),
-                modifier = Modifier.fillMaxWidth(0.85f)
-            )
+            SongProgress(exoPlayer = exoPlayer, isPlaying = isPlaying, songIndex = currentSongIndex)
 
-            // Tiempo transcurrido / Duración total
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth(0.85f)
-                    .padding(horizontal = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text("0:03", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface)
-                Text("-3:46", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface)
-            }
-            */
             Spacer(modifier = Modifier.height(16.dp))
 
             // Controles de reproducción
@@ -297,6 +276,8 @@ fun SongScreen(navController: NavController, songId: String?) {
         }
     }
 
+
+
     LaunchedEffect(isPlaying, songInfo) {
         if (songInfo != null && isPlaying) {
             val urlCompleta = "http://164.90.160.181:5001/${(songInfo?.url_mp3)?.removePrefix("/")}"
@@ -327,7 +308,7 @@ fun SongScreen(navController: NavController, songId: String?) {
 
 @androidx.annotation.OptIn(UnstableApi::class)
 @Composable
-fun SongProgress(exoPlayer: ExoPlayer?) {
+fun SongProgress(exoPlayer: ExoPlayer?, songIndex: Int, isPlaying: Boolean) {
     var currTime by remember { mutableStateOf("0:00") }
     var totalTime by remember { mutableStateOf("0:00") }
     var progress by remember { mutableFloatStateOf(0f) }
@@ -346,12 +327,14 @@ fun SongProgress(exoPlayer: ExoPlayer?) {
                     }
                 }
 
+
+
                 override fun onIsPlayingChanged(isPlaying: Boolean) {
                     if (isPlaying) {
                         launch {
                             while (exoPlayer.isPlaying) {
                                 currentPosition = exoPlayer.currentPosition
-                                delay(100) // Espera 100ms antes de actualizar
+                                delay(10) // Espera 100ms antes de actualizar
                             }
                         }
                     }
@@ -369,17 +352,31 @@ fun SongProgress(exoPlayer: ExoPlayer?) {
         }
     }
 
+    // Reiniciar el progreso cuando cambia la canción
+    LaunchedEffect(songIndex) {
+            currentPosition = 0L
+            currTime = formatDuration(0L)
+            progress = 0f
+    }
+
+    // LaunchedEffect para simular el avance del slider y el tiempo
+    LaunchedEffect(isPlaying) {
+        launch {
+                while (isPlaying) {
+                    currentPosition += 100 // Avanzar un segundo (1000 ms)
+                    currTime = formatDuration(currentPosition)
+                    progress =
+                        if (duration > 0) currentPosition.toFloat() / duration.toFloat() else 0f
+                    delay(100) // Actualizar cada segundo
+                }
+        }
+    }
+
     // Simulación de avance en el Slider cuando no se reproduce
     LaunchedEffect(currentPosition) {
-        if (exoPlayer != null && exoPlayer.isPlaying) {
+        if (exoPlayer != null) {
             currTime = formatDuration(currentPosition)
             progress = if (duration > 0) currentPosition.toFloat() / duration.toFloat() else 0f
-        } else {
-            // Aquí podemos hacer que el slider avance aunque no se esté reproduciendo
-            progress = if (duration > 0) (currentPosition.toFloat() + 100) / duration.toFloat() else 0f
-            currentPosition = (progress * duration).toLong()
-            currTime = formatDuration(currentPosition) // Actualiza el tiempo simulado
-            delay(100)
         }
     }
 
