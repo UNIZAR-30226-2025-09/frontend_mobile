@@ -52,7 +52,6 @@ fun SongScreen(navController: NavController, songId: String?) {
     var songInfo by remember { mutableStateOf<Song?>(null) }
     var currentSongIndex by remember { mutableIntStateOf(0)}
 
-    var songChanged by remember { mutableStateOf(false) }
     var songs by remember { mutableStateOf<List<Song>>(emptyList()) }
 
     // Estado de desplazamiento
@@ -168,7 +167,18 @@ fun SongScreen(navController: NavController, songId: String?) {
             Spacer(modifier = Modifier.height(15.dp)) // Bajamos más la barra de progreso
 
             // Reemplaza el Slider y los Text con SongProgress
-            SongProgress(exoPlayer = exoPlayer, isPlaying = isPlaying, songIndex = currentSongIndex)
+            SongProgress(exoPlayer = exoPlayer, isPlaying = isPlaying, songIndex = currentSongIndex,
+                onNextSong = {
+                    if (songs.isNotEmpty()) {
+                        currentSongIndex = (currentSongIndex + 1 + songs.size) % songs.size
+                        songInfo = songs[currentSongIndex]
+                        exoPlayer?.release()
+                        exoPlayer = null
+                        isPlaying = true
+                        progress = 0f
+                        exoPlayer?.play()
+                    }
+                })
 
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -305,10 +315,11 @@ fun SongScreen(navController: NavController, songId: String?) {
     }
 }
 
+typealias OnNextSong = () -> Unit
 
 @androidx.annotation.OptIn(UnstableApi::class)
 @Composable
-fun SongProgress(exoPlayer: ExoPlayer?, songIndex: Int, isPlaying: Boolean) {
+fun SongProgress(exoPlayer: ExoPlayer?, songIndex: Int, isPlaying: Boolean, onNextSong: () -> Unit) {
     var currTime by remember { mutableStateOf("0:00") }
     var totalTime by remember { mutableStateOf("0:00") }
     var progress by remember { mutableFloatStateOf(0f) }
@@ -359,16 +370,22 @@ fun SongProgress(exoPlayer: ExoPlayer?, songIndex: Int, isPlaying: Boolean) {
             progress = 0f
     }
 
-    // LaunchedEffect para simular el avance del slider y el tiempo
     LaunchedEffect(isPlaying) {
         launch {
-                while (isPlaying) {
-                    currentPosition += 100 // Avanzar un segundo (1000 ms)
-                    currTime = formatDuration(currentPosition)
-                    progress =
-                        if (duration > 0) currentPosition.toFloat() / duration.toFloat() else 0f
-                    delay(100) // Actualizar cada segundo
+            while (isPlaying) {
+                currentPosition += 100 // Avanzar 100 milisegundos
+                currTime = formatDuration(currentPosition)
+                progress = if (duration > 0) currentPosition.toFloat() / duration.toFloat() else 0f
+
+                // Verificar si el tiempo transcurrido es mayor o igual a la duración total
+                if (currTime >= totalTime) {
+                    // Saltar a la siguiente canción cuando termine
+                    Log.d("Error" ,"Final de la cancion")
+                    onNextSong()
                 }
+
+                delay(100) // Actualizar cada 100 milisegundos
+            }
         }
     }
 
