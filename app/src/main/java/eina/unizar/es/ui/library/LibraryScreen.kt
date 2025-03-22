@@ -265,7 +265,7 @@ fun LibraryScreen(navController: NavController) {
             // Lista de elementos filtrados según la búsqueda
             LazyColumn(modifier = Modifier.padding(8.dp)) {
                 items(playlists) { item ->
-                    LibraryItem(item)
+                    LibraryItem(item, navController)
                 }
             }
         }
@@ -337,34 +337,39 @@ fun LibraryScreen(navController: NavController) {
 }
 
 @Composable
-fun LibraryItem(playlist: Playlist) { // Modificamos para usar Playlist
+fun LibraryItem(playlist: Playlist, navController: NavController) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(8.dp).clickable {},
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(8.dp)
+            .clickable {
+                // Navegar a la lista de canciones
+                navController.navigate("playlist/${playlist.id}") // Usamos el id de la playlist
+            },
         verticalAlignment = Alignment.CenterVertically
     ) {
         Image(
-            painter = painterResource(id = R.drawable.kanyeperfil), // Puedes usar playlist.imageUrl si lo tienes
+            painter = painterResource(id = R.drawable.kanyeperfil),
             contentDescription = "Imagen",
             modifier = Modifier.size(50.dp)
         )
         Spacer(modifier = Modifier.width(10.dp))
         Column {
             Text(
-                text = playlist.title, // Usamos playlist.title
+                text = playlist.title,
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onBackground
             )
             Log.d("Descripciones", playlist.description)
-                Text(
-                    text = if (playlist.description != "null") {
-                        playlist.description
-                    } else {
-                        "Añade aquí una descripción"
-                    },
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                )
-
+            Text(
+                text = if (playlist.description != "null") {
+                    playlist.description
+                } else {
+                    "Añade aquí una descripción"
+                },
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+            )
         }
     }
 }

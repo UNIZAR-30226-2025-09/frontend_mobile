@@ -30,8 +30,6 @@ import androidx.navigation.NavController
 import com.stripe.android.paymentsheet.PaymentSheet
 import eina.unizar.es.R
 import eina.unizar.es.data.model.network.ApiClient.get
-//import eina.unizar.es.ui.components.UserProfileMenu
-import eina.unizar.es.data.model.network.getUserData
 import eina.unizar.es.ui.main.Rubik
 import eina.unizar.es.ui.user.UserProfileMenu
 import eina.unizar.es.ui.navbar.BottomNavigationBar
@@ -42,6 +40,7 @@ import org.json.JSONArray
 import coil.compose.AsyncImage
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.layout.size
+import eina.unizar.es.data.model.network.ApiClient.getUserData
 import eina.unizar.es.ui.song.Song
 import kotlinx.coroutines.launch
 
