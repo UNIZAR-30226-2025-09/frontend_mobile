@@ -27,6 +27,8 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.media3.common.MediaItem
+import androidx.media3.common.Player
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.navigation.NavController
 import eina.unizar.es.R
@@ -34,16 +36,23 @@ import eina.unizar.es.data.model.network.ApiClient.get
 import eina.unizar.es.ui.playlist.Playlist
 import eina.unizar.es.ui.song.Song
 import eina.unizar.es.ui.theme.*
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import org.json.JSONArray
 import org.json.JSONObject
+import kotlin.time.Duration.Companion.milliseconds
 
-@OptIn(ExperimentalMaterial3Api::class)
+
 @Composable
 fun SongScreen(navController: NavController, songId: String?) {
     var isPlaying by remember { mutableStateOf(false) }
     var progress by remember { mutableStateOf(0.1f) }
-    var lyricsExpanded by remember { mutableStateOf(false) } // Estado para expandir la letra
+    var lyricsExpanded by remember { mutableStateOf(true) } // Estado para expandir la letra
 
     var songInfo by remember { mutableStateOf<Song?>(null) }
+    var currentSongIndex by remember { mutableIntStateOf(0)}
+
+    var songs by remember { mutableStateOf<List<Song>>(emptyList()) }
 
     // Estado de desplazamiento
     val scrollState = rememberScrollState()
@@ -66,23 +75,33 @@ fun SongScreen(navController: NavController, songId: String?) {
                 )
             }
         }
-    }
 
+        // Sacamos todas las canciones por si pasamos de pantalla
+        val response = get("songs") // Llamada a la API para obtener canciones
+        response?.let {
+            val jsonArray = JSONArray(it)
+            val fetchedSongs = mutableListOf<Song>()
 
-// Para reproducir la cancion
-    val context = LocalContext.current
-    val exoPlayer = remember {
-        ExoPlayer.Builder(context).build().apply {
-            val mediaItem = songInfo?.let { MediaItem.fromUri(it.url_mp3) }
-            if (mediaItem != null) {
-                setMediaItem(mediaItem)
-            } else {
-                Log.d("El objeto es nulo", "Error")
+            for (i in 0 until jsonArray.length()) {
+                val jsonObject = jsonArray.getJSONObject(i)
+                fetchedSongs.add(
+                    Song(
+                        id = jsonObject.getInt("id"),
+                        name = jsonObject.getString("name"),
+                        duration = jsonObject.getInt("duration"),
+                        letra = jsonObject.getString("lyrics"),
+                        photo_video = jsonObject.getString("photo_video"),
+                        url_mp3 = jsonObject.getString("url_mp3")
+                    )
+                )
             }
-            prepare()
+            songs = fetchedSongs
         }
     }
 
+// Reproducir la musica
+    val context = LocalContext.current
+    var exoPlayer: ExoPlayer? by remember { mutableStateOf(null) }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background
@@ -147,27 +166,19 @@ fun SongScreen(navController: NavController, songId: String?) {
 
             Spacer(modifier = Modifier.height(15.dp)) // Bajamos más la barra de progreso
 
-            // 🔵 Barra de progreso
-            Slider(
-                value = progress,
-                onValueChange = { progress = it },
-                colors = SliderDefaults.colors(
-                    thumbColor = MaterialTheme.colorScheme.primary,
-                    activeTrackColor = MaterialTheme.colorScheme.primary
-                ),
-                modifier = Modifier.fillMaxWidth(0.85f)
-            )
-
-            // Tiempo transcurrido / Duración total
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth(0.85f)
-                    .padding(horizontal = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text("0:03", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface)
-                Text("-3:46", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface)
-            }
+            // Reemplaza el Slider y los Text con SongProgress
+            SongProgress(exoPlayer = exoPlayer, isPlaying = isPlaying, songIndex = currentSongIndex,
+                onNextSong = {
+                    if (songs.isNotEmpty()) {
+                        currentSongIndex = (currentSongIndex + 1 + songs.size) % songs.size
+                        songInfo = songs[currentSongIndex]
+                        exoPlayer?.release()
+                        exoPlayer = null
+                        isPlaying = true
+                        progress = 0f
+                        exoPlayer?.play()
+                    }
+                })
 
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -177,14 +188,24 @@ fun SongScreen(navController: NavController, songId: String?) {
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(onClick = { /* Acción: Anterior */ }) {
+                IconButton(onClick = {
+                    if (songs.isNotEmpty()) {
+                    currentSongIndex = (currentSongIndex - 1 + songs.size) % songs.size
+                    songInfo = songs[currentSongIndex]
+                    exoPlayer?.release()
+                    exoPlayer = null
+                    isPlaying = true
+                    progress = 0f
+                        exoPlayer?.play()
+                } }) {
                     Icon(Icons.Filled.FastRewind, contentDescription = "Anterior", tint = MaterialTheme.colorScheme.onBackground)
                 }
                 Spacer(modifier = Modifier.width(16.dp))
 
                 FloatingActionButton(
-                    onClick = { isPlaying = !isPlaying
-                              exoPlayer.play()},
+                    onClick = {
+                        isPlaying = !isPlaying
+                       },
                     containerColor = MaterialTheme.colorScheme.primary
                 ) {
                     Icon(
@@ -195,7 +216,15 @@ fun SongScreen(navController: NavController, songId: String?) {
                 }
 
                 Spacer(modifier = Modifier.width(16.dp))
-                IconButton(onClick = { /* Acción: Siguiente */ }) {
+                IconButton(onClick = {  if (songs.isNotEmpty()) {
+                    currentSongIndex = (currentSongIndex + 1 + songs.size) % songs.size
+                    songInfo = songs[currentSongIndex]
+                    exoPlayer?.release()
+                    exoPlayer = null
+                    isPlaying = true
+                    progress = 0f
+                    exoPlayer?.play()
+                } }) {
                     Icon(Icons.Filled.FastForward, contentDescription = "Siguiente", tint = MaterialTheme.colorScheme.onBackground)
                 }
             }
@@ -256,4 +285,144 @@ fun SongScreen(navController: NavController, songId: String?) {
             }
         }
     }
+
+
+
+    LaunchedEffect(isPlaying, songInfo) {
+        if (songInfo != null && isPlaying) {
+            val urlCompleta = "http://164.90.160.181:5001/${(songInfo?.url_mp3)?.removePrefix("/")}"
+
+            if (exoPlayer == null) {
+                exoPlayer = ExoPlayer.Builder(context).build().apply {
+                    val mediaItem = MediaItem.fromUri(urlCompleta)
+                    setMediaItem(mediaItem)
+                    prepare()
+                    play()
+                }
+            } else {
+                exoPlayer?.play()
+            }
+        } else {
+            exoPlayer?.pause()
+        }
+    }
+
+    // Liberar el ExoPlayer cuando el Composable se destruye
+    DisposableEffect(Unit) {
+        onDispose {
+            exoPlayer?.release()
+        }
+    }
+}
+
+typealias OnNextSong = () -> Unit
+
+@androidx.annotation.OptIn(UnstableApi::class)
+@Composable
+fun SongProgress(exoPlayer: ExoPlayer?, songIndex: Int, isPlaying: Boolean, onNextSong: () -> Unit) {
+    var currTime by remember { mutableStateOf("0:00") }
+    var totalTime by remember { mutableStateOf("0:00") }
+    var progress by remember { mutableFloatStateOf(0f) }
+    var duration by remember { mutableLongStateOf(0L) }
+    var currentPosition by remember { mutableLongStateOf(0L) }
+    //val isPlaying = exoPlayer?.isPlaying ?: false // Verifica si la canción está en reproducción
+
+    // LaunchedEffect para escuchar cambios en la posición del reproductor y actualizar el progreso
+    LaunchedEffect(exoPlayer) {
+        if (exoPlayer != null) {
+            exoPlayer.addListener(object : Player.Listener {
+                override fun onPlaybackStateChanged(playbackState: Int) {
+                    if (playbackState == Player.STATE_READY) {
+                        duration = exoPlayer.duration
+                        totalTime = formatDuration(duration)
+                    }
+                }
+
+
+
+                override fun onIsPlayingChanged(isPlaying: Boolean) {
+                    if (isPlaying) {
+                        launch {
+                            while (exoPlayer.isPlaying) {
+                                currentPosition = exoPlayer.currentPosition
+                                delay(10) // Espera 100ms antes de actualizar
+                            }
+                        }
+                    }
+                }
+
+                override fun onPositionDiscontinuity(reason: Int) {
+                    currentPosition = exoPlayer.currentPosition
+                }
+            })
+
+            // Actualiza la posición inicial si la canción ya está reproduciéndose
+            if (exoPlayer.isPlaying) {
+                currentPosition = exoPlayer.currentPosition
+            }
+        }
+    }
+
+    // Reiniciar el progreso cuando cambia la canción
+    LaunchedEffect(songIndex) {
+            currentPosition = 0L
+            currTime = formatDuration(0L)
+            progress = 0f
+    }
+
+    LaunchedEffect(isPlaying) {
+        launch {
+            while (isPlaying) {
+                currentPosition += 100 // Avanzar 100 milisegundos
+                currTime = formatDuration(currentPosition)
+                progress = if (duration > 0) currentPosition.toFloat() / duration.toFloat() else 0f
+
+                // Verificar si el tiempo transcurrido es mayor o igual a la duración total
+                if (currTime >= totalTime) {
+                    // Saltar a la siguiente canción cuando termine
+                    Log.d("Error" ,"Final de la cancion")
+                    onNextSong()
+                }
+
+                delay(100) // Actualizar cada 100 milisegundos
+            }
+        }
+    }
+
+    // Simulación de avance en el Slider cuando no se reproduce
+    LaunchedEffect(currentPosition) {
+        if (exoPlayer != null) {
+            currTime = formatDuration(currentPosition)
+            progress = if (duration > 0) currentPosition.toFloat() / duration.toFloat() else 0f
+        }
+    }
+
+    // Slider que permite cambiar la posición de la canción
+    Slider(
+        value = progress,
+        onValueChange = {
+            exoPlayer?.seekTo((it * duration).toLong()) // Cambia la posición de la canción
+            currentPosition = (it * duration).toLong() // Actualiza la posición
+            currTime = formatDuration(currentPosition) // Actualiza el tiempo
+        },
+        modifier = Modifier.fillMaxWidth(0.85f)
+    )
+
+    // Mostrar el tiempo actual y el total de la canción
+    Row(
+        modifier = Modifier
+            .fillMaxWidth(0.85f)
+            .padding(horizontal = 8.dp),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(currTime, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface)
+        Text(totalTime, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface)
+    }
+}
+
+fun formatDuration(durationMs: Long): String {
+    val duration = durationMs.milliseconds
+    val minutes = duration.inWholeMinutes
+    val seconds = duration.inWholeSeconds % 60
+    return String.format("%02d:%02d", minutes, seconds)
 }
