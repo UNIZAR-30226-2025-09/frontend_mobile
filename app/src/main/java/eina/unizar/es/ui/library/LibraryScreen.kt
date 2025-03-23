@@ -31,6 +31,8 @@ import com.example.musicapp.ui.theme.VibraWhite
 import eina.unizar.es.R
 import eina.unizar.es.data.model.network.ApiClient.get
 import eina.unizar.es.data.model.network.ApiClient.post
+import eina.unizar.es.ui.navbar.BottomNavigationBar
+import eina.unizar.es.ui.player.FloatingMusicPlayer
 import eina.unizar.es.ui.playlist.Playlist
 import eina.unizar.es.ui.song.Song
 import eina.unizar.es.ui.user.UserProfileMenu
@@ -168,30 +170,12 @@ fun LibraryScreen(navController: NavController) {
             )
         },
         bottomBar = {
-            NavigationBar(containerColor = Color.Transparent) {
-                bottomNavItems.forEachIndexed { index, (label, icon) ->
-                    NavigationBarItem(
-                        selected = (selectedItem == index),
-                        onClick = {
-                            selectedItem = index
-                            when (index) {
-                                0 -> navController.navigate("menu") // Inicio
-                                1 -> navController.navigate("search") // Buscador
-                                2 -> navController.navigate("library") // Biblioteca
-                            }
-                        },
-                        icon = { Icon(icon, contentDescription = label) },
-                        label = { Text(label, fontSize = 12.sp) },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = MaterialTheme.colorScheme.onBackground,
-                            unselectedIconColor = MaterialTheme.colorScheme.inverseSurface,
-                            selectedTextColor = MaterialTheme.colorScheme.onBackground,
-                            unselectedTextColor = MaterialTheme.colorScheme.inverseSurface,
-
-                            )
-                    )
-                }
+            Column {
+                val isPlaying = remember { mutableStateOf(false) }
+                FloatingMusicPlayer("Sensualidad", "god", R.drawable.kanyeperfil, isPlaying.value)
+                BottomNavigationBar(navController)
             }
+
         },
     ) { innerPadding ->
         Column(

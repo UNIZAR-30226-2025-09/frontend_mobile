@@ -160,7 +160,13 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
                 )
             )
         },
-        bottomBar = { BottomNavigationBar(navController) },
+        bottomBar = {
+            Column {
+                val isPlaying = remember { mutableStateOf(false) }
+                FloatingMusicPlayer("Sensualidad", "god", R.drawable.kanyeperfil, isPlaying.value)
+                BottomNavigationBar(navController)
+            }
+        },
     ) { innerPadding ->
         Box(
             modifier = Modifier
@@ -296,19 +302,6 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
                                 )
                             }
                         }
-                    }
-                    Box(modifier = Modifier.fillMaxWidth()) {
-                        // Reproductor Flotante
-                        val isPlaying = remember { mutableStateOf(false) }
-                        FloatingMusicPlayer(
-                            title = "Mi canción",
-                            artist = "Artista",
-                            albumArt = R.drawable.kanyeperfil,
-                            isPlaying = isPlaying.value,
-                            // onPlayPauseClick = { isPlaying.value = !isPlaying.value },
-                            // onFavoriteClick = { /*TODO*/ },
-                            // onComputerClick = { /*TODO*/ }
-                        )
                     }
                 }
             }
