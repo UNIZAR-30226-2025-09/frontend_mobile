@@ -45,6 +45,8 @@ import androidx.media3.exoplayer.ExoPlayer
 import coil.compose.AsyncImage
 import eina.unizar.es.data.model.network.ApiClient
 import eina.unizar.es.data.model.network.ApiClient.getImageUrl
+import eina.unizar.es.ui.navbar.BottomNavigationBar
+import eina.unizar.es.ui.player.FloatingMusicPlayer
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
@@ -201,6 +203,13 @@ fun PlaylistScreen(navController: NavController, playlistId: String?) {
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = backgroundColor)
             )
+        },
+        bottomBar = {
+            Column {
+                val isPlaying = remember { mutableStateOf(false) }
+                FloatingMusicPlayer("Sensualidad", "god", R.drawable.kanyeperfil, isPlaying.value)
+                BottomNavigationBar(navController)
+            }
         },
         containerColor = backgroundColor
     ) { innerPadding ->

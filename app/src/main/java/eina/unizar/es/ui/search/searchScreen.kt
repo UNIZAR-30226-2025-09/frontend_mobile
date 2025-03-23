@@ -8,6 +8,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.*
@@ -17,20 +19,23 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.*
 import androidx.navigation.NavController
+import eina.unizar.es.R
 import eina.unizar.es.ui.navbar.BottomNavigationBar
+import eina.unizar.es.ui.player.FloatingMusicPlayer
+import eina.unizar.es.ui.user.UserProfileMenu
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchScreen(navController: NavController) {
-    val backgroundColor = Color(0xFF1E1E1E)
-    val searchBarUnfocusedColor = Color.White
-    val searchTextUnfocusedColor = Color.Black
-    val searchBarFocusedColor = Color.Black
-    val searchTextFocusedColor = Color.White
+    val backgroundColor = MaterialTheme.colorScheme.background
+    val searchBarUnfocusedColor = MaterialTheme.colorScheme.onBackground
+    val searchTextUnfocusedColor = MaterialTheme.colorScheme.background
+    val searchBarFocusedColor = MaterialTheme.colorScheme.background
+    val searchTextFocusedColor = MaterialTheme.colorScheme.onBackground
 
-    val textColor = Color.White
-    val buttonColor = Color(0xFF0D47A1)
-    val cardBackgroundColor = Color(0xFF121212)
+    val textColor = MaterialTheme.colorScheme.onSurface
+    val buttonColor = MaterialTheme.colorScheme.primary
+    val cardBackgroundColor = MaterialTheme.colorScheme.surface
 
     var searchQuery by remember { mutableStateOf("") }
     val searchHistory = remember {
@@ -44,7 +49,32 @@ fun SearchScreen(navController: NavController) {
     val currentTextColor = if (isFocused) searchTextFocusedColor else searchTextUnfocusedColor
 
     Scaffold(
-        bottomBar = { BottomNavigationBar(navController) },
+        topBar = {
+            TopAppBar(
+                title = {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            UserProfileMenu(navController) // Icono de usuario
+                            Spacer(modifier = Modifier.width(10.dp))
+                        }
+                    }
+                },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background
+                )
+            )
+        },
+        bottomBar = {
+            Column {
+                val isPlaying = remember { mutableStateOf(false) }
+                FloatingMusicPlayer("Sensualidad", "god", R.drawable.kanyeperfil, isPlaying.value)
+                BottomNavigationBar(navController)
+            }
+        },
         containerColor = backgroundColor
     ) { innerPadding ->
         Column(
@@ -56,9 +86,8 @@ fun SearchScreen(navController: NavController) {
         ) {
             Text(
                 text = "Buscar",
-                fontSize = 32.sp,
-                color = textColor,
-                modifier = Modifier.padding(bottom = 16.dp)
+                style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.onBackground,
             )
 
             OutlinedTextField(
@@ -92,8 +121,8 @@ fun SearchScreen(navController: NavController) {
                     item {
                         Text(
                             text = "Últimas búsquedas",
-                            fontSize = 20.sp,
-                            color = textColor,
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onBackground,
                             modifier = Modifier.padding(bottom = 8.dp)
                         )
                     }
