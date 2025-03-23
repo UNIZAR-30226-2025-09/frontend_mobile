@@ -5,6 +5,7 @@ import android.util.Log
 import android.widget.Toast
 import androidx.navigation.NavController
 import eina.unizar.es.data.model.network.ApiClient.BASE_URL
+import eina.unizar.es.ui.playlist.Playlist
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
@@ -16,10 +17,11 @@ import java.net.URL
 import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONArray
 
 object ApiClient {
-    //const val BASE_URL = "http://10.0.2.2/request/api" // Usa la IP local del backend
-    const val BASE_URL = "http://164.90.160.181/request/api" // Usa la IP publica (nube) del backend
+    const val BASE_URL = "http://10.0.2.2/request/api" // Usa la IP local del backend
+    //const val BASE_URL = "http://164.90.160.181/request/api" // Usa la IP publica (nube) del backend
 
     /**
      * Método para realizar una petición GET en segundo plano.
@@ -198,168 +200,262 @@ object ApiClient {
     }
 }
 
-/*
- * Función para obtener datos del usuario
- */
-suspend fun getUserData(context: Context): Map<String, Any>? {
-    return withContext(Dispatchers.IO) {
-        try {
-            val sharedPreferences = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
-            val token = sharedPreferences.getString("auth_token", null) ?: return@withContext null
+    /*
+     * Función para obtener datos del usuario
+     */
+    suspend fun getUserData(context: Context): Map<String, Any>? {
+        return withContext(Dispatchers.IO) {
+            try {
+                val sharedPreferences = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+                val token = sharedPreferences.getString("auth_token", null) ?: return@withContext null
 
-            val headers = mapOf("Authorization" to "Bearer $token")
-            val response = getWithHeaders("user/profile", context, headers)
+                val headers = mapOf("Authorization" to "Bearer $token")
+                val response = getWithHeaders("user/profile", context, headers)
 
-            if (response != null) {
-                val jsonResponse = JSONObject(response)
+                if (response != null) {
+                    val jsonResponse = JSONObject(response)
 
-                Log.d("UserData", "Datos recibidos: $jsonResponse") // Debug para ver qué devuelve la API
+                    Log.d("UserData", "Datos recibidos: $jsonResponse") // Debug para ver qué devuelve la API
 
-                return@withContext mapOf(
-                    "nickname" to jsonResponse.optString("nickname", ""),
-                    "mail" to jsonResponse.optString("mail", ""),
-                    "is_premium" to jsonResponse.optBoolean("is_premium", false)
-                )
+                    return@withContext mapOf(
+                        "id" to jsonResponse.optInt("id", 0),
+                        "nickname" to jsonResponse.optString("nickname", ""),
+                        "mail" to jsonResponse.optString("mail", ""),
+                        "is_premium" to jsonResponse.optBoolean("is_premium", false)
+                    )
+                }
+            } catch (e: Exception) {
+                Log.e("UserData", "Error al obtener los datos del usuario", e)
             }
-        } catch (e: Exception) {
-            Log.e("UserData", "Error al obtener los datos del usuario", e)
+            return@withContext null
         }
-        return@withContext null
     }
-}
 
-/**
- * Realiza una petición GET con encabezados personalizados (ej. `Authorization: Bearer <TOKEN>`).
- *
- * @param endpoint Ruta del recurso en la API (ejemplo: "user/profile").
- * @param context Contexto para acceder a SharedPreferences.
- * @param headers Mapa con las cabeceras HTTP a incluir en la petición.
- * @return La respuesta en formato String o `null` si hay error.
- */
-suspend fun getWithHeaders(endpoint: String, context: Context, headers: Map<String, String>): String? {
-    return withContext(Dispatchers.IO) {
-        try {
-            val client = OkHttpClient()
-            val requestBuilder = Request.Builder()
-                .url("$BASE_URL/$endpoint")
-                .get()
+    /**
+     * Realiza una petición GET con encabezados personalizados (ej. `Authorization: Bearer <TOKEN>`).
+     *
+     * @param endpoint Ruta del recurso en la API (ejemplo: "user/profile").
+     * @param context Contexto para acceder a SharedPreferences.
+     * @param headers Mapa con las cabeceras HTTP a incluir en la petición.
+     * @return La respuesta en formato String o `null` si hay error.
+     */
+    suspend fun getWithHeaders(endpoint: String, context: Context, headers: Map<String, String>): String? {
+        return withContext(Dispatchers.IO) {
+            try {
+                val client = OkHttpClient()
+                val requestBuilder = Request.Builder()
+                    .url("$BASE_URL/$endpoint")
+                    .get()
 
-            // Agregar cabeceras
-            headers.forEach { (key, value) ->
-                requestBuilder.addHeader(key, value)
+                // Agregar cabeceras
+                headers.forEach { (key, value) ->
+                    requestBuilder.addHeader(key, value)
+                }
+
+                val request = requestBuilder.build()
+                val response = client.newCall(request).execute()
+
+                if (!response.isSuccessful) {
+                    Log.e("API", "Error en GET $endpoint: código ${response.code}")
+                    return@withContext null
+                }
+
+                response.body?.string()
+            } catch (e: IOException) {
+                Log.e("API", "Error en la petición GET: ${e.message}", e)
+                null
             }
+        }
+    }
 
-            val request = requestBuilder.build()
-            val response = client.newCall(request).execute()
+    /**
+     * Realiza una petición PUT con encabezados personalizados (ej. `Authorization: Bearer <TOKEN>`).
+     *
+     * @param endpoint Ruta del recurso en la API (ejemplo: "user/update").
+     * @param jsonBody Cuerpo de la solicitud en formato JSON.
+     * @param context Contexto para acceder a SharedPreferences.
+     * @param headers Mapa con las cabeceras HTTP a incluir en la petición.
+     * @return La respuesta en formato String o `null` si hay error.
+     */
+    suspend fun putWithHeaders(endpoint: String, jsonBody: JSONObject, context: Context, headers: Map<String, String>): String? {
+        return withContext(Dispatchers.IO) {
+            try {
+                val client = OkHttpClient()
+                val mediaType = "application/json; charset=utf-8".toMediaTypeOrNull()
+                val body = jsonBody.toString().toRequestBody(mediaType)
 
-            if (!response.isSuccessful) {
-                Log.e("API", "Error en GET $endpoint: código ${response.code}")
+                val requestBuilder = Request.Builder()
+                    .url("$BASE_URL/$endpoint")
+                    .put(body)
+
+                // Agregar cabeceras
+                headers.forEach { (key, value) ->
+                    requestBuilder.addHeader(key, value)
+                }
+
+                val request = requestBuilder.build()
+                val response = client.newCall(request).execute()
+
+                if (!response.isSuccessful) {
+                    Log.e("API", "Error en PUT $endpoint: código ${response.code}")
+                    return@withContext null
+                }
+
+                response.body?.string()
+            } catch (e: IOException) {
+                Log.e("API", "Error en la petición PUT: ${e.message}", e)
+                null
+            }
+        }
+    }
+
+    /**
+     * Realiza una petición HTTP POST al servidor para actualizar el estado de `is_premium` del usuario autenticado.
+     *
+     * **Función**: Envía una solicitud al endpoint `user/premium` para cambiar el estado de suscripción del usuario.
+     * **Autenticación**: Se obtiene el **token JWT** desde `SharedPreferences` y se envía en la cabecera `Authorization`.
+     * **Manejo de errores**:
+     *   - Si no hay token disponible, se muestra un error en el log y la función devuelve `null`.
+     *   - Si la petición falla, se captura el error y se muestra en el log.
+     *   - Si la respuesta es inválida (`401 Unauthorized` o similar), devuelve `null`.
+     *
+     * @param endpoint Endpoint de la API (ejemplo: `"user/premium"`).
+     * @param jsonBody Cuerpo de la solicitud en formato JSON.
+     * @param context Contexto para obtener SharedPreferences.
+     * @return Respuesta del servidor en formato `String`, o `null` en caso de error.
+     */
+    suspend fun postTokenPremium(
+        endpoint: String,
+        jsonBody: JSONObject,
+        context: Context
+    ): String? = withContext(Dispatchers.IO) {
+        try {
+            // Obtener el token desde SharedPreferences
+            val sharedPreferences: SharedPreferences = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+            val token = sharedPreferences.getString("auth_token", null)
+
+            if (token.isNullOrEmpty()) {
+                Log.e("API", "Token no disponible")
                 return@withContext null
             }
 
-            response.body?.string()
-        } catch (e: IOException) {
-            Log.e("API", "Error en la petición GET: ${e.message}", e)
-            null
-        }
-    }
-}
-
-/**
- * Realiza una petición PUT con encabezados personalizados (ej. `Authorization: Bearer <TOKEN>`).
- *
- * @param endpoint Ruta del recurso en la API (ejemplo: "user/update").
- * @param jsonBody Cuerpo de la solicitud en formato JSON.
- * @param context Contexto para acceder a SharedPreferences.
- * @param headers Mapa con las cabeceras HTTP a incluir en la petición.
- * @return La respuesta en formato String o `null` si hay error.
- */
-suspend fun putWithHeaders(endpoint: String, jsonBody: JSONObject, context: Context, headers: Map<String, String>): String? {
-    return withContext(Dispatchers.IO) {
-        try {
             val client = OkHttpClient()
             val mediaType = "application/json; charset=utf-8".toMediaTypeOrNull()
             val body = jsonBody.toString().toRequestBody(mediaType)
 
-            val requestBuilder = Request.Builder()
-                .url("$BASE_URL/$endpoint")
-                .put(body)
+            val request = Request.Builder()
+                .url("$BASE_URL/$endpoint") // Construcción de la URL
+                .post(body) // Método POST
+                .addHeader("Content-Type", "application/json")
+                .addHeader("Authorization", "Bearer $token") // Se envía el token aquí
+                .build()
 
-            // Agregar cabeceras
-            headers.forEach { (key, value) ->
-                requestBuilder.addHeader(key, value)
+            client.newCall(request).execute().use { response ->
+                val responseBody = response.body?.string()
+
+                if (!response.isSuccessful) {
+                    Log.e("API", "Error en la respuesta: código ${response.code}, mensaje: ${responseBody}")
+                    return@withContext null
+                } else {
+                    Log.d("API", "Respuesta exitosa: $responseBody")
+                    return@withContext responseBody
+                }
             }
-
-            val request = requestBuilder.build()
-            val response = client.newCall(request).execute()
-
-            if (!response.isSuccessful) {
-                Log.e("API", "Error en PUT $endpoint: código ${response.code}")
-                return@withContext null
-            }
-
-            response.body?.string()
         } catch (e: IOException) {
-            Log.e("API", "Error en la petición PUT: ${e.message}", e)
-            null
-        }
-    }
-}
-
-/**
- * Realiza una petición HTTP POST al servidor para actualizar el estado de `is_premium` del usuario autenticado.
- *
- * **Función**: Envía una solicitud al endpoint `user/premium` para cambiar el estado de suscripción del usuario.
- * **Autenticación**: Se obtiene el **token JWT** desde `SharedPreferences` y se envía en la cabecera `Authorization`.
- * **Manejo de errores**:
- *   - Si no hay token disponible, se muestra un error en el log y la función devuelve `null`.
- *   - Si la petición falla, se captura el error y se muestra en el log.
- *   - Si la respuesta es inválida (`401 Unauthorized` o similar), devuelve `null`.
- *
- * @param endpoint Endpoint de la API (ejemplo: `"user/premium"`).
- * @param jsonBody Cuerpo de la solicitud en formato JSON.
- * @param context Contexto para obtener SharedPreferences.
- * @return Respuesta del servidor en formato `String`, o `null` en caso de error.
- */
-suspend fun postTokenPremium(
-    endpoint: String,
-    jsonBody: JSONObject,
-    context: Context
-): String? = withContext(Dispatchers.IO) {
-    try {
-        // Obtener el token desde SharedPreferences
-        val sharedPreferences: SharedPreferences = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
-        val token = sharedPreferences.getString("auth_token", null)
-
-        if (token.isNullOrEmpty()) {
-            Log.e("API", "Token no disponible")
+            Log.e("API", "Error en la petición: ${e.message}", e)
             return@withContext null
         }
+    }
 
-        val client = OkHttpClient()
-        val mediaType = "application/json; charset=utf-8".toMediaTypeOrNull()
-        val body = jsonBody.toString().toRequestBody(mediaType)
 
-        val request = Request.Builder()
-            .url("$BASE_URL/$endpoint") // Construcción de la URL
-            .post(body) // Método POST
-            .addHeader("Content-Type", "application/json")
-            .addHeader("Authorization", "Bearer $token") // Se envía el token aquí
-            .build()
+    suspend fun likeUnlikePlaylist(playlistId: String, userId : String, isLiked: Boolean): String? {
+        return withContext(Dispatchers.IO) {
+            try {
+                if (userId.isNullOrEmpty()) {
+                    // Si no se obtiene el user_id, muestra un mensaje de error o realiza alguna acción.
+                    println("Error: user_id no encontrado")
+                } else {
+                    println("user_id: $userId")  // Verifica que el user_id es correcto
+                }
 
-        client.newCall(request).execute().use { response ->
-            val responseBody = response.body?.string()
+                val url = URL("$BASE_URL/playlists/$playlistId/like")
+                val connection = url.openConnection() as HttpURLConnection
+                connection.requestMethod = "POST"
+                connection.setRequestProperty("Content-Type", "application/json")
+                connection.doOutput = true
 
-            if (!response.isSuccessful) {
-                Log.e("API", "Error en la respuesta: código ${response.code}, mensaje: ${responseBody}")
-                return@withContext null
-            } else {
-                Log.d("API", "Respuesta exitosa: $responseBody")
-                return@withContext responseBody
+                val jsonBody = JSONObject().apply {
+                    put("user_id", userId)
+                }
+
+                connection.outputStream.write(jsonBody.toString().toByteArray())
+                connection.connect()
+
+                val responseCode = connection.responseCode
+                val responseMessage = connection.inputStream.bufferedReader().readText()
+
+                println("Código de respuesta: $responseCode")
+                println("Mensaje de respuesta: $responseMessage")
+
+                if (responseCode == HttpURLConnection.HTTP_OK) {
+                    responseMessage // Si todo fue bien, devolver la respuesta del servidor
+                } else {
+                    null // Si algo salió mal, devolver null
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                null // En caso de error, devolver null
             }
         }
-    } catch (e: IOException) {
-        Log.e("API", "Error en la petición: ${e.message}", e)
-        return@withContext null
     }
-}
+
+    suspend fun getLikedPlaylists(userId: String): List<Playlist>? {
+        return withContext(Dispatchers.IO) {
+            try {
+                if (userId.isNullOrEmpty()) {
+                    // Si no se obtiene el user_id, muestra un mensaje de error o realiza alguna acción.
+                    println("Error: user_id no encontrado")
+                } else {
+                    println("user_id: $userId")  // Verifica que el user_id es correcto
+                }
+
+                // Realiza la solicitud GET para obtener las playlists que un usuario ha dado like
+                val url = URL("$BASE_URL/playlists/liked/$userId")
+                val connection = url.openConnection() as HttpURLConnection
+                connection.requestMethod = "GET"
+                connection.setRequestProperty("Accept", "application/json")
+
+                val responseCode = connection.responseCode
+                val response = connection.inputStream.bufferedReader().readText()
+
+                // Verificamos que la respuesta sea correcta
+                if (responseCode == HttpURLConnection.HTTP_OK) {
+                    val jsonArray = JSONArray(response)
+                    val likedPlaylists = mutableListOf<Playlist>()
+
+                    for (i in 0 until jsonArray.length()) {
+                        val jsonObject = jsonArray.getJSONObject(i)
+                        likedPlaylists.add(
+                            Playlist(
+                                id = jsonObject.getString("id"),
+                                title = jsonObject.getString("name"),
+                                idAutor = jsonObject.getString("user_id"),
+                                idArtista = jsonObject.getString("artist_id"),
+                                description = jsonObject.getString("description"),
+                                esPublica = jsonObject.getString("type"),
+                                esAlbum = jsonObject.getString("typeP"),
+                                imageUrl = jsonObject.getString("front_page")
+                            )
+                        )
+                    }
+                    return@withContext likedPlaylists
+                } else {
+                    null // En caso de que haya error en la respuesta
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                null // En caso de error
+            }
+        }
+    }
+
