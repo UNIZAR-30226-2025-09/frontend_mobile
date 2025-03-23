@@ -1,5 +1,6 @@
 package eina.unizar.es.ui.playlist
 
+import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -41,7 +42,9 @@ import org.json.JSONArray
 import org.json.JSONObject
 import androidx.media3.common.MediaItem
 import androidx.media3.exoplayer.ExoPlayer
+import coil.compose.AsyncImage
 import eina.unizar.es.data.model.network.ApiClient
+import eina.unizar.es.data.model.network.ApiClient.getImageUrl
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
@@ -113,11 +116,11 @@ fun PlaylistScreen(navController: NavController, playlistId: String?) {
     // Reproducir la musica
     val context = LocalContext.current
     var exoPlayer: ExoPlayer? by remember { mutableStateOf(null) }
-//val audioUrl = "URL_DEL_ARCHIVO_DE_AUDIO" // Reemplaza con la URL de tu archivo de audio
+    //val audioUrl = "URL_DEL_ARCHIVO_DE_AUDIO" // Reemplaza con la URL de tu archivo de audio
 
 
 
-// Alpha para el título en el TopAppBar: aparece gradualmente conforme se hace scroll
+    // Alpha para el título en el TopAppBar: aparece gradualmente conforme se hace scroll
     val topTitleAlpha = if (lazyListState.firstVisibleItemIndex > 0) {
         1f
     } else {
@@ -208,18 +211,25 @@ fun PlaylistScreen(navController: NavController, playlistId: String?) {
                 .padding(innerPadding)
                 .background(backgroundColor)
         ) {
-// Header: Portada, título y autor
+            // Header: Portada, título y autor
             item {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Box(
+                    playlistInfo?.let { Log.d("URL antes", "URL antes: " + it.imageUrl) }
+                    // Cargar la imagen desde la URL
+                    val urlAntes = playlistInfo?.imageUrl
+                    val playlistImage = getImageUrl(urlAntes, "/default-playlist.jpg")
+                    AsyncImage(
+                        model = playlistImage,
+                        contentDescription = "Portada de la playlist",
                         modifier = Modifier
-                            .size(imageSize)
+                            .size(250.dp)
                             .alpha(imageAlpha)
-                            .background(Color.Gray) // Placeholder para la portada
+                            .clip(RoundedCornerShape(8.dp)) // Opcional: añade esquinas redondeadas
                     )
+
                     Spacer(modifier = Modifier.height(8.dp))
                     playlistInfo?.let {
                         Text(
@@ -377,7 +387,8 @@ fun PlaylistScreen(navController: NavController, playlistId: String?) {
                         modifier = Modifier
                             .fillMaxWidth(0.9f)
                             .clickable {
-                                val urlCompleta = "http://164.90.160.181:5001/${(song.url_mp3).removePrefix("/")}"
+                                val urlCompleta =
+                                    "http://164.90.160.181:5001/${(song.url_mp3).removePrefix("/")}"
                                 exoPlayer?.release()
                                 exoPlayer = ExoPlayer.Builder(context).build().apply {
                                     val mediaItem = MediaItem.fromUri(urlCompleta)
@@ -448,14 +459,18 @@ fun PlaylistScreen(navController: NavController, playlistId: String?) {
                 onDismissRequest = { showBottomSheet = false },
                 sheetState = sheetState
             ) {
-                BottomSheetContent(
-                    playlistImage = R.drawable.kanyeperfil, // Reemplaza con tu imagen
-                    playlistTitle = "Mi Playlist", // Reemplaza con el título
-                    playlistAuthor = "KanyeWest", // Reemplaza con el autor
-                    onDismiss = { showBottomSheet = false },
-                    navController = navController,
-                    playlistId = playlistId
-                )
+                val urlAntes = playlistInfo?.imageUrl
+                val playlistImage = getImageUrl(urlAntes, "/default-playlist.jpg")
+                playlistInfo?.let {
+                    BottomSheetContent(
+                        playlistImage = playlistImage,
+                        playlistTitle = it.title, // Reemplaza con el título
+                        playlistAuthor = "Kanye Playlist", // Reemplaza con el autor
+                        onDismiss = { showBottomSheet = false },
+                        navController = navController,
+                        playlistId = playlistId
+                    )
+                }
             }
         }
     }
@@ -466,7 +481,7 @@ fun PlaylistScreen(navController: NavController, playlistId: String?) {
              */
             @Composable
             fun BottomSheetContent(
-                playlistImage: Int,
+                playlistImage: String,
                 playlistTitle: String,
                 playlistAuthor: String,
                 navController: NavController,
@@ -485,17 +500,20 @@ fun PlaylistScreen(navController: NavController, playlistId: String?) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(16.dp)
+                        .padding(12.dp)
                 ) {
                     // Imagen, título y autor de la playlist en fila
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Image(
-                            painter = painterResource(id = playlistImage),
-                            contentDescription = null,
-                            modifier = Modifier.size(50.dp) // Imagen más pequeña
+                        AsyncImage(
+                            model = playlistImage,
+                            contentDescription = "Portada de la playlist",
+                            modifier = Modifier
+                                .size(50.dp)
+                                //.alpha(imageAlpha)
+                                .clip(RoundedCornerShape(8.dp)) // Opcional: añade esquinas redondeadas
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Column {
@@ -508,7 +526,10 @@ fun PlaylistScreen(navController: NavController, playlistId: String?) {
 
                     // Opciones de la playlist centradas
                     Column(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 120.dp)
+                        .wrapContentWidth(Alignment.CenterHorizontally), // Centra el Column en su contenedor
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         SongOptionItem("Añadir a lista", onClick = dismiss)
@@ -526,7 +547,7 @@ fun PlaylistScreen(navController: NavController, playlistId: String?) {
                         // Opción "Eliminar Playlist" con estilo personalizado
                         SongOptionItem(
                             text = "Eliminar Playlist",
-                            textColor = Color.Red,
+                            textColor = Color(0xFFFF6B6B),
                             onClick = {
                                 // Llamada al backend en una corrutina
                                 scope.launch {
@@ -543,7 +564,7 @@ fun PlaylistScreen(navController: NavController, playlistId: String?) {
                                 }
                             }
                         )
-                        Spacer(modifier = Modifier.height(30.dp))
+                        Spacer(modifier = Modifier.height(38.dp))
                     }
                 }
             }
@@ -597,8 +618,11 @@ fun SongOptionsBottomSheetContent(
 
         // Agregamos el verticalScroll al Column
         Column(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+            .padding(start = 120.dp),
             horizontalAlignment = Alignment.CenterHorizontally
+
         ) {
             SongOptionItem("Añadir a lista", onDismiss)
             Spacer(modifier = Modifier.height(18.dp))
