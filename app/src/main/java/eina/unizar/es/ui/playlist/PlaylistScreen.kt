@@ -38,6 +38,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import androidx.media3.common.MediaItem
 import androidx.media3.exoplayer.ExoPlayer
+import eina.unizar.es.data.model.network.getLikedPlaylists
 import eina.unizar.es.data.model.network.getUserData
 import eina.unizar.es.data.model.network.likeUnlikePlaylist
 import kotlinx.coroutines.launch
@@ -188,7 +189,14 @@ fun PlaylistScreen(navController: NavController, playlistId: String?) {
                     (userData["id"]
                         ?: "Id").toString()  // Si no hay nickname, usa "Usuario"
             }
+            // Consultar si el usuario ya le ha dado like a esta playlist (para poder guardar el like)
+            val likedPlaylistsResponse = getLikedPlaylists(userId)
+            likedPlaylistsResponse?.let { playlists ->
+                // Verificamos si la playlist actual está en la lista de "liked" del usuario
+                isLikedPlaylist = playlists.any { it.id == playlistId }
+            }
         }
+
     }
 
 
