@@ -438,8 +438,8 @@ fun PlaylistScreen(navController: NavController, playlistId: String?) {
                 //val artist = songArtistMap[song] ?: "Artista Desconocido"
                 var showSongOptionsBottomSheet by remember { mutableStateOf(false) } // Estado para mostrar el BottomSheet de opciones de la canción
                 // Reproducir la musica
-               // val context = LocalContext.current
-               // var exoPlayer: ExoPlayer? by remember { mutableStateOf(null) }
+                // val context = LocalContext.current
+                // var exoPlayer: ExoPlayer? by remember { mutableStateOf(null) }
                 Box(
                     modifier = Modifier.fillMaxWidth(),
                     contentAlignment = Alignment.Center
@@ -448,7 +448,8 @@ fun PlaylistScreen(navController: NavController, playlistId: String?) {
                         modifier = Modifier
                             .fillMaxWidth(0.9f)
                             .clickable {
-                                val urlCompleta = "http://164.90.160.181:5001/${(song.url_mp3).removePrefix("/")}"
+                                val urlCompleta =
+                                    "http://164.90.160.181:5001/${(song.url_mp3).removePrefix("/")}"
                                 exoPlayer?.release()
                                 exoPlayer = ExoPlayer.Builder(context).build().apply {
                                     val mediaItem = MediaItem.fromUri(urlCompleta)
