@@ -27,8 +27,8 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import eina.unizar.es.data.model.network.getUserData
-import eina.unizar.es.data.model.network.postTokenPremium
+import eina.unizar.es.data.model.network.ApiClient.getUserData
+import eina.unizar.es.data.model.network.ApiClient.postTokenPremium
 import eina.unizar.es.ui.main.Rubik
 import kotlinx.coroutines.launch
 import org.json.JSONObject

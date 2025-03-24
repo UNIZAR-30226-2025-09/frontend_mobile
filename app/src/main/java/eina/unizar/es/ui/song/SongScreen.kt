@@ -47,7 +47,7 @@ import kotlin.time.Duration.Companion.milliseconds
 fun SongScreen(navController: NavController, songId: String?) {
     var isPlaying by remember { mutableStateOf(false) }
     var progress by remember { mutableStateOf(0.1f) }
-    var lyricsExpanded by remember { mutableStateOf(true) } // Estado para expandir la letra
+    var lyricsExpanded by remember { mutableStateOf(false) } // Estado para expandir la letra
 
     var songInfo by remember { mutableStateOf<Song?>(null) }
     var currentSongIndex by remember { mutableIntStateOf(0)}
@@ -150,6 +150,7 @@ fun SongScreen(navController: NavController, songId: String?) {
             // Información de la canción
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 songInfo?.let {
+                    Log.d("Letra", songInfo!!.letra)
                     Text(
                         text = it.name,
                         style = MaterialTheme.typography.titleLarge,
@@ -248,8 +249,9 @@ fun SongScreen(navController: NavController, songId: String?) {
                 contentAlignment = Alignment.TopCenter
             ) {
                 Column(
-                    modifier = Modifier.fillMaxSize(),
-
+                    modifier = Modifier
+                        .fillMaxSize()
+                    .verticalScroll(rememberScrollState()),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     // 🔽 Indicador de que se puede deslizar para ver la letra
@@ -278,7 +280,7 @@ fun SongScreen(navController: NavController, songId: String?) {
                         Text(
                             text = it.letra,
                             style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onBackground
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                         )
                     }
                 }
