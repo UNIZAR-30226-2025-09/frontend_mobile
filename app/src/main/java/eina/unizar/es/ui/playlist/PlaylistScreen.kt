@@ -10,8 +10,8 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
@@ -38,6 +38,10 @@ import org.json.JSONArray
 import org.json.JSONObject
 import androidx.media3.common.MediaItem
 import androidx.media3.exoplayer.ExoPlayer
+import eina.unizar.es.data.model.network.getLikedPlaylists
+import eina.unizar.es.data.model.network.getUserData
+import eina.unizar.es.data.model.network.likeUnlikePlaylist
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 
@@ -115,11 +119,29 @@ fun PlaylistScreen(navController: NavController, playlistId: String?) {
         ((scrollOffset) / (maxOffset / 2)).coerceIn(0f, 1f)
     }
 
+    // Estado para me gusta o no de la playlist
+    var isLikedPlaylist by remember { mutableStateOf(false) }
 
     // Estado para almacenar la información de la playlist y sus canciones
     var playlistInfo by remember { mutableStateOf<Playlist?>(null) }
     var songs by remember { mutableStateOf<List<Song>>(emptyList()) }
-    val songList = mutableListOf<Song>()
+
+    // Usamos un Map para manejar el estado de "me gusta" por canción usando el índice o algún identificador único
+    val songLikes = remember { mutableStateOf(songs.associateWith { false }) }
+
+    // Función para cambiar el estado de "me gusta" de una canción
+    fun toggleLike(song: Song) {
+        songLikes.value = songLikes.value.toMutableMap().apply {
+            this[song] = !(this[song] ?: false) // Cambiar el estado de "me gusta" de esta canción
+        }
+    }
+
+    // Para poder realizar el post del like/unlike
+    val coroutineScope = rememberCoroutineScope()
+
+    // Id del usuario a guardar al darle like
+    var userId by remember { mutableStateOf("") }  // Estado inicial
+
     // Llamar a la API para obtener los datos de la playlist seleccionada
     LaunchedEffect(playlistId) {
         playlistId?.let {
@@ -160,6 +182,21 @@ fun PlaylistScreen(navController: NavController, playlistId: String?) {
             }
             songs = fetchedSongs
         }
+        coroutineScope.launch {
+            val userData = getUserData(context)
+            if (userData != null) {
+                userId =
+                    (userData["id"]
+                        ?: "Id").toString()  // Si no hay nickname, usa "Usuario"
+            }
+            // Consultar si el usuario ya le ha dado like a esta playlist (para poder guardar el like)
+            val likedPlaylistsResponse = getLikedPlaylists(userId)
+            likedPlaylistsResponse?.let { playlists ->
+                // Verificamos si la playlist actual está en la lista de "liked" del usuario
+                isLikedPlaylist = playlists.any { it.id == playlistId }
+            }
+        }
+
     }
 
 
@@ -330,14 +367,29 @@ fun PlaylistScreen(navController: NavController, playlistId: String?) {
                     Spacer(modifier = Modifier.width(8.dp))
                     IconButton(
                         onClick = {
-// Acción para añadir una canción (simulada)
+                            coroutineScope.launch {
+                                // Invertir el estado local de "me gusta"
+                                isLikedPlaylist = !isLikedPlaylist
+
+                                // Hacer el POST al backend para actualizar el "me gusta"
+                                val response = playlistInfo?.let { likeUnlikePlaylist(playlistInfo!!.id, userId, isLikedPlaylist) }
+                                if (response != null) {
+                                    // Aquí puedes manejar la respuesta, como mostrar un mensaje o cambiar algo en UI
+                                    println("Respuesta del backend: $response")
+                                } else {
+                                    // En caso de que falle la solicitud, revertir el cambio en el estado
+                                    isLikedPlaylist = !isLikedPlaylist
+                                    println("Error al hacer el POST en el backend")
+                                }
+
+                            }
                         },
                         modifier = Modifier.size(48.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Add,
-                            contentDescription = "Añadir canción",
-                            tint = textColor
+                            imageVector = Icons.Default.Favorite, // Usamos el ícono de "me gusta"
+                            contentDescription = "Me gusta",
+                            tint = if (isLikedPlaylist) Color.Red else Color.Gray // Si está seleccionado, se colorea rojo, si no es gris
                         )
                     }
                     Spacer(modifier = Modifier.width(2.dp)) // Espacio entre iconos
@@ -407,6 +459,19 @@ fun PlaylistScreen(navController: NavController, playlistId: String?) {
                                     text = /*song.artist*/"Artista de prueba",
                                     color = textColor,
                                     style = TextStyle(fontSize = 14.sp)
+                                )
+                            }
+                            // Botón de "me gusta"
+                            IconButton(
+                                onClick = {
+                                    toggleLike(song) // Cambia el estado de "me gusta" solo para esta canción
+                                },
+                                modifier = Modifier.size(48.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Favorite, // Ícono de "me gusta"
+                                    contentDescription = "Me gusta",
+                                    tint = if (songLikes.value[song] == true) Color.Red else Color.Gray // Color cambia dependiendo del like
                                 )
                             }
                             IconButton(onClick = { showSongOptionsBottomSheet = true }) {
