@@ -1,6 +1,7 @@
 package eina.unizar.es.ui.library
 
-import android.app.LauncherActivity
+import android.content.Context
+import android.content.SharedPreferences
 import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -19,6 +20,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
@@ -33,6 +35,8 @@ import eina.unizar.es.data.model.network.ApiClient.get
 import eina.unizar.es.data.model.network.ApiClient.post
 import eina.unizar.es.ui.navbar.BottomNavigationBar
 import eina.unizar.es.ui.player.FloatingMusicPlayer
+import eina.unizar.es.data.model.network.getLikedPlaylists
+import eina.unizar.es.data.model.network.getUserData
 import eina.unizar.es.ui.playlist.Playlist
 import eina.unizar.es.ui.song.Song
 import eina.unizar.es.ui.user.UserProfileMenu
@@ -66,6 +70,14 @@ fun LibraryScreen(navController: NavController) {
     )
 
     var playlists by remember { mutableStateOf<List<Playlist>>(emptyList()) }
+    var playlistsLike by remember { mutableStateOf<List<Playlist>>(emptyList()) }
+    val context = LocalContext.current
+
+    // Para poder realizar el post del like/unlike
+    val coroutineScope = rememberCoroutineScope()
+
+    // Id del usuario a guardar al darle like
+    var userId by remember { mutableStateOf("") }  // Estado inicial
 
     LaunchedEffect(Unit) {
         val response = get("playlists") // Llamada a la API
@@ -90,6 +102,21 @@ fun LibraryScreen(navController: NavController) {
             }
             playlists = fetchedPlaylists
         }
+
+        coroutineScope.launch {
+            val userData = getUserData(context)
+            if (userData != null) {
+                userId =
+                    (userData["id"]
+                        ?: "Id").toString()  // Si no hay nickname, usa "Usuario"
+            }
+
+            val userId3 = getLikedPlaylists(userId)
+            userId3?.let {
+                playlistsLike = userId3 // Actualizas el estado de las playlists "liked"
+            }
+        }
+
     }
 
     suspend fun createPlaylist(playlistName: String) {
@@ -175,7 +202,6 @@ fun LibraryScreen(navController: NavController) {
                 FloatingMusicPlayer("Sensualidad", "god", R.drawable.kanyeperfil, isPlaying.value)
                 BottomNavigationBar(navController)
             }
-
         },
     ) { innerPadding ->
         Column(
@@ -250,6 +276,11 @@ fun LibraryScreen(navController: NavController) {
             LazyColumn(modifier = Modifier.padding(8.dp)) {
                 items(playlists) { item ->
                     LibraryItem(item, navController)
+                }
+
+
+                items(playlistsLike) { item2 ->
+                    LibraryItem(item2)
                 }
             }
         }
