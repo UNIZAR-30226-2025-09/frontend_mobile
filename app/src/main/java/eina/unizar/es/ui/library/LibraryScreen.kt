@@ -35,8 +35,8 @@ import eina.unizar.es.data.model.network.ApiClient.get
 import eina.unizar.es.data.model.network.ApiClient.post
 import eina.unizar.es.ui.navbar.BottomNavigationBar
 import eina.unizar.es.ui.player.FloatingMusicPlayer
-import eina.unizar.es.data.model.network.getLikedPlaylists
-import eina.unizar.es.data.model.network.getUserData
+import eina.unizar.es.data.model.network.ApiClient.getLikedPlaylists
+import eina.unizar.es.data.model.network.ApiClient.getUserData
 import eina.unizar.es.ui.playlist.Playlist
 import eina.unizar.es.ui.song.Song
 import eina.unizar.es.ui.user.UserProfileMenu
@@ -274,13 +274,13 @@ fun LibraryScreen(navController: NavController) {
 
             // Lista de elementos filtrados según la búsqueda
             LazyColumn(modifier = Modifier.padding(8.dp)) {
-                items(playlists) { item ->
+               /* items(playlists) { item ->
                     LibraryItem(item, navController)
                 }
-
+                */
 
                 items(playlistsLike) { item2 ->
-                    LibraryItem(item2)
+                    LibraryItem(item2, navController)
                 }
             }
         }
@@ -350,6 +350,7 @@ fun LibraryScreen(navController: NavController) {
         }
     }
 }
+
 
 @Composable
 fun LibraryItem(playlist: Playlist, navController: NavController) {
