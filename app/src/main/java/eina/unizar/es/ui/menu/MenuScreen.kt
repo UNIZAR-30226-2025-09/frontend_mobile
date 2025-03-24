@@ -21,7 +21,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.*
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
@@ -30,8 +29,6 @@ import androidx.navigation.NavController
 import com.stripe.android.paymentsheet.PaymentSheet
 import eina.unizar.es.R
 import eina.unizar.es.data.model.network.ApiClient.get
-//import eina.unizar.es.ui.components.UserProfileMenu
-import eina.unizar.es.data.model.network.getUserData
 import eina.unizar.es.ui.main.Rubik
 import eina.unizar.es.ui.user.UserProfileMenu
 import eina.unizar.es.ui.navbar.BottomNavigationBar
@@ -42,8 +39,14 @@ import org.json.JSONArray
 import coil.compose.AsyncImage
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.layout.size
+import androidx.compose.ui.draw.alpha
+import eina.unizar.es.data.model.network.ApiClient.getImageUrl
+import eina.unizar.es.data.model.network.ApiClient.getUserData
 import eina.unizar.es.ui.song.Song
 import kotlinx.coroutines.launch
+import androidx.compose.foundation.Image
+import androidx.compose.ui.graphics.Color
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -161,7 +164,13 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
                 )
             )
         },
-        bottomBar = { BottomNavigationBar(navController) },
+        bottomBar = {
+            Column {
+                val isPlaying = remember { mutableStateOf(false) }
+                FloatingMusicPlayer("Sensualidad", "god", R.drawable.kanyeperfil, isPlaying.value)
+                BottomNavigationBar(navController)
+            }
+        },
     ) { innerPadding ->
         Box(
             modifier = Modifier
@@ -237,11 +246,16 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
                                         modifier = Modifier.fillMaxSize(),
                                         contentAlignment = Alignment.Center
                                     ) {
-                                        // Hay que poner su foto pero no me encuentra la ruta
-                                        Image(
-                                            painter = painterResource(id = R.drawable.kanyeperfil),
-                                            contentDescription = "Álbum",
-                                            modifier = Modifier.size(120.dp)
+                                        // Cargar la imagen desde la URL
+                                        val urlAntes = album?.imageUrl
+                                        val playlistImage = getImageUrl(urlAntes, "/default-playlist.jpg")
+                                        AsyncImage(
+                                            model = playlistImage,
+                                            contentDescription = "Portada de la playlist",
+                                            modifier = Modifier
+                                                //.size(imageSize)
+                                                //.alpha(imageAlpha)
+                                                .clip(RoundedCornerShape(8.dp)) // Opcional: añade esquinas redondeadas
                                         )
                                     }
                                 }
@@ -274,18 +288,23 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
                                         .clickable {
                                             navController.navigate("playlist/${playlist.id}") // PASAMOS EL ID
                                         },
-                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                                    //elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
                                 ) {
                                     Box(
                                         modifier = Modifier.fillMaxSize(),
                                         contentAlignment = Alignment.Center
                                     ) {
-                                        // Aquí cargamos la imagen de la playlist desde playlist.imageUrl
+                                        // Cargar la imagen desde la URL
+                                        val urlAntes = playlist?.imageUrl
+                                        val playlistImage = getImageUrl(urlAntes, "/default-playlist.jpg")
                                         AsyncImage(
-                                            model = playlist.imageUrl, // Usa la URL o la ruta de la imagen
-                                            contentDescription = "Álbum",
-                                            modifier = Modifier.size(120.dp)
+                                            model = playlistImage,
+                                            contentDescription = "Portada de la playlist",
+                                            modifier = Modifier
+                                                //.size(imageSize)
+                                                //.alpha(imageAlpha)
+                                                .clip(RoundedCornerShape(8.dp)) // Opcional: añade esquinas redondeadas
                                         )
                                     }
                                 }
@@ -297,19 +316,6 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
                                 )
                             }
                         }
-                    }
-                    Box(modifier = Modifier.fillMaxWidth()) {
-                        // Reproductor Flotante
-                        val isPlaying = remember { mutableStateOf(false) }
-                        FloatingMusicPlayer(
-                            title = "Mi canción",
-                            artist = "Artista",
-                            albumArt = R.drawable.kanyeperfil,
-                            isPlaying = isPlaying.value,
-                            // onPlayPauseClick = { isPlaying.value = !isPlaying.value },
-                            // onFavoriteClick = { /*TODO*/ },
-                            // onComputerClick = { /*TODO*/ }
-                        )
                     }
                 }
             }

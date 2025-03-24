@@ -38,8 +38,8 @@ fun FloatingMusicPlayer(
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .height(80.dp)
-            .padding(horizontal = 0.dp, vertical = 9.dp)
+            .height(65.dp)
+            .padding(horizontal = 8.dp)
             .clip(RoundedCornerShape(16.dp)),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f)
     ) {

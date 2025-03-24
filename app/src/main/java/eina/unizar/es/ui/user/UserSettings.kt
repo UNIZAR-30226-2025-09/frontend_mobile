@@ -29,7 +29,7 @@ import androidx.navigation.NavController
 import eina.unizar.es.R
 import androidx.compose.ui.platform.LocalContext
 import eina.unizar.es.data.model.network.ApiClient
-import eina.unizar.es.data.model.network.getUserData
+import eina.unizar.es.data.model.network.ApiClient.getUserData
 import eina.unizar.es.ui.main.Rubik
 import kotlinx.coroutines.launch
 

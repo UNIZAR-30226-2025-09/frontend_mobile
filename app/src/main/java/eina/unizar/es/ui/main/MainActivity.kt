@@ -11,9 +11,10 @@ import com.stripe.android.paymentsheet.PaymentSheetResult
 import eina.unizar.es.ui.theme.VibraAppTheme
 import android.util.Log
 import android.widget.Toast
+import eina.unizar.es.data.model.network.ApiClient.postTokenPremium
 import kotlinx.coroutines.*
 import org.json.JSONObject
-import eina.unizar.es.data.model.network.postTokenPremium
+//import eina.unizar.es.data.model.network.postTokenPremium
 
 class MainActivity : ComponentActivity() {
     private lateinit var paymentSheet: PaymentSheet

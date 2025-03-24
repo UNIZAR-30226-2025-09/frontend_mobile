@@ -21,8 +21,8 @@ import androidx.navigation.NavController
 import com.stripe.android.PaymentConfiguration
 import com.stripe.android.paymentsheet.PaymentSheet
 import eina.unizar.es.R
-import eina.unizar.es.data.model.network.getUserData
-import eina.unizar.es.data.model.network.postTokenPremium
+import eina.unizar.es.data.model.network.ApiClient.getUserData
+import eina.unizar.es.data.model.network.ApiClient.postTokenPremium
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 

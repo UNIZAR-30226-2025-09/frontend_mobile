@@ -20,8 +20,9 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 
 object ApiClient {
-    const val BASE_URL = "http://10.0.2.2/request/api" // Usa la IP local del backend
-    //const val BASE_URL = "http://164.90.160.181/request/api" // Usa la IP publica (nube) del backend
+    //const val BASE_URL = "http://10.0.2.2/request/api" // Usa la IP local del backend
+    const val BASE_URL = "http://164.90.160.181/request/api" // Usa la IP publica (nube) del backend
+    const val BASE_URL_IMG = "http://164.90.160.181/request"
 
     /**
      * Método para realizar una petición GET en segundo plano.
@@ -59,35 +60,38 @@ object ApiClient {
      * @param jsonBody Cuerpo de la solicitud en formato JSON.
      * @return Respuesta en formato JSON o `null` si hay error.
      */
-    suspend fun post(endpoint: String, jsonBody: JSONObject): String? = withContext(Dispatchers.IO) {
-        try {
-            val url = URL("$BASE_URL/$endpoint")
-            val connection = url.openConnection() as HttpURLConnection
-            connection.requestMethod = "POST"
-            connection.setRequestProperty("Content-Type", "application/json")
-            connection.doOutput = true
+    suspend fun post(endpoint: String, jsonBody: JSONObject): String? =
+        withContext(Dispatchers.IO) {
+            try {
+                val url = URL("$BASE_URL/$endpoint")
+                val connection = url.openConnection() as HttpURLConnection
+                connection.requestMethod = "POST"
+                connection.setRequestProperty("Content-Type", "application/json")
+                connection.doOutput = true
 
-            // Escribir el cuerpo de la petición
-            connection.outputStream.use { os ->
-                os.write(jsonBody.toString().toByteArray())
-                os.flush()
+                // Escribir el cuerpo de la petición
+                connection.outputStream.use { os ->
+                    os.write(jsonBody.toString().toByteArray())
+                    os.flush()
+                }
+
+                val responseCode = connection.responseCode
+                Log.d("ApiClient", "Código de respuesta: $responseCode")
+
+                return@withContext if (responseCode in 200..299) { // Acepta códigos 2XX
+                    connection.inputStream.bufferedReader()
+                        .use { it.readText() } // Lee la respuesta correctamente
+                } else {
+                    Log.e("ApiClient", "Error en la respuesta del servidor: código $responseCode")
+                    connection.errorStream?.bufferedReader()
+                        ?.use { it.readText() } // Leer el mensaje de error si lo hay
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                Log.e("ApiClient", "Error de conexión con el backend: ${e.message}")
+                null
             }
-
-            val responseCode = connection.responseCode
-            Log.d("ApiClient", "Código de respuesta: $responseCode")
-
-            return@withContext if (responseCode in 200..299) { // Acepta códigos 2XX
-                connection.inputStream.bufferedReader().use { it.readText() } // Lee la respuesta correctamente
-            } else {
-                Log.e("ApiClient", "Error en la respuesta del servidor: código $responseCode")
-                connection.errorStream?.bufferedReader()?.use { it.readText() } // Leer el mensaje de error si lo hay
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-            Log.e("ApiClient", "Error de conexión con el backend: ${e.message}")
-            null
         }
-    }
 
 
     /*
@@ -198,16 +202,16 @@ object ApiClient {
             }
         }
     }
-}
 
-    /*
-     * Función para obtener datos del usuario
-     */
-    suspend fun getUserData(context: Context): Map<String, Any>? {
-        return withContext(Dispatchers.IO) {
-            try {
-                val sharedPreferences = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
-                val token = sharedPreferences.getString("auth_token", null) ?: return@withContext null
+
+/*
+ * Función para obtener datos del usuario
+ */
+suspend fun getUserData(context: Context): Map<String, Any>? {
+    return withContext(Dispatchers.IO) {
+        try {
+            val sharedPreferences = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+            val token = sharedPreferences.getString("auth_token", null) ?: return@withContext null
 
                 val headers = mapOf("Authorization" to "Bearer $token")
                 val response = getWithHeaders("user/profile", context, headers)
@@ -231,21 +235,21 @@ object ApiClient {
         }
     }
 
-    /**
-     * Realiza una petición GET con encabezados personalizados (ej. `Authorization: Bearer <TOKEN>`).
-     *
-     * @param endpoint Ruta del recurso en la API (ejemplo: "user/profile").
-     * @param context Contexto para acceder a SharedPreferences.
-     * @param headers Mapa con las cabeceras HTTP a incluir en la petición.
-     * @return La respuesta en formato String o `null` si hay error.
-     */
-    suspend fun getWithHeaders(endpoint: String, context: Context, headers: Map<String, String>): String? {
-        return withContext(Dispatchers.IO) {
-            try {
-                val client = OkHttpClient()
-                val requestBuilder = Request.Builder()
-                    .url("$BASE_URL/$endpoint")
-                    .get()
+/**
+ * Realiza una petición GET con encabezados personalizados (ej. `Authorization: Bearer <TOKEN>`).
+ *
+ * @param endpoint Ruta del recurso en la API (ejemplo: "user/profile").
+ * @param context Contexto para acceder a SharedPreferences.
+ * @param headers Mapa con las cabeceras HTTP a incluir en la petición.
+ * @return La respuesta en formato String o `null` si hay error.
+ */
+suspend fun getWithHeaders(endpoint: String, context: Context, headers: Map<String, String>): String? {
+    return withContext(Dispatchers.IO) {
+        try {
+            val client = OkHttpClient()
+            val requestBuilder = Request.Builder()
+                .url("$BASE_URL/$endpoint")
+                .get()
 
                 // Agregar cabeceras
                 headers.forEach { (key, value) ->
@@ -309,30 +313,30 @@ object ApiClient {
         }
     }
 
-    /**
-     * Realiza una petición HTTP POST al servidor para actualizar el estado de `is_premium` del usuario autenticado.
-     *
-     * **Función**: Envía una solicitud al endpoint `user/premium` para cambiar el estado de suscripción del usuario.
-     * **Autenticación**: Se obtiene el **token JWT** desde `SharedPreferences` y se envía en la cabecera `Authorization`.
-     * **Manejo de errores**:
-     *   - Si no hay token disponible, se muestra un error en el log y la función devuelve `null`.
-     *   - Si la petición falla, se captura el error y se muestra en el log.
-     *   - Si la respuesta es inválida (`401 Unauthorized` o similar), devuelve `null`.
-     *
-     * @param endpoint Endpoint de la API (ejemplo: `"user/premium"`).
-     * @param jsonBody Cuerpo de la solicitud en formato JSON.
-     * @param context Contexto para obtener SharedPreferences.
-     * @return Respuesta del servidor en formato `String`, o `null` en caso de error.
-     */
-    suspend fun postTokenPremium(
-        endpoint: String,
-        jsonBody: JSONObject,
-        context: Context
-    ): String? = withContext(Dispatchers.IO) {
-        try {
-            // Obtener el token desde SharedPreferences
-            val sharedPreferences: SharedPreferences = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
-            val token = sharedPreferences.getString("auth_token", null)
+/**
+ * Realiza una petición HTTP POST al servidor para actualizar el estado de `is_premium` del usuario autenticado.
+ *
+ * **Función**: Envía una solicitud al endpoint `user/premium` para cambiar el estado de suscripción del usuario.
+ * **Autenticación**: Se obtiene el **token JWT** desde `SharedPreferences` y se envía en la cabecera `Authorization`.
+ * **Manejo de errores**:
+ *   - Si no hay token disponible, se muestra un error en el log y la función devuelve `null`.
+ *   - Si la petición falla, se captura el error y se muestra en el log.
+ *   - Si la respuesta es inválida (`401 Unauthorized` o similar), devuelve `null`.
+ *
+ * @param endpoint Endpoint de la API (ejemplo: `"user/premium"`).
+ * @param jsonBody Cuerpo de la solicitud en formato JSON.
+ * @param context Contexto para obtener SharedPreferences.
+ * @return Respuesta del servidor en formato `String`, o `null` en caso de error.
+ */
+suspend fun postTokenPremium(
+    endpoint: String,
+    jsonBody: JSONObject,
+    context: Context
+): String? = withContext(Dispatchers.IO) {
+    try {
+        // Obtener el token desde SharedPreferences
+        val sharedPreferences: SharedPreferences = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+        val token = sharedPreferences.getString("auth_token", null)
 
             if (token.isNullOrEmpty()) {
                 Log.e("API", "Token no disponible")
@@ -459,3 +463,49 @@ object ApiClient {
         }
     }
 
+
+
+    /**
+     * Método para realizar una petición DELETE en segundo plano.
+     * @param endpoint Ruta del recurso a eliminar (ejemplo: "playlists/123").
+     * @return Respuesta del servidor en formato String o `null` si hay error.
+     */
+    suspend fun delete(endpoint: String): String? = withContext(Dispatchers.IO) {
+        try {
+            val client = OkHttpClient()
+            val request = Request.Builder()
+                .url("$BASE_URL/$endpoint")
+                .delete() // Usamos el método DELETE
+                .build()
+
+            client.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) {
+                    Log.e("API", "Error en DELETE $endpoint: código ${response.code}")
+                    return@withContext null
+                }
+
+                response.body?.string()
+            }
+        } catch (e: IOException) {
+            Log.e("API", "Error en la petición DELETE: ${e.message}", e)
+            null
+        }
+    }
+
+    /**
+     * El método getImageUrl toma un path (ruta) opcional de una imagen y devuelve una URL
+     * completa para esa imagen. Su objetivo es manejar diferentes tipos de rutas de imagen
+     * (relativas, absolutas o nulas) y asegurar que siempre se devuelva una URL válida.
+     */
+    fun getImageUrl(path: String?, fallback: String = "/default.jpg"): String {
+        Log.d("Getimg", "Path en el apiCLient " + path)
+        return when {
+            path.isNullOrEmpty() -> fallback
+            path.startsWith("http") -> path
+            else -> {
+                val cleanPath = path.replace(Regex("^/?"), "")
+                "$BASE_URL_IMG/$cleanPath"
+            }
+        }
+    }
+}
