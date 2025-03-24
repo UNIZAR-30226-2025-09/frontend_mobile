@@ -26,17 +26,20 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import coil.compose.AsyncImage
 import com.example.musicapp.ui.theme.VibraBlack
 import com.example.musicapp.ui.theme.VibraBlue
 import com.example.musicapp.ui.theme.VibraLightGrey
 import com.example.musicapp.ui.theme.VibraWhite
 import eina.unizar.es.R
 import eina.unizar.es.data.model.network.ApiClient.get
+import eina.unizar.es.data.model.network.ApiClient.getImageUrl
+import eina.unizar.es.data.model.network.ApiClient.getLikedPlaylists
+import eina.unizar.es.data.model.network.ApiClient.getUserData
 import eina.unizar.es.data.model.network.ApiClient.post
+import eina.unizar.es.ui.main.Rubik
 import eina.unizar.es.ui.navbar.BottomNavigationBar
 import eina.unizar.es.ui.player.FloatingMusicPlayer
-import eina.unizar.es.data.model.network.getLikedPlaylists
-import eina.unizar.es.data.model.network.getUserData
 import eina.unizar.es.ui.playlist.Playlist
 import eina.unizar.es.ui.song.Song
 import eina.unizar.es.ui.user.UserProfileMenu
@@ -258,7 +261,8 @@ fun LibraryScreen(navController: NavController) {
                 Text(
                     text = "Tu Biblioteca",
                     style = MaterialTheme.typography.titleLarge,
-                    color = MaterialTheme.colorScheme.onBackground
+                    color = MaterialTheme.colorScheme.onBackground,
+                    fontFamily = Rubik
                 )
 
                 Button(
@@ -267,20 +271,22 @@ fun LibraryScreen(navController: NavController) {
                     colors = ButtonDefaults.buttonColors(containerColor = VibraBlue),
                     modifier = Modifier.height(40.dp)
                 ) {
-                    Text("Crear Playlist", color = VibraWhite)
+                    Text("Crear Playlist", color = VibraBlack)
                 }
             }
 
 
             // Lista de elementos filtrados según la búsqueda
             LazyColumn(modifier = Modifier.padding(8.dp)) {
+                /*
                 items(playlists) { item ->
                     LibraryItem(item, navController)
                 }
+                 */
 
 
                 items(playlistsLike) { item2 ->
-                    LibraryItem(item2)
+                    LibraryItem(item2, navController)
                 }
             }
         }
@@ -363,8 +369,9 @@ fun LibraryItem(playlist: Playlist, navController: NavController) {
             },
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Image(
-            painter = painterResource(id = R.drawable.kanyeperfil),
+        val playlistImage = getImageUrl(playlist.imageUrl, "/default-playlist.jpg")
+        AsyncImage(
+            model = playlistImage,
             contentDescription = "Imagen",
             modifier = Modifier.size(50.dp)
         )

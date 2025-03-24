@@ -42,13 +42,13 @@ import org.json.JSONArray
 import org.json.JSONObject
 import androidx.media3.common.MediaItem
 import androidx.media3.exoplayer.ExoPlayer
-import eina.unizar.es.data.model.network.getLikedPlaylists
-import eina.unizar.es.data.model.network.getUserData
-import eina.unizar.es.data.model.network.likeUnlikePlaylist
 import kotlinx.coroutines.launch
 import coil.compose.AsyncImage
 import eina.unizar.es.data.model.network.ApiClient
 import eina.unizar.es.data.model.network.ApiClient.getImageUrl
+import eina.unizar.es.data.model.network.ApiClient.getLikedPlaylists
+import eina.unizar.es.data.model.network.ApiClient.getUserData
+import eina.unizar.es.data.model.network.ApiClient.likeUnlikePlaylist
 import eina.unizar.es.ui.navbar.BottomNavigationBar
 import eina.unizar.es.ui.player.FloatingMusicPlayer
 import kotlinx.coroutines.Dispatchers
