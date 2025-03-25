@@ -63,7 +63,8 @@ fun UserProfileMenu(navController: NavController, modifier: Modifier = Modifier)
                 text = { Text("Amigos", color = Color.White) },
                 onClick = {
                     expanded = false
-                    navController.navigate("friends")
+                    //navController.navigate("friends")
+                    navController.navigate("chat")
                 },
                 leadingIcon = {
                     Icon(Icons.Default.Person, contentDescription = "Amigos", tint = Color.White)

@@ -1,6 +1,5 @@
 package eina.unizar.es.ui.menu
 
-import android.content.Context
 import android.util.Log
 import androidx.compose.animation.animateColor
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -11,9 +10,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -39,13 +35,13 @@ import org.json.JSONArray
 import coil.compose.AsyncImage
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.layout.size
-import androidx.compose.ui.draw.alpha
 import eina.unizar.es.data.model.network.ApiClient.getImageUrl
 import eina.unizar.es.data.model.network.ApiClient.getUserData
-import eina.unizar.es.ui.song.Song
 import kotlinx.coroutines.launch
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.graphics.Color
+import eina.unizar.es.ui.artist.Artist
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -69,7 +65,7 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
     var playlists by remember { mutableStateOf<List<Playlist>>(emptyList()) }
     var albums by remember { mutableStateOf<List<Playlist>>(emptyList()) }
 
-    var songs by remember { mutableStateOf<List<Song>>(emptyList()) }
+    var artists by remember { mutableStateOf<List<Artist>>(emptyList()) }
 
     // Cargar playlists desde el backend
     LaunchedEffect(Unit) {
@@ -112,25 +108,25 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
 
 
         // Canciones de la parte superior de recomendaciones
-        val responseS = get("songs") // Llamada a la API para obtener canciones
+        val responseS = get("artist/artists") // Llamada a la API para obtener canciones
         responseS?.let {
             val jsonArray = JSONArray(it)
-            val fetchedSongs = mutableListOf<Song>()
+            val fetchedArtists = mutableListOf<Artist>()
 
             for (i in 0 until 8) {
                 val jsonObject = jsonArray.getJSONObject(i)
-                fetchedSongs.add(
-                    Song(
+                fetchedArtists.add(
+                    Artist(
                         id = jsonObject.getInt("id"),
                         name = jsonObject.getString("name"),
-                        duration = jsonObject.getInt("duration"),
-                        photo_video = jsonObject.getString("photo_video"),
-                        url_mp3 = jsonObject.getString("url_mp3"),
-                        letra = jsonObject.getString("lyrics")
+                        biography = "Prueba",//jsonObject.getString("bio")//
+                        photo = jsonObject.getString("photo"),
                     )
                 )
+
             }
-            songs = fetchedSongs
+            Log.d("Artista", "Artistas: + " + fetchedArtists)
+            artists = fetchedArtists
         }
 
     }
@@ -159,10 +155,13 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
                         //}
                     }
                 },
+
+
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background
                 )
             )
+
         },
         bottomBar = {
             Column {
@@ -171,7 +170,10 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
                 BottomNavigationBar(navController)
             }
         },
-    ) { innerPadding ->
+    )
+    { innerPadding ->
+        Column(modifier = Modifier.fillMaxSize()) {
+            Spacer(modifier = Modifier.height(16.dp))
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -182,40 +184,49 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
             Column(
                 modifier = Modifier.fillMaxSize() // Aseguramos que la columna ocupa todo el espacio
             ) {
-                // Canciones recomendadas en Grid
+                // Artistas recomendados en Grid
                 Column {
                     Text(
-                        "Canciones recomendadas",
+                        "Artistas recomendados",
                         color = MaterialTheme.colorScheme.onBackground,
                         style = MaterialTheme.typography.titleLarge
                     )
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    LazyVerticalGrid(
-                        columns = GridCells.Fixed(2),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.weight(1f) // La grilla ocupa la mayor parte del espacio
-                    ) {
-                        items(songs) { cancion ->
-                            Card(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(50.dp)
-                                    .clickable {  navController.navigate("song/${cancion.id}") }, // PASAMOS EL ID
-                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-                            ) {
-                                Box(
-                                    modifier = Modifier.fillMaxSize(),
-                                    contentAlignment = Alignment.Center
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                        items(artists) { artist ->
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Card(
+                                    modifier = Modifier
+                                        .size(100.dp) // Aumentamos el tamaño del Card para que la imagen sea más grande
+                                        .clickable {
+                                            // navController.navigate("playlist/${album.id}")
+                                            navController.navigate("artist")
+                                        },
+                                    colors = CardDefaults.cardColors(containerColor = Color.Transparent)
+
                                 ) {
-                                    Text(
-                                        text = cancion.name,
-                                        color = MaterialTheme.colorScheme.onSurface,
-                                        style = MaterialTheme.typography.bodyLarge
-                                    )
+                                    Box(
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        val urlAntes = artist?.photo
+                                        val playlistImage = getImageUrl(urlAntes, "/default-playlist.jpg")
+                                        AsyncImage(
+                                            model = playlistImage,
+                                            contentDescription = "Foto del artista",
+                                            modifier = Modifier
+                                                .size(100.dp) // Igualamos el tamaño de la imagen al del Card
+                                                .clip(CircleShape) // Usamos CircleShape para hacer la imagen redonda
+                                        )
+                                    }
                                 }
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = artist.name,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
                             }
                         }
                     }
@@ -231,7 +242,7 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
                     Spacer(modifier = Modifier.height(8.dp))
 
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                        items(albums) { album ->
+                        items(playlists) { album ->
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Card(
                                     modifier = Modifier
@@ -239,8 +250,7 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
                                         .clickable {
                                             navController.navigate("playlist/${album.id}")
                                         }, // PASAMOS EL ID
-                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                                    colors = CardDefaults.cardColors(containerColor = Color.Transparent)
                                 ) {
                                     Box(
                                         modifier = Modifier.fillMaxSize(),
@@ -248,7 +258,8 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
                                     ) {
                                         // Cargar la imagen desde la URL
                                         val urlAntes = album?.imageUrl
-                                        val playlistImage = getImageUrl(urlAntes, "/default-playlist.jpg")
+                                        val playlistImage =
+                                            getImageUrl(urlAntes, "/default-playlist.jpg")
                                         AsyncImage(
                                             model = playlistImage,
                                             contentDescription = "Portada de la playlist",
@@ -288,7 +299,7 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
                                         .clickable {
                                             navController.navigate("playlist/${playlist.id}") // PASAMOS EL ID
                                         },
-                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                                    colors = CardDefaults.cardColors(containerColor = Color.Transparent)
                                     //elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
                                 ) {
                                     Box(
@@ -297,7 +308,8 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
                                     ) {
                                         // Cargar la imagen desde la URL
                                         val urlAntes = playlist?.imageUrl
-                                        val playlistImage = getImageUrl(urlAntes, "/default-playlist.jpg")
+                                        val playlistImage =
+                                            getImageUrl(urlAntes, "/default-playlist.jpg")
                                         AsyncImage(
                                             model = playlistImage,
                                             contentDescription = "Portada de la playlist",
@@ -327,6 +339,7 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
                     paymentSheet = paymentSheet
                 )
             }
+        }
         }
     }
 }

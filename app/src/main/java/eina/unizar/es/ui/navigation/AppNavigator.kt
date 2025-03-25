@@ -15,6 +15,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.musicapp.ui.song.SongScreen
 import com.stripe.android.paymentsheet.PaymentSheet
+import eina.unizar.es.ui.artist.ArtistScreen
 import eina.unizar.es.ui.auth.UserLoginScreen
 import eina.unizar.es.ui.auth.UserRegisterScreen
 import eina.unizar.es.ui.library.LibraryScreen
@@ -62,6 +63,7 @@ fun AppNavigator(navController: NavController, paymentSheet: PaymentSheet, isPre
                     val songId = backStackEntry.arguments?.getString("songId")
                     SongScreen(navController, songId)
                 }
+                composable("artist") { ArtistScreen(navController) }
             }
         }
     }
