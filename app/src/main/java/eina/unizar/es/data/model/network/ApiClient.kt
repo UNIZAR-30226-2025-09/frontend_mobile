@@ -225,7 +225,8 @@ suspend fun getUserData(context: Context): Map<String, Any>? {
                         "id" to jsonResponse.optInt("id", 0),
                         "nickname" to jsonResponse.optString("nickname", ""),
                         "mail" to jsonResponse.optString("mail", ""),
-                        "is_premium" to jsonResponse.optBoolean("is_premium", false)
+                        "is_premium" to jsonResponse.optBoolean("is_premium", false),
+                        "user_picture" to jsonResponse.optString("user_picture", "")
                     )
                 }
             } catch (e: Exception) {
