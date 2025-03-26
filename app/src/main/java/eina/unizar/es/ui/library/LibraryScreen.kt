@@ -83,29 +83,6 @@ fun LibraryScreen(navController: NavController) {
     var userId by remember { mutableStateOf("") }  // Estado inicial
 
     LaunchedEffect(Unit) {
-        val response = get("playlists") // Llamada a la API
-        response?.let {
-            val jsonArray = JSONArray(it)
-            val fetchedPlaylists = mutableListOf<Playlist>()
-
-            for (i in 0 until jsonArray.length()) {
-                val jsonObject = jsonArray.getJSONObject(i)
-                fetchedPlaylists.add(
-                    Playlist(
-                        id = jsonObject.getString("id"),
-                        title = jsonObject.getString("name"),
-                        idAutor = jsonObject.getString("user_id"),
-                        idArtista = jsonObject.getString("artist_id"),
-                        description = jsonObject.getString("description"),
-                        esPublica = jsonObject.getString("type"),
-                        esAlbum = jsonObject.getString("typeP"),
-                        imageUrl = jsonObject.getString("front_page")
-                    )
-                )
-            }
-            playlists = fetchedPlaylists
-        }
-
         coroutineScope.launch {
             val userData = getUserData(context)
             if (userData != null) {
@@ -118,14 +95,42 @@ fun LibraryScreen(navController: NavController) {
             userId3?.let {
                 playlistsLike = userId3 // Actualizas el estado de las playlists "liked"
             }
+
+            val response = get("playlists") // Llamada a la API
+            response?.let {
+                val jsonArray = JSONArray(it)
+                val fetchedPlaylists = mutableListOf<Playlist>()
+
+                for (i in 0 until jsonArray.length()) {
+                    val jsonObject = jsonArray.getJSONObject(i)
+                    val playlistUserId = jsonObject.getString("user_id")
+
+                    // Solo añadir playlists que coincidan con el userId
+                    if (playlistUserId == userId) {
+                        fetchedPlaylists.add(
+                            Playlist(
+                                id = jsonObject.getString("id"),
+                                title = jsonObject.getString("name"),
+                                idAutor = jsonObject.getString("user_id"),
+                                idArtista = jsonObject.getString("artist_id"),
+                                description = jsonObject.getString("description"),
+                                esPublica = jsonObject.getString("type"),
+                                esAlbum = jsonObject.getString("typeP"),
+                                imageUrl = jsonObject.getString("front_page")
+                            )
+                        )
+                    }
+                }
+                playlists = fetchedPlaylists
+            }
         }
 
     }
 
-    suspend fun createPlaylist(playlistName: String) {
+    suspend fun createPlaylist(playlistName: String, userId : String) {
         val jsonBody = JSONObject().apply {
             put("name", playlistName)
-            // Puedes agregar más campos si es necesario
+            put("user_id", userId) // Agregar el ID del usuario
         }
 
         coroutineScope  { // Lanza una corrutina en el scope
@@ -148,18 +153,23 @@ fun LibraryScreen(navController: NavController) {
 
                     for (i in 0 until jsonArray.length()) {
                         val jsonObject = jsonArray.getJSONObject(i)
-                        fetchedPlaylists.add(
-                            Playlist(
-                                id = jsonObject.getString("id"),
-                                title = jsonObject.getString("name"),
-                                idAutor = jsonObject.getString("user_id"),
-                                idArtista = jsonObject.getString("artist_id"),
-                                description = jsonObject.getString("description"),
-                                esPublica = jsonObject.getString("type"),
-                                esAlbum = jsonObject.getString("typeP"),
-                                imageUrl = jsonObject.getString("front_page")
+                        val playlistUserId = jsonObject.getString("user_id")
+
+                        // Solo añadir playlists que coincidan con el userId actual
+                        if (playlistUserId == userId) {
+                            fetchedPlaylists.add(
+                                Playlist(
+                                    id = jsonObject.getString("id"),
+                                    title = jsonObject.getString("name"),
+                                    idAutor = jsonObject.getString("user_id"),
+                                    idArtista = jsonObject.getString("artist_id"),
+                                    description = jsonObject.getString("description"),
+                                    esPublica = jsonObject.getString("type"),
+                                    esAlbum = jsonObject.getString("typeP"),
+                                    imageUrl = jsonObject.getString("front_page")
+                                )
                             )
-                        )
+                        }
                     }
                     playlists = fetchedPlaylists
                 }
@@ -262,7 +272,7 @@ fun LibraryScreen(navController: NavController) {
                     text = "Tu Biblioteca",
                     style = MaterialTheme.typography.titleLarge,
                     color = MaterialTheme.colorScheme.onBackground,
-                    fontFamily = Rubik
+                    //fontFamily = Rubik
                 )
 
                 Button(
@@ -278,15 +288,52 @@ fun LibraryScreen(navController: NavController) {
 
             // Lista de elementos filtrados según la búsqueda
             LazyColumn(modifier = Modifier.padding(8.dp)) {
-                /*
-                items(playlists) { item ->
-                    LibraryItem(item, navController)
+                // Playlists Creadas section
+                if (playlists.isNotEmpty()) {
+                    item {
+                        Text(
+                            text = "Tus Playlists",
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.onBackground,
+                            //fontFamily = Rubik,
+                            modifier = Modifier.padding(vertical = 8.dp, horizontal = 16.dp)
+                        )
+                    }
+                    items(playlists) { item ->
+                        LibraryItem(item, navController)
+                    }
                 }
-                 */
 
+                // Liked Playlists section
+                if (playlistsLike.isNotEmpty()) {
+                    item {
+                        Text(
+                            text = "Playlists que te gustan",
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.onBackground,
+                            //fontFamily = Rubik,
+                            modifier = Modifier.padding(vertical = 8.dp, horizontal = 16.dp)
+                        )
+                    }
+                    items(playlistsLike) { item2 ->
+                        LibraryItem(item2, navController)
+                    }
+                }
 
-                items(playlistsLike) { item2 ->
-                    LibraryItem(item2, navController)
+                // Optional: Show a message if no playlists exist
+                if (playlists.isEmpty() && playlistsLike.isEmpty()) {
+                    item {
+                        Text(
+                            text = "No tienes playlists aún",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp)
+                                .wrapContentHeight()
+                                .clickable { showCreatePlaylistDialog = true }
+                        )
+                    }
                 }
             }
         }
@@ -326,7 +373,7 @@ fun LibraryScreen(navController: NavController) {
                             onClick = {
                                 if (newPlaylistName.isNotEmpty()) {
                                     CoroutineScope(Dispatchers.Main).launch {
-                                        createPlaylist(newPlaylistName)
+                                        createPlaylist(newPlaylistName, userId)
                                     }
                                     showCreatePlaylistDialog = false
                                 }
