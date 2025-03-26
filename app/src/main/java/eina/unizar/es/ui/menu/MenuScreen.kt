@@ -41,6 +41,11 @@ import kotlinx.coroutines.launch
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import com.example.musicapp.ui.theme.VibraBlue
+import com.example.musicapp.ui.theme.VibraDarkGrey
+import com.example.musicapp.ui.theme.VibraLightGrey
+import com.example.musicapp.ui.theme.VibraWhite
 import eina.unizar.es.ui.artist.Artist
 
 
@@ -130,6 +135,20 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
         }
 
     }
+
+    // Mostrar el pop-up de publicidad al entrar a la pantalla
+    var showAdvertPopup by remember { mutableStateOf(!isPremium) } // Cambiado a true inicialmente
+
+    // Mostrar el pop-up de publicidad
+    AdvertPopup(
+        showPopup = showAdvertPopup,
+        onDismiss = { showAdvertPopup = false },
+        onConfirm = {
+            showAdvertPopup = false
+            showPaymentDialog = true
+            // Lógica al confirmar la publicidad
+        }
+    )
 
 
     Scaffold(
@@ -405,3 +424,139 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
         }
     }
 
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AdvertPopup(
+    showPopup: Boolean,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit,
+    imageResId: Int = R.drawable.vibrablanco
+) {
+    if (showPopup) {
+        AlertDialog(
+            onDismissRequest = onDismiss,
+            modifier = Modifier.padding(20.dp)
+        ) {
+            Card(
+                colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+                modifier = Modifier
+                    .clip(RoundedCornerShape(24.dp))
+            ) {
+                Column(
+                    modifier = Modifier
+                        .padding(24.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(
+                            Brush.linearGradient(
+                                colors = listOf(
+                                    Color(0xFF2196F3), Color(0xFF0D47A1)
+                                )
+                            )
+                        )
+                ) {
+                    Text(
+                        text = "PREMIUM EXCLUSIVO",
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 22.sp,
+                        color = VibraWhite,
+                        modifier = Modifier
+                            .align(Alignment.CenterHorizontally)
+                            .fillMaxWidth()
+                            .wrapContentWidth(Alignment.CenterHorizontally)
+                    )
+
+
+                    Image(
+                        painter = painterResource(id = imageResId),
+                        contentDescription = "Premium Benefits",
+                        modifier = Modifier
+                            .size(200.dp)
+                            .align(Alignment.CenterHorizontally)
+                            .clip(RoundedCornerShape(16.dp))
+                    )
+
+
+                    Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+                        FeatureItem("✅ Sin anuncios molestos")
+                        FeatureItem("✅ Contenido exclusivo")
+                        FeatureItem("✅ Acceso prioritario")
+                        FeatureItem("✅ Soporte 24/7")
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Text(
+                        text = "SOLO 5.99€/mes",
+                        fontSize = 26.sp,
+                        fontWeight = FontWeight.Black,
+                        color = Color(0xFFE91E63),
+                        modifier = Modifier.align(Alignment.CenterHorizontally)
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly
+                    ) {
+                        Button(
+                            onClick = onDismiss,
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier
+                                .weight(0.7f)
+                                .height(48.dp)
+                                .border(2.dp, Color.Black, RoundedCornerShape(10.dp)),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = VibraLightGrey
+                            )
+                        ) {
+                            Text(
+                                "Ahora no",
+                                color = VibraDarkGrey,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        Button(
+                            onClick = onConfirm,
+                            shape = RoundedCornerShape(12.dp),
+
+                            modifier = Modifier
+                                .weight(0.7f)
+                                .height(48.dp)
+                                .border(2.dp, Color.Black, RoundedCornerShape(10.dp)),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = VibraBlue
+                            )
+
+                        ) {
+                            Text(
+                                "QUIERO PREMIUM",
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(12.dp))
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable  // <-- No olvidar esta anotación
+private fun FeatureItem(text: String) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.padding(vertical = 4.dp)
+    ) {
+
+        Text(
+            text = text,
+            color = VibraLightGrey,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.SemiBold
+        )
+    }
+}

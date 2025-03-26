@@ -6,6 +6,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
@@ -126,42 +127,38 @@ fun ArtistScreen(navController: NavController) {
     // Id del usuario a guardar al darle like
     var userId by remember { mutableStateOf("") }  // Estado inicial
 
-    // Llamar a la API para obtener los datos de la playlist seleccionada
-    /*
-    LaunchedEffect(artistId) {
-        playlistId?.let { id ->
-            val response = withContext(Dispatchers.IO) { get("playlists/$id") }
-            response?.let {
-                val jsonObject = JSONObject(it)
-                artistInfo = Playlist(
-                    id = jsonObject.getString("id"),
-                )
 
-                // Extraer las canciones del array "songs"
-                val songsArray = jsonObject.getJSONArray("songs")
-                val fetchedSongs = mutableListOf<Song>()
-                for (i in 0 until 5) {
-                    val songObject = songsArray.getJSONObject(i)
-                    fetchedSongs.add(
-                        Song(
-                            id = songObject.getInt("id"),
-                            name = songObject.getString("name"),
-                            duration = songObject.getInt("duration"),
-                            letra = songObject.getString("lyrics"),
-                            photo_video = songObject.getString("photo_video"),
-                            url_mp3 = songObject.getString("url_mp3")
-                        )
-                    )
-                }
-                songs = fetchedSongs
-            }
-        }
-    }
-    */
+
+    var playlists by remember { mutableStateOf<List<Playlist>>(emptyList()) }
 
 
 
-    LaunchedEffect(Unit) {
+    // Cargar playlists desde el backend
+   LaunchedEffect(Unit) {
+       val response = get("playlists") // Llamada a la API
+       response?.let {
+           val jsonArray = JSONArray(it)
+           val fetchedPlaylists = mutableListOf<Playlist>()
+
+           for (i in 0 until jsonArray.length()) {
+               val jsonObject = jsonArray.getJSONObject(i)
+               fetchedPlaylists.add(
+                   Playlist(
+                       id = jsonObject.getString("id"),
+                       title = jsonObject.getString("name"),
+                       idAutor = jsonObject.getString("user_id"),
+                       idArtista = jsonObject.getString("artist_id"),
+                       description = jsonObject.getString("description"),
+                       esPublica = jsonObject.getString("type"),
+                       esAlbum = jsonObject.getString("typeP"),
+                       imageUrl = jsonObject.getString("front_page")
+                   )
+               )
+           }
+           playlists = fetchedPlaylists
+       }
+   }
+        LaunchedEffect(Unit) {
         val response = get("songs") // Llamada a la API
         response?.let {
             val songsArray = JSONArray(it)
@@ -274,16 +271,19 @@ fun ArtistScreen(navController: NavController) {
                             style = TextStyle(fontSize = 20.sp)
                         )
                     }
+                    Text(
+                        text = "Populares",
+                        fontSize = 24.sp, // Cambia el tamaño aquí
+                        textAlign = TextAlign.Start // Alinea el texto a la izquierda
+                    )
                 }
             }
 
             item { Spacer(modifier = Modifier.height(26.dp)) }
 
+
 // Lista de canciones: Cada banner con imagen a la izquierda y título/artista a la derecha
             items(songs) { song ->
-                Text(
-                    text = "Populares"
-                )
                 //val artist = songArtistMap[song] ?: "Artista Desconocido"
                 var showSongOptionsBottomSheet by remember { mutableStateOf(false) } // Estado para mostrar el BottomSheet de opciones de la canción
                 // Reproducir la musica
@@ -358,6 +358,10 @@ fun ArtistScreen(navController: NavController) {
                         }
                     }
                 }
+
+
+
+
                 Spacer(modifier = Modifier.height(12.dp))
 
                 // BottomSheet para opciones de la canción (dentro del items)
@@ -371,6 +375,51 @@ fun ArtistScreen(navController: NavController) {
                             songTitle = song.name, // Pasa el título de la canción
                             artistName = /*artist*/ "Artista de prueba" // Pasa el nombre del artista
                         )
+                    }
+                }
+            }
+            item {
+                Text(
+                    text = "Albums y sencillos",
+                    fontSize = 24.sp, // Cambia el tamaño aquí
+                    textAlign = TextAlign.Start // Alinea el texto a la izquierda
+                )
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    items(playlists) { album ->
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Card(
+                                modifier = Modifier
+                                    .size(120.dp)
+                                    .clickable {
+                                        navController.navigate("playlist/${album.id}")
+                                    }, // PASAMOS EL ID
+                                colors = CardDefaults.cardColors(containerColor = Color.Transparent)
+                            ) {
+                                Box(
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    // Cargar la imagen desde la URL
+                                    val urlAntes = album?.imageUrl
+                                    val playlistImage =
+                                        getImageUrl(urlAntes, "/default-playlist.jpg")
+                                    AsyncImage(
+                                        model = playlistImage,
+                                        contentDescription = "Portada de la playlist",
+                                        modifier = Modifier
+                                            //.size(imageSize)
+                                            //.alpha(imageAlpha)
+                                            .clip(RoundedCornerShape(8.dp)) // Opcional: añade esquinas redondeadas
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = album.title,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
                     }
                 }
             }
