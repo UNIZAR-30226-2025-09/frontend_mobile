@@ -22,6 +22,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.navigation.NavController
 import com.stripe.android.paymentsheet.PaymentSheet
 import eina.unizar.es.R
@@ -50,6 +53,7 @@ import com.example.musicapp.ui.theme.VibraDarkGrey
 import com.example.musicapp.ui.theme.VibraLightGrey
 import com.example.musicapp.ui.theme.VibraWhite
 import eina.unizar.es.ui.artist.Artist
+import eina.unizar.es.ui.song.Song
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -79,6 +83,7 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
     var albums by remember { mutableStateOf<List<Playlist>>(emptyList()) }
 
     var artists by remember { mutableStateOf<List<Artist>>(emptyList()) }
+    var songs by remember { mutableStateOf<List<Song>>(emptyList()) }
 
     // Cargar playlists desde el backend
     LaunchedEffect(Unit) {

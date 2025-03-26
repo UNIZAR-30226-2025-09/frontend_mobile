@@ -221,7 +221,7 @@ fun LibraryScreen(navController: NavController) {
         bottomBar = {
             Column {
                 val isPlaying = remember { mutableStateOf(false) }
-                FloatingMusicPlayer("Sensualidad", "god", R.drawable.kanyeperfil, isPlaying.value)
+                FloatingMusicPlayer(playerViewModel, navController)
                 BottomNavigationBar(navController)
             }
         },

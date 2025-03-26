@@ -34,6 +34,7 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import eina.unizar.es.R
 import eina.unizar.es.data.model.network.ApiClient.get
@@ -52,6 +53,7 @@ import eina.unizar.es.data.model.network.ApiClient
 import eina.unizar.es.data.model.network.ApiClient.getImageUrl
 import eina.unizar.es.ui.navbar.BottomNavigationBar
 import eina.unizar.es.ui.player.FloatingMusicPlayer
+import eina.unizar.es.ui.player.MusicPlayerViewModel
 import eina.unizar.es.ui.playlist.Playlist
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
@@ -64,6 +66,8 @@ import java.nio.file.Files.delete
 @Composable
 
 fun ArtistScreen(navController: NavController) {
+
+    val playerViewModel: MusicPlayerViewModel = viewModel()
 
 // Colores básicos
     val backgroundColor = Color(0xFF000000) // Negro
@@ -232,7 +236,7 @@ fun ArtistScreen(navController: NavController) {
         bottomBar = {
             Column {
                 val isPlaying = remember { mutableStateOf(false) }
-                FloatingMusicPlayer("Sensualidad", "god", R.drawable.kanyeperfil, isPlaying.value)
+                FloatingMusicPlayer(playerViewModel, navController)
                 BottomNavigationBar(navController)
             }
         },
