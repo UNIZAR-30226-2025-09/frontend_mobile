@@ -1,7 +1,6 @@
 package eina.unizar.es.ui.menu
 
 import android.annotation.SuppressLint
-import android.content.Context
 import android.util.Log
 import androidx.compose.animation.animateColor
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -12,9 +11,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -22,7 +18,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.*
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
@@ -42,10 +37,20 @@ import coil.compose.AsyncImage
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.layout.size
 import androidx.lifecycle.viewmodel.compose.viewModel
+import eina.unizar.es.data.model.network.ApiClient.getImageUrl
 import eina.unizar.es.data.model.network.ApiClient.getUserData
 import eina.unizar.es.ui.player.MusicPlayerViewModel
-import eina.unizar.es.ui.song.Song
 import kotlinx.coroutines.launch
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import com.example.musicapp.ui.theme.VibraBlue
+import com.example.musicapp.ui.theme.VibraDarkGrey
+import com.example.musicapp.ui.theme.VibraLightGrey
+import com.example.musicapp.ui.theme.VibraWhite
+import eina.unizar.es.ui.artist.Artist
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -73,7 +78,7 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
     var playlists by remember { mutableStateOf<List<Playlist>>(emptyList()) }
     var albums by remember { mutableStateOf<List<Playlist>>(emptyList()) }
 
-    var songs by remember { mutableStateOf<List<Song>>(emptyList()) }
+    var artists by remember { mutableStateOf<List<Artist>>(emptyList()) }
 
     // Cargar playlists desde el backend
     LaunchedEffect(Unit) {
@@ -116,28 +121,42 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
 
 
         // Canciones de la parte superior de recomendaciones
-        val responseS = get("songs") // Llamada a la API para obtener canciones
+        val responseS = get("artist/artists") // Llamada a la API para obtener canciones
         responseS?.let {
             val jsonArray = JSONArray(it)
-            val fetchedSongs = mutableListOf<Song>()
+            val fetchedArtists = mutableListOf<Artist>()
 
             for (i in 0 until 8) {
                 val jsonObject = jsonArray.getJSONObject(i)
-                fetchedSongs.add(
-                    Song(
+                fetchedArtists.add(
+                    Artist(
                         id = jsonObject.getInt("id"),
                         name = jsonObject.getString("name"),
-                        duration = jsonObject.getInt("duration"),
-                        photo_video = jsonObject.getString("photo_video"),
-                        url_mp3 = jsonObject.getString("url_mp3"),
-                        letra = jsonObject.getString("lyrics")
+                        biography = "Prueba",//jsonObject.getString("bio")//
+                        photo = jsonObject.getString("photo"),
                     )
                 )
+
             }
-            songs = fetchedSongs
+            Log.d("Artista", "Artistas: + " + fetchedArtists)
+            artists = fetchedArtists
         }
 
     }
+
+    // Mostrar el pop-up de publicidad al entrar a la pantalla
+    var showAdvertPopup by remember { mutableStateOf(!isPremium) } // Cambiado a true inicialmente
+
+    // Mostrar el pop-up de publicidad
+    AdvertPopup(
+        showPopup = showAdvertPopup,
+        onDismiss = { showAdvertPopup = false },
+        onConfirm = {
+            showAdvertPopup = false
+            showPaymentDialog = true
+            // Lógica al confirmar la publicidad
+        }
+    )
 
 
     Scaffold(
@@ -163,10 +182,13 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
                         //}
                     }
                 },
+
+
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background
                 )
             )
+
         },
         bottomBar = {
             Column {
@@ -174,7 +196,10 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
                 BottomNavigationBar(navController)
             }
         },
-    ) { innerPadding ->
+    )
+    { innerPadding ->
+        Column(modifier = Modifier.fillMaxSize()) {
+            Spacer(modifier = Modifier.height(16.dp))
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -185,10 +210,10 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
             Column(
                 modifier = Modifier.fillMaxSize() // Aseguramos que la columna ocupa todo el espacio
             ) {
-                // Canciones recomendadas en Grid
+                // Artistas recomendados en Grid
                 Column {
                     Text(
-                        "Canciones recomendadas",
+                        "Artistas recomendados",
                         color = MaterialTheme.colorScheme.onBackground,
                         style = MaterialTheme.typography.titleLarge
                     )
@@ -241,7 +266,7 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
                     Spacer(modifier = Modifier.height(8.dp))
 
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                        items(albums) { album ->
+                        items(playlists) { album ->
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Card(
                                     modifier = Modifier
@@ -249,18 +274,23 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
                                         .clickable {
                                             navController.navigate("playlist/${album.id}")
                                         }, // PASAMOS EL ID
-                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                                    colors = CardDefaults.cardColors(containerColor = Color.Transparent)
                                 ) {
                                     Box(
                                         modifier = Modifier.fillMaxSize(),
                                         contentAlignment = Alignment.Center
                                     ) {
-                                        // Hay que poner su foto pero no me encuentra la ruta
-                                        Image(
-                                            painter = painterResource(id = R.drawable.kanyeperfil),
-                                            contentDescription = "Álbum",
-                                            modifier = Modifier.size(120.dp)
+                                        // Cargar la imagen desde la URL
+                                        val urlAntes = album?.imageUrl
+                                        val playlistImage =
+                                            getImageUrl(urlAntes, "/default-playlist.jpg")
+                                        AsyncImage(
+                                            model = playlistImage,
+                                            contentDescription = "Portada de la playlist",
+                                            modifier = Modifier
+                                                //.size(imageSize)
+                                                //.alpha(imageAlpha)
+                                                .clip(RoundedCornerShape(8.dp)) // Opcional: añade esquinas redondeadas
                                         )
                                     }
                                 }
@@ -293,18 +323,24 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
                                         .clickable {
                                             navController.navigate("playlist/${playlist.id}") // PASAMOS EL ID
                                         },
-                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                                    colors = CardDefaults.cardColors(containerColor = Color.Transparent)
+                                    //elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
                                 ) {
                                     Box(
                                         modifier = Modifier.fillMaxSize(),
                                         contentAlignment = Alignment.Center
                                     ) {
-                                        // Aquí cargamos la imagen de la playlist desde playlist.imageUrl
+                                        // Cargar la imagen desde la URL
+                                        val urlAntes = playlist?.imageUrl
+                                        val playlistImage =
+                                            getImageUrl(urlAntes, "/default-playlist.jpg")
                                         AsyncImage(
-                                            model = playlist.imageUrl, // Usa la URL o la ruta de la imagen
-                                            contentDescription = "Álbum",
-                                            modifier = Modifier.size(120.dp)
+                                            model = playlistImage,
+                                            contentDescription = "Portada de la playlist",
+                                            modifier = Modifier
+                                                //.size(imageSize)
+                                                //.alpha(imageAlpha)
+                                                .clip(RoundedCornerShape(8.dp)) // Opcional: añade esquinas redondeadas
                                         )
                                     }
                                 }
@@ -327,6 +363,7 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
                     paymentSheet = paymentSheet
                 )
             }
+        }
         }
     }
 }
@@ -392,3 +429,139 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
         }
     }
 
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AdvertPopup(
+    showPopup: Boolean,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit,
+    imageResId: Int = R.drawable.vibrablanco
+) {
+    if (showPopup) {
+        AlertDialog(
+            onDismissRequest = onDismiss,
+            modifier = Modifier.padding(20.dp)
+        ) {
+            Card(
+                colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+                modifier = Modifier
+                    .clip(RoundedCornerShape(24.dp))
+            ) {
+                Column(
+                    modifier = Modifier
+                        .padding(24.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(
+                            Brush.linearGradient(
+                                colors = listOf(
+                                    Color(0xFF2196F3), Color(0xFF0D47A1)
+                                )
+                            )
+                        )
+                ) {
+                    Text(
+                        text = "PREMIUM EXCLUSIVO",
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 22.sp,
+                        color = VibraWhite,
+                        modifier = Modifier
+                            .align(Alignment.CenterHorizontally)
+                            .fillMaxWidth()
+                            .wrapContentWidth(Alignment.CenterHorizontally)
+                    )
+
+
+                    Image(
+                        painter = painterResource(id = imageResId),
+                        contentDescription = "Premium Benefits",
+                        modifier = Modifier
+                            .size(200.dp)
+                            .align(Alignment.CenterHorizontally)
+                            .clip(RoundedCornerShape(16.dp))
+                    )
+
+
+                    Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+                        FeatureItem("✅ Sin anuncios molestos")
+                        FeatureItem("✅ Contenido exclusivo")
+                        FeatureItem("✅ Acceso prioritario")
+                        FeatureItem("✅ Soporte 24/7")
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Text(
+                        text = "SOLO 5.99€/mes",
+                        fontSize = 26.sp,
+                        fontWeight = FontWeight.Black,
+                        color = Color(0xFFE91E63),
+                        modifier = Modifier.align(Alignment.CenterHorizontally)
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly
+                    ) {
+                        Button(
+                            onClick = onDismiss,
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier
+                                .weight(0.7f)
+                                .height(48.dp)
+                                .border(2.dp, Color.Black, RoundedCornerShape(10.dp)),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = VibraLightGrey
+                            )
+                        ) {
+                            Text(
+                                "Ahora no",
+                                color = VibraDarkGrey,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        Button(
+                            onClick = onConfirm,
+                            shape = RoundedCornerShape(12.dp),
+
+                            modifier = Modifier
+                                .weight(0.7f)
+                                .height(48.dp)
+                                .border(2.dp, Color.Black, RoundedCornerShape(10.dp)),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = VibraBlue
+                            )
+
+                        ) {
+                            Text(
+                                "QUIERO PREMIUM",
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(12.dp))
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable  // <-- No olvidar esta anotación
+private fun FeatureItem(text: String) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.padding(vertical = 4.dp)
+    ) {
+
+        Text(
+            text = text,
+            color = VibraLightGrey,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.SemiBold
+        )
+    }
+}
