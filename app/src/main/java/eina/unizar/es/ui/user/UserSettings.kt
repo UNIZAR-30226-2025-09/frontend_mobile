@@ -21,10 +21,16 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PaintingStyle.Companion.Stroke
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.drawscope.Fill
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.vector.VectorProperty
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -34,10 +40,13 @@ import androidx.navigation.NavController
 import eina.unizar.es.R
 import androidx.compose.ui.platform.LocalContext
 import coil.compose.rememberAsyncImagePainter
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import eina.unizar.es.data.model.network.ApiClient
 import eina.unizar.es.data.model.network.ApiClient.getUserData
 import eina.unizar.es.ui.main.Rubik
 import kotlinx.coroutines.launch
+import java.time.format.TextStyle
 
 @Composable
 fun UserSettings(navController: NavController, isPremium: Boolean) {
@@ -134,14 +143,26 @@ fun HeaderSection() {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     var nickname by remember { mutableStateOf("Cargando...") }  // Estado inicial
+    var userPicture by remember { mutableStateOf("") }
+    var userId by remember { mutableStateOf("") }
+    var profileColor by remember { mutableStateOf(Color(0xFF607D8B)) }
+    var initials by remember { mutableStateOf("") }
 
     // Llamada a la API cuando la pantalla se carga
     LaunchedEffect(Unit) {
         coroutineScope.launch {
             val userData = getUserData(context)
             if (userData != null) {
-                nickname =
-                    (userData["nickname"] ?: "Usuario").toString()  // Si no hay nickname, usa "Usuario"
+                nickname = (userData["nickname"] ?: "Nickname").toString()
+                userPicture = (userData["user_picture"] ?: "").toString()
+                userId = (userData["id"] ?: "").toString()
+
+                // Genera o recupera el color del perfil
+                val colorManager = UserColorManager(context)
+                profileColor = colorManager.getUserProfileColor(userId)
+
+                // Obtiene las iniciales
+                initials = getInitial(nickname)
             }
         }
     }
@@ -152,13 +173,55 @@ fun HeaderSection() {
             .padding(24.dp)
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+            // Imagen de perfil
+            if (userPicture.isEmpty()) { // !!! Ojo la negacion para docker!!!
+                AsyncImage(
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(userPicture)
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = "Imagen de perfil",
+                    modifier = Modifier
+                        .size(90.dp)
+                        .clip(CircleShape),
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .size(90.dp)
+                        .background(color = profileColor, shape = CircleShape)
+                        .clip(CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = initials,
+                        color = Color.White,
+                        fontSize = 36.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
             // Aqui podemos sacar la URI de la imagen del usuario
             ProfileImagePicker("http://164.90.160.181/request/playlist_images/temardos.png")
 
             Spacer(modifier = Modifier.height(10.dp))
 
             // Nombre de usuario
-            Text(nickname, color = Color(0xFF2E2E2E), fontSize = 26.sp, fontWeight = FontWeight.Bold, fontFamily = Rubik)
+            Text(
+                text = nickname.capitalize(),
+                fontFamily = Rubik,
+                fontSize = 32.sp,
+                fontWeight = FontWeight.Bold,
+                style = androidx.compose.ui.text.TextStyle(
+                    shadow = Shadow(
+                        color = Color.Black.copy(alpha = 0.3f),
+                        offset = Offset(2f, 2f),
+                        blurRadius = 4f
+                    )
+                ),
+                color = Color(0xFF2E2E2E)
+            )
 
             Spacer(modifier = Modifier.height(4.dp))
         }

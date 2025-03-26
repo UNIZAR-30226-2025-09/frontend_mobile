@@ -20,8 +20,8 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 
 object ApiClient {
-    //const val BASE_URL = "http://10.0.2.2/request/api" // Usa la IP local del backend
-    const val BASE_URL = "http://164.90.160.181/request/api" // Usa la IP publica (nube) del backend
+    const val BASE_URL = "http://10.0.2.2/request/api" // Usa la IP local del backend
+    //const val BASE_URL = "http://164.90.160.181/request/api" // Usa la IP publica (nube) del backend
     const val BASE_URL_IMG = "http://164.90.160.181/request"
 
     /**
@@ -225,7 +225,8 @@ suspend fun getUserData(context: Context): Map<String, Any>? {
                         "id" to jsonResponse.optInt("id", 0),
                         "nickname" to jsonResponse.optString("nickname", ""),
                         "mail" to jsonResponse.optString("mail", ""),
-                        "is_premium" to jsonResponse.optBoolean("is_premium", false)
+                        "is_premium" to jsonResponse.optBoolean("is_premium", false),
+                        "user_picture" to jsonResponse.optString("user_picture", "")
                     )
                 }
             } catch (e: Exception) {

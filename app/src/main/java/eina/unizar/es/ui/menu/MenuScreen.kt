@@ -215,7 +215,8 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
                     Text(
                         "Artistas recomendados",
                         color = MaterialTheme.colorScheme.onBackground,
-                        style = MaterialTheme.typography.titleLarge
+                        style = MaterialTheme.typography.titleLarge,
+                        fontFamily = Rubik // Quitar si no convence
                     )
                     Spacer(modifier = Modifier.height(8.dp))
 
@@ -261,7 +262,8 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
                     Text(
                         "Álbumes populares",
                         color = MaterialTheme.colorScheme.onBackground,
-                        style = MaterialTheme.typography.titleLarge
+                        style = MaterialTheme.typography.titleLarge,
+                        fontFamily = Rubik // Quitar si no convence
                     )
                     Spacer(modifier = Modifier.height(8.dp))
 
@@ -310,7 +312,8 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
                     Text(
                         "Listas para ti",
                         color = MaterialTheme.colorScheme.onBackground,
-                        style = MaterialTheme.typography.titleLarge
+                        style = MaterialTheme.typography.titleLarge,
+                        fontFamily = Rubik // Quitar si no convence
                     )
                     Spacer(modifier = Modifier.height(8.dp))
 
