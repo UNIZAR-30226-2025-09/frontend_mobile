@@ -1,5 +1,6 @@
 package eina.unizar.es.ui.library
 
+import android.annotation.SuppressLint
 import android.app.LauncherActivity
 import android.util.Log
 import androidx.compose.foundation.Image
@@ -23,6 +24,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.musicapp.ui.theme.VibraBlack
 import com.example.musicapp.ui.theme.VibraBlue
@@ -33,6 +35,7 @@ import eina.unizar.es.data.model.network.ApiClient.get
 import eina.unizar.es.data.model.network.ApiClient.post
 import eina.unizar.es.ui.navbar.BottomNavigationBar
 import eina.unizar.es.ui.player.FloatingMusicPlayer
+import eina.unizar.es.ui.player.MusicPlayerViewModel
 import eina.unizar.es.ui.playlist.Playlist
 import eina.unizar.es.ui.song.Song
 import eina.unizar.es.ui.user.UserProfileMenu
@@ -54,6 +57,10 @@ fun LibraryScreen(navController: NavController) {
     var showCreatePlaylistDialog by remember { mutableStateOf(false) }
     var newPlaylistName by remember { mutableStateOf("") }
 
+    //val parentEntry = remember(navController) { navController.getBackStackEntry("menu") }
+    //val playerViewModel = viewModel<MusicPlayerViewModel>(parentEntry)
+
+    val playerViewModel: MusicPlayerViewModel = viewModel()
 
 
     // Estado de la barra de navegación inferior
@@ -172,7 +179,7 @@ fun LibraryScreen(navController: NavController) {
         bottomBar = {
             Column {
                 val isPlaying = remember { mutableStateOf(false) }
-                FloatingMusicPlayer("Sensualidad", "god", R.drawable.kanyeperfil, isPlaying.value)
+                FloatingMusicPlayer(viewModel = playerViewModel, navController = navController)
                 BottomNavigationBar(navController)
             }
 

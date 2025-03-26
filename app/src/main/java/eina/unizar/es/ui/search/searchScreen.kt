@@ -1,5 +1,6 @@
 package eina.unizar.es.ui.search
 
+import android.annotation.SuppressLint
 import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
@@ -18,15 +19,24 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.*
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import eina.unizar.es.R
 import eina.unizar.es.ui.navbar.BottomNavigationBar
 import eina.unizar.es.ui.player.FloatingMusicPlayer
+import eina.unizar.es.ui.player.MusicPlayerViewModel
 import eina.unizar.es.ui.user.UserProfileMenu
 
+@SuppressLint("UnrememberedGetBackStackEntry")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchScreen(navController: NavController) {
+    //val parentEntry = remember(navController) { navController.getBackStackEntry("menu") }
+    //val playerViewModel = viewModel<MusicPlayerViewModel>(parentEntry)
+
+    val playerViewModel: MusicPlayerViewModel = viewModel()
+
+
     val backgroundColor = MaterialTheme.colorScheme.background
     val searchBarUnfocusedColor = MaterialTheme.colorScheme.onBackground
     val searchTextUnfocusedColor = MaterialTheme.colorScheme.background
@@ -71,7 +81,7 @@ fun SearchScreen(navController: NavController) {
         bottomBar = {
             Column {
                 val isPlaying = remember { mutableStateOf(false) }
-                FloatingMusicPlayer("Sensualidad", "god", R.drawable.kanyeperfil, isPlaying.value)
+                FloatingMusicPlayer(viewModel = playerViewModel, navController = navController)
                 BottomNavigationBar(navController)
             }
         },

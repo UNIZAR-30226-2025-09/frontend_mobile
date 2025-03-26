@@ -1,5 +1,6 @@
 package eina.unizar.es.ui.menu
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.util.Log
 import androidx.compose.animation.animateColor
@@ -40,7 +41,9 @@ import org.json.JSONArray
 import coil.compose.AsyncImage
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.layout.size
+import androidx.lifecycle.viewmodel.compose.viewModel
 import eina.unizar.es.data.model.network.ApiClient.getUserData
+import eina.unizar.es.ui.player.MusicPlayerViewModel
 import eina.unizar.es.ui.song.Song
 import kotlinx.coroutines.launch
 
@@ -51,6 +54,11 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
     var showPaymentDialog by remember { mutableStateOf(false) } // Estado para mostrar pop-up
     var isPremium by remember { mutableStateOf(isPremium) }
     val coroutineScope = rememberCoroutineScope()
+    //val parentEntry = remember(navController) { navController.getBackStackEntry("main") }
+    //val playerViewModel = viewModel<MusicPlayerViewModel>(parentEntry)
+
+    val playerViewModel: MusicPlayerViewModel = viewModel() // ✅ Crea aquí el viewModel
+
 
     LaunchedEffect(Unit) {
             coroutineScope.launch {
@@ -162,8 +170,7 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
         },
         bottomBar = {
             Column {
-                val isPlaying = remember { mutableStateOf(false) }
-                FloatingMusicPlayer("Sensualidad", "god", R.drawable.kanyeperfil, isPlaying.value)
+                FloatingMusicPlayer(viewModel = playerViewModel, navController = navController)
                 BottomNavigationBar(navController)
             }
         },
@@ -198,7 +205,14 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(50.dp)
-                                    .clickable {  navController.navigate("song/${cancion.id}") }, // PASAMOS EL ID
+                                    .clickable {
+                                        playerViewModel.loadSongsFromApi(
+                                            songId = cancion.id.toString(),
+                                            context = context,
+                                            albumArtResId = R.drawable.kanyeperfil
+                                        )
+                                        navController.navigate("song/${cancion.id}")
+                                    }, // PASAMOS EL ID
                                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                                 elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
                             ) {
