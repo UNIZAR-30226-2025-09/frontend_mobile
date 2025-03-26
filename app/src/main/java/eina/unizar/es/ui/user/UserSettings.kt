@@ -1,6 +1,9 @@
 package eina.unizar.es.ui.user
 
+import android.net.Uri
 import android.util.Log
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -10,6 +13,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material3.*
@@ -34,6 +38,7 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import eina.unizar.es.R
 import androidx.compose.ui.platform.LocalContext
+import coil.compose.rememberAsyncImagePainter
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import eina.unizar.es.data.model.network.ApiClient
@@ -196,6 +201,8 @@ fun HeaderSection() {
                     )
                 }
             }
+            // Aqui podemos sacar la URI de la imagen del usuario
+            ProfileImagePicker("http://164.90.160.181/request/playlist_images/temardos.png")
 
             Spacer(modifier = Modifier.height(10.dp))
 
@@ -300,6 +307,127 @@ fun SettingsSection(title: String, items: List<Pair<String, String>>, navControl
                     Icon(Icons.Default.KeyboardArrowRight, contentDescription = text, tint = Color.Gray)
                 }
             }
+        }
+    }
+}
+
+/*
+// Gestion de la foto de perfil del usuario, cambiando desde la galeria
+ */
+/*
+@Composable
+fun ProfileImagePicker(/*url: String*/) {
+    var imageUri by remember { mutableStateOf<Uri?>(null) }
+    val galleryLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uriSelected: Uri? ->
+        uriSelected?.let {
+            imageUri = it
+        }
+    }
+
+    val painter = if (imageUri != null) {
+        rememberAsyncImagePainter(imageUri)
+    } else {
+        painterResource(id = R.drawable.kanyeperfil)
+    }
+
+    Box(
+        modifier = Modifier.size(100.dp),
+        contentAlignment = Alignment.BottomEnd
+    ) {
+        androidx.compose.foundation.Image(
+            painter = painter,
+            contentDescription = "Imagen de perfil",
+            modifier = Modifier
+                .fillMaxSize()
+                .clip(CircleShape)
+                .background(Color.Gray),
+            contentScale = ContentScale.Crop
+        )
+
+        IconButton(
+            onClick = {
+                galleryLauncher.launch("image/*")
+            },
+            modifier = Modifier
+                .padding(4.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Edit,
+                contentDescription = "Editar imagen"
+            )
+        }
+    }
+}
+*/
+/**
+ * Gestion de la foto de perfil pero cambiada desde URI
+ * del Backend
+ */
+ */
+
+@Composable
+fun ProfileImagePicker(
+    url: String? = null // URL de la foto en tu backend. Puede ser null o estar vacía.
+) {
+    // Estado que guarda la URI seleccionada de la galería
+    var imageUri by remember { mutableStateOf<Uri?>(null) }
+
+
+    // Launcher para abrir la galería y capturar la URI
+    val galleryLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uriSelected: Uri? ->
+        uriSelected?.let {
+            imageUri = it
+        }
+    }
+
+    // Decidimos cuál "painter" se usa:
+    // 1. Si el usuario seleccionó foto local (imageUri != null), usamos esa.
+    // 2. Si no hay foto local, intentamos cargar la URL del backend con Coil.
+    // 3. Si la URL es nula/vacía o falla la carga, imagen por defecto.
+    val painter = when {
+        imageUri != null -> {
+            rememberAsyncImagePainter(imageUri)
+        }
+        !url.isNullOrBlank() -> {
+            // Cargamos la imagen remota usando Coil
+            rememberAsyncImagePainter(model = url)
+        }
+        else -> {
+            // Imagen de perfil local por defecto
+            painterResource(id = R.drawable.kanyeperfil)
+        }
+    }
+
+    Box(
+        modifier = Modifier.size(100.dp),
+        contentAlignment = Alignment.BottomEnd
+    ) {
+        // Imagen de perfil
+        androidx.compose.foundation.Image(
+            painter = painter,
+            contentDescription = "Imagen de perfil",
+            modifier = Modifier
+                .fillMaxSize()
+                .clip(CircleShape)
+                .background(Color.Gray),
+            contentScale = ContentScale.Crop
+        )
+
+        // Botón con ícono de editar, para abrir la galería
+        IconButton(
+            onClick = {
+                galleryLauncher.launch("image/*") // Filtra solo imágenes
+            },
+            modifier = Modifier.padding(4.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Edit,
+                contentDescription = "Editar imagen"
+            )
         }
     }
 }

@@ -337,7 +337,7 @@ suspend fun postTokenPremium(
     try {
         // Obtener el token desde SharedPreferences
         val sharedPreferences: SharedPreferences = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
-        val token = sharedPreferences.getString("auth_token", null)
+            val token = sharedPreferences.getString("auth_token", null)
 
             if (token.isNullOrEmpty()) {
                 Log.e("API", "Token no disponible")

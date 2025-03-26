@@ -1,5 +1,6 @@
 package eina.unizar.es.ui.playlist
 
+import android.annotation.SuppressLint
 import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -33,6 +34,7 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import eina.unizar.es.R
 import eina.unizar.es.data.model.network.ApiClient.get
@@ -42,6 +44,9 @@ import org.json.JSONArray
 import org.json.JSONObject
 import androidx.media3.common.MediaItem
 import androidx.media3.exoplayer.ExoPlayer
+import eina.unizar.es.data.model.network.ApiClient.getLikedPlaylists
+import eina.unizar.es.data.model.network.ApiClient.getUserData
+import eina.unizar.es.data.model.network.ApiClient.likeUnlikePlaylist
 import kotlinx.coroutines.launch
 import coil.compose.AsyncImage
 import eina.unizar.es.data.model.network.ApiClient
@@ -51,6 +56,7 @@ import eina.unizar.es.data.model.network.ApiClient.getUserData
 import eina.unizar.es.data.model.network.ApiClient.likeUnlikePlaylist
 import eina.unizar.es.ui.navbar.BottomNavigationBar
 import eina.unizar.es.ui.player.FloatingMusicPlayer
+import eina.unizar.es.ui.player.MusicPlayerViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
@@ -58,17 +64,20 @@ import kotlinx.coroutines.withContext
 import java.nio.file.Files.delete
 
 @OptIn(ExperimentalMaterial3Api::class)
-
 @Composable
-
 fun PlaylistScreen(navController: NavController, playlistId: String?) {
+
+    //val parentEntry = remember(navController) { navController.getBackStackEntry("menu") }
+    //val playerViewModel = viewModel<MusicPlayerViewModel>(parentEntry)
+
+    val playerViewModel: MusicPlayerViewModel = viewModel()
+
 
 // Colores básicos
     val backgroundColor = Color(0xFF000000) // Negro
     val textColor = Color(0xFFFFFFFF) // Blanco
     val cardBackgroundColor = Color(0xFF121212) // Negro un poco más claro
     val buttonColor = Color(0xFF0D47A1) // Azul oscuro
-
 
 // Datos simulados de la playlist
     val playlistTitle = "Playlist: Rock"
@@ -243,8 +252,7 @@ fun PlaylistScreen(navController: NavController, playlistId: String?) {
         },
         bottomBar = {
             Column {
-                val isPlaying = remember { mutableStateOf(false) }
-                FloatingMusicPlayer("Sensualidad", "god", R.drawable.kanyeperfil, isPlaying.value)
+                FloatingMusicPlayer(viewModel = playerViewModel, navController = navController)
                 BottomNavigationBar(navController)
             }
         },

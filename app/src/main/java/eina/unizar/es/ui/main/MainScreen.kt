@@ -21,10 +21,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.engine.DiskCacheStrategy
 import eina.unizar.es.R
 import eina.unizar.es.data.model.network.ApiClient
+import eina.unizar.es.ui.player.MusicPlayerViewModel
 
 
 // Creamos variable para importar a la UI la nueva FontFamily
@@ -34,6 +36,7 @@ val Rubik = FontFamily(
 
 @Composable
 fun MainScreen(navController: NavController) {
+    val playerViewModel: MusicPlayerViewModel = viewModel()
     val context = LocalContext.current
     var mediaPlayer: MediaPlayer? by remember { mutableStateOf(null) }
 

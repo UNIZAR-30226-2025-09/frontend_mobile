@@ -14,6 +14,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -22,76 +24,75 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.zIndex
-import eina.unizar.es.R // Reemplaza con tu paquete y recursos
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavController
+import eina.unizar.es.R
 
 @Composable
 fun FloatingMusicPlayer(
-    title: String,
-    artist: String,
-    albumArt: Int,
-    isPlaying: Boolean,
-   // onPlayPauseClick: () -> Unit,
-   // onFavoriteClick: () -> Unit,
-   // onComputerClick: () -> Unit
+    viewModel: MusicPlayerViewModel,
+    navController: NavController
 ) {
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(65.dp)
-            .padding(horizontal = 8.dp)
-            .clip(RoundedCornerShape(16.dp)),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxSize()
-            .fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
+    val currentSong by viewModel.currentSong.collectAsState()
+
+    currentSong?.let { song ->
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(65.dp)
+                .padding(horizontal = 8.dp)
+                .clip(RoundedCornerShape(16.dp))
+                .clickable {
+                    navController.navigate("song/${song.id}")
+                },
+            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f)
         ) {
-            Image(
-                painter = painterResource(id = albumArt),
-                contentDescription = "Album Art",
-                modifier = Modifier
-                    .size(64.dp)
-                    .padding(8.dp)
-                    .clip(RoundedCornerShape(8.dp)),
-                contentScale = ContentScale.Crop
-            )
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(start = 8.dp)
+            Row(
+                modifier = Modifier.fillMaxSize(),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(text = title, fontSize = 16.sp)
-                Text(text = artist, fontSize = 14.sp)
+                Image(
+                    painter = painterResource(id = song.albumArt),
+                    contentDescription = "Album Art",
+                    modifier = Modifier
+                        .size(64.dp)
+                        .padding(8.dp)
+                        .clip(RoundedCornerShape(8.dp)),
+                    contentScale = ContentScale.Crop
+                )
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(start = 8.dp)
+                ) {
+                    Text(text = song.title, fontSize = 16.sp)
+                    Text(text = song.artist, fontSize = 14.sp)
+                }
+                Icon(
+                    imageVector = Icons.Filled.Computer,
+                    contentDescription = "Computer",
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clickable { /* acción futuro */ }
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Icon(
+                    imageVector = Icons.Filled.FavoriteBorder,
+                    contentDescription = "Favorite",
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clickable { /* acción futuro */ }
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Icon(
+                    imageVector = if (song.isPlaying) Icons.Filled.PlayArrow else Icons.Filled.Pause,
+                    contentDescription = if (song.isPlaying) "Play" else "Pause",
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clickable { viewModel.togglePlayPause() }
+                )
+                Spacer(modifier = Modifier.width(12.dp))
             }
-            // Icono de ordenador
-            Icon(
-                imageVector = Icons.Filled.Computer,
-                contentDescription = "Computer",
-                modifier = Modifier
-                    .size(32.dp)
-                    .clickable { /*onComputerClick()*/ }
-            )
-            Spacer(modifier = Modifier.width(4.dp)) // Espacio entre iconos
-            // Icono de corazón vacío
-            Icon(
-                imageVector = Icons.Filled.FavoriteBorder,
-                contentDescription = "Favorite",
-                modifier = Modifier
-                    .size(32.dp)
-                    .clickable { /*onComputerClick()*/ }
-            )
-            Spacer(modifier = Modifier.width(4.dp)) // Espacio entre iconos
-            // Icono de play/pause
-            Icon(
-                imageVector = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                contentDescription = if (isPlaying) "Pause" else "Play",
-                modifier = Modifier
-                    .size(32.dp)
-                    .clickable { /*onComputerClick()*/ }
-            )
-           Spacer(modifier = Modifier.width(12.dp)) // Espacio al final
         }
     }
 }
