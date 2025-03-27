@@ -1,6 +1,7 @@
 package eina.unizar.es.ui.search
 
 import android.annotation.SuppressLint
+import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
@@ -10,6 +11,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -22,20 +24,24 @@ import androidx.compose.ui.unit.*
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import eina.unizar.es.R
+import eina.unizar.es.data.model.network.ApiClient
+import eina.unizar.es.ui.library.LibraryItem
 import eina.unizar.es.ui.navbar.BottomNavigationBar
 import eina.unizar.es.ui.player.FloatingMusicPlayer
 import eina.unizar.es.ui.player.MusicPlayerViewModel
+import eina.unizar.es.ui.playlist.Playlist
+import eina.unizar.es.ui.song.Song
 import eina.unizar.es.ui.user.UserProfileMenu
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import org.json.JSONArray
 
 @SuppressLint("UnrememberedGetBackStackEntry")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchScreen(navController: NavController) {
-    //val parentEntry = remember(navController) { navController.getBackStackEntry("menu") }
-    //val playerViewModel = viewModel<MusicPlayerViewModel>(parentEntry)
-
     val playerViewModel: MusicPlayerViewModel = viewModel()
-
 
     val backgroundColor = MaterialTheme.colorScheme.background
     val searchBarUnfocusedColor = MaterialTheme.colorScheme.onBackground
@@ -58,6 +64,32 @@ fun SearchScreen(navController: NavController) {
     val currentContainerColor = if (isFocused) searchBarFocusedColor else searchBarUnfocusedColor
     val currentTextColor = if (isFocused) searchTextFocusedColor else searchTextUnfocusedColor
 
+    var allSongs by remember { mutableStateOf<List<Song>>(emptyList()) }
+    var allPlaylists by remember { mutableStateOf<List<Playlist>>(emptyList()) }
+    var searchResults by remember { mutableStateOf<List<Any>>(emptyList()) }
+    val coroutineScope = rememberCoroutineScope()
+
+    LaunchedEffect(Unit) {
+        coroutineScope.launch {
+            allSongs = fetchAllSongs()
+            allPlaylists = fetchAllPlaylists()
+        }
+    }
+
+    LaunchedEffect(searchQuery) {
+        searchResults = if (searchQuery.isNotEmpty()) {
+            val filteredSongs = allSongs.filter { song ->
+                song.name.contains(searchQuery, ignoreCase = true)
+            }
+            val filteredPlaylists = allPlaylists.filter { playlist ->
+                playlist.title.contains(searchQuery, ignoreCase = true)
+            }
+            filteredSongs + filteredPlaylists
+        } else {
+            emptyList()
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -68,7 +100,7 @@ fun SearchScreen(navController: NavController) {
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            UserProfileMenu(navController) // Icono de usuario
+                            UserProfileMenu(navController)
                             Spacer(modifier = Modifier.width(10.dp))
                         }
                     }
@@ -80,7 +112,6 @@ fun SearchScreen(navController: NavController) {
         },
         bottomBar = {
             Column {
-                val isPlaying = remember { mutableStateOf(false) }
                 FloatingMusicPlayer(viewModel = playerViewModel, navController = navController)
                 BottomNavigationBar(navController)
             }
@@ -107,8 +138,7 @@ fun SearchScreen(navController: NavController) {
                 textStyle = TextStyle(color = currentTextColor),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
                 shape = RoundedCornerShape(16.dp),
-                modifier = Modifier
-                    .fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth(),
                 colors = TextFieldDefaults.outlinedTextFieldColors(
                     containerColor = currentContainerColor,
                     focusedBorderColor = buttonColor,
@@ -117,7 +147,14 @@ fun SearchScreen(navController: NavController) {
                     focusedLabelColor = currentTextColor,
                     unfocusedLabelColor = currentTextColor
                 ),
-                interactionSource = interactionSource
+                interactionSource = interactionSource,
+                trailingIcon = {
+                    if (searchQuery.isNotEmpty()) {
+                        IconButton(onClick = { searchQuery = "" }) {
+                            Icon(Icons.Default.Clear, contentDescription = "Limpiar búsqueda")
+                        }
+                    }
+                }
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -127,56 +164,10 @@ fun SearchScreen(navController: NavController) {
                     .weight(1f)
                     .fillMaxWidth()
             ) {
-                if (searchHistory.isNotEmpty()) {
-                    item {
-                        Text(
-                            text = "Últimas búsquedas",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onBackground,
-                            modifier = Modifier.padding(bottom = 8.dp)
-                        )
-                    }
-                }
-
-                items(searchHistory) { result ->
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 8.dp),
-                        colors = CardDefaults.cardColors(containerColor = cardBackgroundColor),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(16.dp)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(60.dp)
-                                    .background(Color.DarkGray)
-                            )
-                            Spacer(modifier = Modifier.width(16.dp))
-                            Column {
-                                Text(
-                                    text = result,
-                                    fontSize = 18.sp,
-                                    color = Color.White
-                                )
-                                if (result.startsWith("Canción")) {
-                                    Text(
-                                        text = "Artista X",
-                                        fontSize = 14.sp,
-                                        color = Color.White
-                                    )
-                                } else {
-                                    Text(
-                                        text = "Playlist",
-                                        fontSize = 14.sp,
-                                        color = Color.White
-                                    )
-                                }
-                            }
-                        }
+                items(searchResults) { result ->
+                    when (result) {
+                        is Song -> SongItem(song = result)
+                        is Playlist -> LibraryItem(playlist = result, navController = navController)
                     }
                 }
             }
@@ -192,6 +183,98 @@ fun SearchScreen(navController: NavController) {
                 ) {
                     Text("Limpiar historial", color = Color.White)
                 }
+            }
+        }
+    }
+}
+
+    suspend fun fetchAllSongs(): List<Song> = withContext(Dispatchers.IO) {
+        try {
+            val response = ApiClient.get("songs")
+            val jsonArray = JSONArray(response)
+            val songs = mutableListOf<Song>()
+
+            for (i in 0 until jsonArray.length()) {
+                val songObject = jsonArray.getJSONObject(i)
+                songs.add(
+                    Song(
+                        id = songObject.getInt("id"),
+                        name = songObject.getString("name"),
+                        duration = songObject.getInt("duration"),
+                        letra = songObject.getString("lyrics"),
+                        photo_video = songObject.getString("photo_video"),
+                        url_mp3 = songObject.getString("url_mp3")
+                    )
+                )
+            }
+            songs
+        } catch (e: Exception) {
+            Log.e("SearchScreen", "Error fetching songs: ${e.message}", e)
+            emptyList()
+        }
+    }
+
+    suspend fun fetchAllPlaylists(): List<Playlist> = withContext(Dispatchers.IO) {
+        try {
+            val response = ApiClient.get("playlists")
+            val jsonArray = JSONArray(response)
+            val songs = mutableListOf<Playlist>()
+
+            for (i in 0 until jsonArray.length()) {
+                val jsonObject = jsonArray.getJSONObject(i)
+                songs.add(
+                    Playlist(
+                        id = jsonObject.getString("id"),
+                        title = jsonObject.getString("name"),
+                        imageUrl = jsonObject.getString("front_page"),
+                        idAutor = jsonObject.getString("user_id"),
+                        idArtista = jsonObject.getString("artist_id"),
+                        description = jsonObject.getString("description"),
+                        esPublica = jsonObject.getString("type"),
+                        esAlbum = jsonObject.getString("typeP"),
+                    )
+                )
+            }
+            songs
+        } catch (e: Exception) {
+            Log.e("SearchScreen", "Error fetching songs: ${e.message}", e)
+            emptyList()
+        }
+    }
+
+
+@Composable
+fun SongItem(song: Song) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp) // Reducimos el padding vertical
+        .padding(start = 16.dp, end = 16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp) // Reducimos la elevación
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(8.dp) // Reducimos el padding interno
+
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp) // Reducimos el tamaño del Box
+                    .background(Color.DarkGray)
+            )
+            Spacer(modifier = Modifier.width(8.dp)) // Reducimos el espacio
+            Column {
+                Text(
+                    text = song.name,
+                    fontSize = 16.sp, // Reducimos el tamaño de la fuente
+                    color = Color.White
+                )
+                Text(
+                    text = "Anuel AA",
+                    fontSize = 12.sp, // Reducimos el tamaño de la fuente
+                    color = Color.White
+                )
             }
         }
     }
