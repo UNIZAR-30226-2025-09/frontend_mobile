@@ -6,6 +6,7 @@ import android.widget.Toast
 import androidx.navigation.NavController
 import eina.unizar.es.data.model.network.ApiClient.BASE_URL
 import eina.unizar.es.ui.playlist.Playlist
+import eina.unizar.es.ui.song.Song
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
@@ -464,7 +465,98 @@ suspend fun postTokenPremium(
         }
     }
 
+    suspend fun likeUnlikeSong(songId: String, userId: String, isLiked: Boolean): String? {
+        return withContext(Dispatchers.IO) {
+            try {
+                if (userId.isNullOrEmpty()) {
+                    // Si no se obtiene el user_id, muestra un mensaje de error o realiza alguna acción.
+                    println("Error: user_id no encontrado")
+                    return@withContext null
+                } else {
+                    println("user_id: $userId")  // Verifica que el user_id es correcto
+                }
 
+                val url = URL("$BASE_URL/song_like/$songId/likeUnlike")
+                val connection = url.openConnection() as HttpURLConnection
+                connection.requestMethod = "POST"
+                connection.setRequestProperty("Content-Type", "application/json")
+                connection.doOutput = true
+
+                val jsonBody = JSONObject().apply {
+                    put("user_id", userId)
+                }
+
+                connection.outputStream.write(jsonBody.toString().toByteArray())
+                connection.connect()
+
+                val responseCode = connection.responseCode
+                val responseMessage = connection.inputStream.bufferedReader().readText()
+
+                println("Código de respuesta: $responseCode")
+                println("Mensaje de respuesta: $responseMessage")
+
+                if (responseCode == HttpURLConnection.HTTP_OK) {
+                    responseMessage // Si todo fue bien, devolver la respuesta del servidor
+                } else {
+                    null // Si algo salió mal, devolver null
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                null // En caso de error, devolver null
+            }
+        }
+    }
+
+    suspend fun getLikedSongsPlaylist(userId: String): List<Song>? {
+        return withContext(Dispatchers.IO) {
+            try {
+                if (userId.isBlank()) {
+                    Log.e("getLikedSongsPlaylist", "User ID is empty")
+                    return@withContext null
+                }
+
+                // Use your actual base URL
+                val url = URL("$BASE_URL/song_like/$userId/likedSongs")
+
+                val connection = url.openConnection() as HttpURLConnection
+                connection.apply {
+                    requestMethod = "GET"
+                    setRequestProperty("Accept", "application/json")
+                    connectTimeout = 10000 // 10 seconds
+                    readTimeout = 10000 // 10 seconds
+                }
+
+                when (val responseCode = connection.responseCode) {
+                    HttpURLConnection.HTTP_OK -> {
+                        val response = connection.inputStream.bufferedReader().use { it.readText() }
+                        Log.d("getLikedSongsPlaylist", "Response: $response")
+
+                        val jsonArray = JSONArray(response)
+                        return@withContext (0 until jsonArray.length()).map { i ->
+                            val jsonObject = jsonArray.getJSONObject(i)
+                            Song(
+                                id = jsonObject.getInt("id"),
+                                name = jsonObject.getString("name"),
+                                duration = jsonObject.getInt("duration"),
+                                letra = jsonObject.optString("lyrics", ""),
+                                photo_video = jsonObject.optString("photo_video", ""),
+                                url_mp3 = jsonObject.optString("url_mp3", "")
+                            )
+                        }
+                    }
+                    else -> {
+                        Log.e("getLikedSongsPlaylist", "Error response code: $responseCode")
+                        val errorResponse = connection.errorStream?.bufferedReader()?.use { it.readText() }
+                        Log.e("getLikedSongsPlaylist", "Error response: $errorResponse")
+                        null
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("getLikedSongsPlaylist", "Exception occurred", e)
+                null
+            }
+        }
+    }
 
     /**
      * Método para realizar una petición DELETE en segundo plano.
