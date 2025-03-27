@@ -358,6 +358,7 @@ fun PlaylistScreen(navController: NavController, playlistId: String?) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.padding(horizontal = 16.dp)
+                        .padding(start = 12.dp)
                 ) {
                     Text("Ordenar por:", color = textColor)
                     Spacer(modifier = Modifier.width(8.dp))
