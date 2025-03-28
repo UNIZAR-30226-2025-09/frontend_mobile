@@ -68,7 +68,7 @@ import java.nio.file.Files.delete
 
 // Criterios de ordenacion de canciones de una lista
 enum class SortOption {
-    TITLE, DURATION, DATE, ARTIST
+    TITULO, DURACION, FECHA, ARTISTA
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -104,7 +104,7 @@ fun PlaylistScreen(navController: NavController, playlistId: String?) {
 // Estados para búsqueda y orden
 
     var searchText by remember { mutableStateOf(TextFieldValue("")) }
-    var sortOption by remember { mutableStateOf(SortOption.TITLE) }
+    var sortOption by remember { mutableStateOf(SortOption.TITULO) }
     val filteredSongs = allSongs.filter { it.contains(searchText.text, ignoreCase = true) }
 
 
@@ -222,10 +222,10 @@ fun PlaylistScreen(navController: NavController, playlistId: String?) {
 
     val sortedSongs = remember(songs, sortOption) {
         when (sortOption) {
-            SortOption.TITLE -> songs.sortedBy { it.name } // Ordenar por título
-            SortOption.DURATION -> songs.sortedBy { it.duration } // Ordenar por duración
-            SortOption.DATE -> songs.sortedBy { it.name } // FALTA DE IMPLEMENTAR
-            SortOption.ARTIST -> songs.sortedBy { it.name } // FALTA DE IMPLEMENTAR
+            SortOption.TITULO -> songs.sortedBy { it.name } // Ordenar por título
+            SortOption.DURACION -> songs.sortedBy { it.duration } // Ordenar por duración
+            SortOption.FECHA -> songs.sortedBy { it.name } // FALTA DE IMPLEMENTAR
+            SortOption.ARTISTA -> songs.sortedBy { it.name } // FALTA DE IMPLEMENTAR
         }
     }
 
@@ -380,28 +380,28 @@ fun PlaylistScreen(navController: NavController, playlistId: String?) {
                             DropdownMenuItem(
                                 text = { Text("Título") },
                                 onClick = {
-                                    sortOption = SortOption.TITLE
+                                    sortOption = SortOption.TITULO
                                     expandirMenu = false
                                 }
                             )
                             DropdownMenuItem(
                                 text = { Text("Añadido recientemente") },
                                 onClick = {
-                                    sortOption = SortOption.DATE
+                                    sortOption = SortOption.FECHA
                                     expandirMenu = false
                                 }
                             )
                             DropdownMenuItem(
                                 text = { Text("Artista") },
                                 onClick = {
-                                    sortOption = SortOption.ARTIST
+                                    sortOption = SortOption.ARTISTA
                                     expandirMenu = false
                                 }
                             )
                             DropdownMenuItem(
                                 text = { Text("Duración") },
                                 onClick = {
-                                    sortOption = SortOption.DURATION
+                                    sortOption = SortOption.DURACION
                                     expandirMenu = false
                                 }
                             )
@@ -456,7 +456,20 @@ fun PlaylistScreen(navController: NavController, playlistId: String?) {
             items(sortedSongs) { song ->
                 //val artist = songArtistMap[song] ?: "Artista Desconocido"
                 var showSongOptionsBottomSheet by remember { mutableStateOf(false) } // Estado para mostrar el BottomSheet de opciones de la canción
-                SongItem(song = song)
+                SongItem(
+                    song = song,
+                    showHeartIcon = true,
+                    showMoreVertIcon = true,
+                    isLiked = songLikes.value[song] ?: false,
+                    onLikeToggle = {
+                        // Lógica para manejar el like
+                        toggleLike(song)
+                    },
+                    onMoreVertClick = {
+                        // Mostrar opciones de la canción
+                        showSongOptionsBottomSheet = true
+                    }
+                )
                 /*
                 // Reproducir la musica
                 // val context = LocalContext.current
