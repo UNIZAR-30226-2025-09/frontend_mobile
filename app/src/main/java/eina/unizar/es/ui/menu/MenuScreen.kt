@@ -274,39 +274,41 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
 
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                         items(playlists) { album ->
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Card(
-                                    modifier = Modifier
-                                        .size(120.dp)
-                                        .clickable {
-                                            navController.navigate("playlist/${album.id}")
-                                        }, // PASAMOS EL ID
-                                    colors = CardDefaults.cardColors(containerColor = Color.Transparent)
-                                ) {
-                                    Box(
-                                        modifier = Modifier.fillMaxSize(),
-                                        contentAlignment = Alignment.Center
+                            if (album?.esPublica != "private") {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Card(
+                                        modifier = Modifier
+                                            .size(120.dp)
+                                            .clickable {
+                                                navController.navigate("playlist/${album.id}")
+                                            }, // PASAMOS EL ID
+                                        colors = CardDefaults.cardColors(containerColor = Color.Transparent)
                                     ) {
-                                        // Cargar la imagen desde la URL
-                                        val urlAntes = album?.imageUrl
-                                        val playlistImage =
-                                            getImageUrl(urlAntes, "/default-playlist.jpg")
-                                        AsyncImage(
-                                            model = playlistImage,
-                                            contentDescription = "Portada de la playlist",
-                                            modifier = Modifier
-                                                //.size(imageSize)
-                                                //.alpha(imageAlpha)
-                                                .clip(RoundedCornerShape(8.dp)) // Opcional: añade esquinas redondeadas
-                                        )
+                                        Box(
+                                            modifier = Modifier.fillMaxSize(),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            // Cargar la imagen desde la URL
+                                            val urlAntes = album?.imageUrl
+                                            val playlistImage =
+                                                getImageUrl(urlAntes, "/default-playlist.jpg")
+                                            AsyncImage(
+                                                model = playlistImage,
+                                                contentDescription = "Portada de la playlist",
+                                                modifier = Modifier
+                                                    //.size(imageSize)
+                                                    //.alpha(imageAlpha)
+                                                    .clip(RoundedCornerShape(8.dp)) // Opcional: añade esquinas redondeadas
+                                            )
+                                        }
                                     }
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = album.title,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        style = MaterialTheme.typography.bodyMedium
+                                    )
                                 }
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(
-                                    text = album.title,
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                    style = MaterialTheme.typography.bodyMedium
-                                )
                             }
                         }
                     }
@@ -324,40 +326,42 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
 
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                         items(playlists) { playlist ->
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Card(
-                                    modifier = Modifier
-                                        .size(120.dp)
-                                        .clickable {
-                                            navController.navigate("playlist/${playlist.id}") // PASAMOS EL ID
-                                        },
-                                    colors = CardDefaults.cardColors(containerColor = Color.Transparent)
-                                    //elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-                                ) {
-                                    Box(
-                                        modifier = Modifier.fillMaxSize(),
-                                        contentAlignment = Alignment.Center
+                            if (playlist?.esPublica != "private") {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Card(
+                                        modifier = Modifier
+                                            .size(120.dp)
+                                            .clickable {
+                                                navController.navigate("playlist/${playlist.id}") // PASAMOS EL ID
+                                            },
+                                        colors = CardDefaults.cardColors(containerColor = Color.Transparent)
+                                        //elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
                                     ) {
-                                        // Cargar la imagen desde la URL
-                                        val urlAntes = playlist?.imageUrl
-                                        val playlistImage =
-                                            getImageUrl(urlAntes, "/default-playlist.jpg")
-                                        AsyncImage(
-                                            model = playlistImage,
-                                            contentDescription = "Portada de la playlist",
-                                            modifier = Modifier
-                                                //.size(imageSize)
-                                                //.alpha(imageAlpha)
-                                                .clip(RoundedCornerShape(8.dp)) // Opcional: añade esquinas redondeadas
-                                        )
+                                        Box(
+                                            modifier = Modifier.fillMaxSize(),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            // Cargar la imagen desde la URL
+                                            val urlAntes = playlist?.imageUrl
+                                            val playlistImage =
+                                                getImageUrl(urlAntes, "/default-playlist.jpg")
+                                            AsyncImage(
+                                                model = playlistImage,
+                                                contentDescription = "Portada de la playlist",
+                                                modifier = Modifier
+                                                    //.size(imageSize)
+                                                    //.alpha(imageAlpha)
+                                                    .clip(RoundedCornerShape(8.dp)) // Opcional: añade esquinas redondeadas
+                                            )
+                                        }
                                     }
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        playlist.title, // Cambiado lista a playlist.title
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        style = MaterialTheme.typography.bodyMedium
+                                    )
                                 }
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(
-                                    playlist.title, // Cambiado lista a playlist.title
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                    style = MaterialTheme.typography.bodyMedium
-                                )
                             }
                         }
                     }
