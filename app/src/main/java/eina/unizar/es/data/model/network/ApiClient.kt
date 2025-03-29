@@ -24,6 +24,8 @@ object ApiClient {
     const val BASE_URL = "http://10.0.2.2/request/api" // Usa la IP local del backend
     //const val BASE_URL = "http://164.90.160.181/request/api" // Usa la IP publica (nube) del backend
     const val BASE_URL_IMG = "http://164.90.160.181/request"
+    //const val BASE_URL_IMG = "http://10.0.2.2/request"
+
 
     /**
      * Método para realizar una petición GET en segundo plano.
@@ -590,14 +592,17 @@ suspend fun postTokenPremium(
      * completa para esa imagen. Su objetivo es manejar diferentes tipos de rutas de imagen
      * (relativas, absolutas o nulas) y asegurar que siempre se devuelva una URL válida.
      */
-    fun getImageUrl(path: String?, fallback: String = "/default.jpg"): String {
-        Log.d("Getimg", "Path en el apiCLient " + path)
+    fun getImageUrl(path: String?, fallback: String = "default.jpg"): String {
+        val pathToUse = if (path.isNullOrEmpty()) fallback else path
+        Log.d("Getimg", "Path a usar: $pathToUse")
+
         return when {
-            path.isNullOrEmpty() -> fallback
-            path.startsWith("http") -> path
+            pathToUse.startsWith("http") -> pathToUse
             else -> {
-                val cleanPath = path.replace(Regex("^/?"), "")
-                "$BASE_URL_IMG/$cleanPath"
+                val cleanPath = pathToUse.replace(Regex("^/?"), "")
+                val finalUrl = "$BASE_URL_IMG/$cleanPath"
+                Log.d("Getimg", "URL final: $finalUrl")
+                finalUrl
             }
         }
     }

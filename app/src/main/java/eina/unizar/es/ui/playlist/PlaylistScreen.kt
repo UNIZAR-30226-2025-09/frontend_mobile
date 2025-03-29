@@ -13,6 +13,7 @@
     import androidx.compose.material.icons.filled.ArrowBack
     import androidx.compose.material.icons.filled.Favorite
     import androidx.compose.material.icons.filled.MoreVert
+    import androidx.compose.material.icons.filled.MusicOff
     import androidx.compose.material.icons.filled.PlayArrow
     import androidx.compose.material.icons.filled.Search
     import androidx.compose.material3.*
@@ -287,8 +288,9 @@
                     ) {
                         playlistInfo?.let { Log.d("URL antes", "URL antes: " + it.imageUrl) }
                         // Cargar la imagen desde la URL
-                        val urlAntes = playlistInfo?.imageUrl
-                        val playlistImage = getImageUrl(urlAntes, "/default-playlist.jpg")
+                        var path = ""
+                        if (playlistInfo?.esAlbum == "Vibra_likedSong"){path = "playlist_images/meGusta.png"} else {path = playlistInfo?.imageUrl ?: "" }
+                        val playlistImage = getImageUrl(path, "default-playlist.jpg")
                         AsyncImage(
                             model = playlistImage,
                             contentDescription = "Portada de la playlist",
@@ -466,95 +468,135 @@
     // Separador
                 item { Spacer(modifier = Modifier.height(26.dp)) }
     // Lista de canciones: Cada banner con imagen a la izquierda y título/artista a la derecha
-                items(songs) { song ->
-                    //val artist = songArtistMap[song] ?: "Artista Desconocido"
-                    var showSongOptionsBottomSheet by remember { mutableStateOf(false) } // Estado para mostrar el BottomSheet de opciones de la canción
-                    // Reproducir la musica
-                    // val context = LocalContext.current
-                    // var exoPlayer: ExoPlayer? by remember { mutableStateOf(null) }
-                    Box(
-                        modifier = Modifier.fillMaxWidth(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Card(
+                if (songs.isNullOrEmpty()) {
+                    // Mostrar mensaje cuando no hay canciones
+                    item {
+                        Box(
                             modifier = Modifier
-                                .fillMaxWidth(0.9f)
-                                .clickable {
-                                    val urlCompleta =
-                                        "http://164.90.160.181:5001/${(song.url_mp3).removePrefix("/")}"
-                                    exoPlayer?.release()
-                                    exoPlayer = ExoPlayer.Builder(context).build().apply {
-                                        val mediaItem = MediaItem.fromUri(urlCompleta)
-                                        setMediaItem(mediaItem)
-                                        prepare()
-                                        play()
-                                    }
-                                },
-                            colors = CardDefaults.cardColors(containerColor = cardBackgroundColor),
-                            elevation = CardDefaults.cardElevation(defaultElevation = 10.dp)
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            contentAlignment = Alignment.Center
                         ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(16.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
                             ) {
-                                // Imagen de la canción (cuadrado)
-                                Box(
-                                    modifier = Modifier
-                                        .size(60.dp)
-                                        .background(Color.DarkGray) // Placeholder de la imagen
+                                Icon(
+                                    imageVector = Icons.Default.MusicOff, // Puedes usar otro icono si prefieres
+                                    contentDescription = "No hay canciones",
+                                    modifier = Modifier.size(48.dp),
+                                    tint = textColor.copy(alpha = 0.6f)
                                 )
-                                Spacer(modifier = Modifier.width(16.dp))
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = song.name,
-                                        color = textColor,
-                                        style = TextStyle(fontSize = 18.sp)
-                                    )
-                                    Text(
-                                        text = /*song.artist*/"Artista de prueba",
-                                        color = textColor,
-                                        style = TextStyle(fontSize = 14.sp)
-                                    )
-                                }
-
-                                IconButton(
-                                    onClick = {
-                                        toggleSongLike(song.id, userId) // Pass both song and userId
-                                    },
-                                    modifier = Modifier.size(48.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Favorite,
-                                        contentDescription = "Me gusta",
-                                        tint = if (songLikes[song.id] == true) Color.Red else Color.Gray
-                                    )
-                                }
-
-                                IconButton(onClick = { showSongOptionsBottomSheet = true }) {
-                                    Icon(
-                                        Icons.Default.MoreVert,
-                                        contentDescription = "Opciones de la canción",
-                                        tint = textColor
-                                    )
-                                }
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = "No hay canciones en esta playlist",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = textColor.copy(alpha = 0.6f),
+                                    textAlign = TextAlign.Center
+                                )
                             }
                         }
                     }
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    // BottomSheet para opciones de la canción (dentro del items)
-                    if (showSongOptionsBottomSheet) {
-                        ModalBottomSheet(
-                            onDismissRequest = { showSongOptionsBottomSheet = false },
-                            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+                }
+                else {
+                    items(songs) { song ->
+                        //val artist = songArtistMap[song] ?: "Artista Desconocido"
+                        var showSongOptionsBottomSheet by remember { mutableStateOf(false) } // Estado para mostrar el BottomSheet de opciones de la canción
+                        // Reproducir la musica
+                        // val context = LocalContext.current
+                        // var exoPlayer: ExoPlayer? by remember { mutableStateOf(null) }
+                        Box(
+                            modifier = Modifier.fillMaxWidth(),
+                            contentAlignment = Alignment.Center
                         ) {
-                            SongOptionsBottomSheetContent(
-                                onDismiss = { showSongOptionsBottomSheet = false },
-                                songTitle = song.name, // Pasa el título de la canción
-                                artistName = /*artist*/ "Artista de prueba" // Pasa el nombre del artista
-                            )
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth(0.9f)
+                                    .clickable {
+                                        val urlCompleta =
+                                            "http://164.90.160.181:5001/${
+                                                (song.url_mp3).removePrefix(
+                                                    "/"
+                                                )
+                                            }"
+                                        exoPlayer?.release()
+                                        exoPlayer = ExoPlayer.Builder(context).build().apply {
+                                            val mediaItem = MediaItem.fromUri(urlCompleta)
+                                            setMediaItem(mediaItem)
+                                            prepare()
+                                            play()
+                                        }
+                                    },
+                                colors = CardDefaults.cardColors(containerColor = cardBackgroundColor),
+                                elevation = CardDefaults.cardElevation(defaultElevation = 10.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    val playlistImage = getImageUrl(song.photo_video, "default-song.jpg")
+                                    Log.d("ImageURL", "URL final: $playlistImage")
+                                    AsyncImage(
+                                        model = playlistImage,
+                                        contentDescription = "Imagen",
+                                        modifier = Modifier.size(50.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(16.dp))
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = song.name,
+                                            color = textColor,
+                                            style = TextStyle(fontSize = 18.sp)
+                                        )
+                                        Text(
+                                            text = /*song.artist*/"Artista de prueba",
+                                            color = textColor,
+                                            style = TextStyle(fontSize = 14.sp)
+                                        )
+                                    }
+
+                                    IconButton(
+                                        onClick = {
+                                            toggleSongLike(
+                                                song.id,
+                                                userId
+                                            ) // Pass both song and userId
+                                        },
+                                        modifier = Modifier.size(48.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Favorite,
+                                            contentDescription = "Me gusta",
+                                            tint = if (songLikes[song.id] == true) Color.Red else Color.Gray
+                                        )
+                                    }
+
+                                    IconButton(onClick = { showSongOptionsBottomSheet = true }) {
+                                        Icon(
+                                            Icons.Default.MoreVert,
+                                            contentDescription = "Opciones de la canción",
+                                            tint = textColor
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // BottomSheet para opciones de la canción (dentro del items)
+                        if (showSongOptionsBottomSheet) {
+                            ModalBottomSheet(
+                                onDismissRequest = { showSongOptionsBottomSheet = false },
+                                sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+                            ) {
+                                SongOptionsBottomSheetContent(
+                                    onDismiss = { showSongOptionsBottomSheet = false },
+                                    songTitle = song.name, // Pasa el título de la canción
+                                    artistName = /*artist*/ "Artista de prueba" // Pasa el nombre del artista
+                                )
+                            }
                         }
                     }
                 }
@@ -566,7 +608,7 @@
                     sheetState = sheetState
                 ) {
                     val urlAntes = playlistInfo?.imageUrl
-                    val playlistImage = getImageUrl(urlAntes, "/default-playlist.jpg")
+                    val playlistImage = getImageUrl(urlAntes, "default-playlist.jpg")
                     playlistInfo?.let {
                         BottomSheetContent(
                             playlistImage = playlistImage,
