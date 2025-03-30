@@ -53,8 +53,10 @@ import coil.compose.AsyncImage
 import eina.unizar.es.data.model.network.ApiClient
 import eina.unizar.es.data.model.network.ApiClient.getImageUrl
 import eina.unizar.es.data.model.network.ApiClient.getLikedPlaylists
+import eina.unizar.es.data.model.network.ApiClient.getLikedSongsPlaylist
 import eina.unizar.es.data.model.network.ApiClient.getUserData
 import eina.unizar.es.data.model.network.ApiClient.likeUnlikePlaylist
+import eina.unizar.es.data.model.network.ApiClient.likeUnlikeSong
 import eina.unizar.es.ui.navbar.BottomNavigationBar
 import eina.unizar.es.ui.player.FloatingMusicPlayer
 import eina.unizar.es.ui.player.MusicPlayerViewModel
@@ -360,7 +362,7 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                     Spacer(modifier = Modifier.width(8.dp))
                     IconButton(
                         onClick = {
-                        // Acción para reproducir la playlist (simulada)
+                            // Acción para reproducir la playlist (simulada)
                         },
                         modifier = Modifier
                             .size(48.dp)
@@ -508,8 +510,7 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                         }
                     }
                 }
-            }
-            else {
+            } else {
                 items(sortedSongs) { song ->
                     //val artist = songArtistMap[song] ?: "Artista Desconocido"
                     var showSongOptionsBottomSheet by remember { mutableStateOf(false) } // Estado para mostrar el BottomSheet de opciones de la canción
@@ -517,7 +518,7 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                         song = song,
                         showHeartIcon = true,
                         showMoreVertIcon = true,
-                        isLiked = songLikes.value[song] ?: false,
+                        isLiked = songLikes[song.id] ?: false,
                         onLikeToggle = {
                             // Lógica para manejar el like
                             toggleSongLike(song.id, userId)
@@ -543,27 +544,27 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                     }
                 }
             }
-            }
-            // Mostrar el BottomSheet de la playlist (fuera del items)
-            if (showBottomSheet) {
-                ModalBottomSheet(
-                    onDismissRequest = { showBottomSheet = false },
-                    sheetState = sheetState
-                ) {
-                    val urlAntes = playlistInfo?.imageUrl
-                    val playlistImage = getImageUrl(urlAntes, "default-playlist.jpg")
-                    playlistInfo?.let {
-                        BottomSheetContent(
-                            playlistImage = playlistImage,
-                            playlistTitle = it.title, // Reemplaza con el título
-                            playlistAuthor = "Kanye Playlist", // Reemplaza con el autor
-                            onDismiss = { showBottomSheet = false },
-                            navController = navController,
-                            playlistId = playlistId
-                        )
-                    }
+        }
+        // Mostrar el BottomSheet de la playlist (fuera del items)
+        if (showBottomSheet) {
+            ModalBottomSheet(
+                onDismissRequest = { showBottomSheet = false },
+                sheetState = sheetState
+            ) {
+                val urlAntes = playlistInfo?.imageUrl
+                val playlistImage = getImageUrl(urlAntes, "default-playlist.jpg")
+                playlistInfo?.let {
+                    BottomSheetContent(
+                        playlistImage = playlistImage,
+                        playlistTitle = it.title, // Reemplaza con el título
+                        playlistAuthor = "Kanye Playlist", // Reemplaza con el autor
+                        onDismiss = { showBottomSheet = false },
+                        navController = navController,
+                        playlistId = playlistId
+                    )
                 }
             }
+        }
 
     }
 }
@@ -614,14 +615,14 @@ fun BottomSheetContent(
             }
         }
 
-    Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
         // Opciones de la playlist centradas
         Column(
             modifier = Modifier
-            .fillMaxWidth()
-            .padding(start = 120.dp)
-            .wrapContentWidth(Alignment.CenterHorizontally), // Centra el Column en su contenedor
+                .fillMaxWidth()
+                .padding(start = 120.dp)
+                .wrapContentWidth(Alignment.CenterHorizontally), // Centra el Column en su contenedor
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             SongOptionItem("Añadir a lista", onClick = dismiss)

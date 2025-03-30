@@ -23,6 +23,7 @@ import androidx.compose.ui.*
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -200,7 +201,7 @@ fun SearchScreen(navController: NavController, playerViewModel: MusicPlayerViewM
                         )
                     }
                     items(filteredSongs) { song ->
-                        SongItem(song = song)
+                        SongItem(song = song, viewModel = playerViewModel)
                     }
                 }
 
@@ -323,13 +324,18 @@ fun SongItem(
     showMoreVertIcon: Boolean = false,
     isLiked: Boolean = false,
     onLikeToggle: (() -> Unit) = {},
-    onMoreVertClick: (() -> Unit) = {}
+    onMoreVertClick: (() -> Unit) = {},
+    viewModel: MusicPlayerViewModel,
 ) {
+    val context = LocalContext.current
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp)
-            .padding(start = 16.dp, end = 16.dp),
+            .padding(start = 16.dp, end = 16.dp)
+            .clickable {
+                viewModel.loadSongsFromApi(songId = song.id.toString(), context = context, albumArtResId = R.drawable.kanyeperfil)
+            },
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {

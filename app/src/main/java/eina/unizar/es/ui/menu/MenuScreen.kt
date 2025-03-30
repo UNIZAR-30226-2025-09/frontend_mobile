@@ -107,8 +107,8 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
         }
 
         // Canciones de la parte superior de recomendaciones
-        val responseS = get("songs") // Llamada a la API para obtener canciones
-        responseS?.let {
+        val responseSS = get("songs") // Llamada a la API para obtener canciones
+        responseSS?.let {
             val jsonArray = JSONArray(it)
             val fetchedSongs = mutableListOf<Song>()
 
@@ -143,27 +143,27 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
         playlists = listasDeReproduccionAux;
 
 
-//        // Canciones de la parte superior de recomendaciones
-//        val responseS = get("artist/artists") // Llamada a la API para obtener canciones
-//        responseS?.let {
-//            val jsonArray = JSONArray(it)
-//            val fetchedArtists = mutableListOf<Artist>()
-//
-//            for (i in 0 until 8) {
-//                val jsonObject = jsonArray.getJSONObject(i)
-//                fetchedArtists.add(
-//                    Artist(
-//                        id = jsonObject.getInt("id"),
-//                        name = jsonObject.getString("name"),
-//                        biography = "Prueba",//jsonObject.getString("bio")//
-//                        photo = jsonObject.getString("photo"),
-//                    )
-//                )
-//
-//            }
-//            Log.d("Artista", "Artistas: + " + fetchedArtists)
-//            artists = fetchedArtists
-//        }
+        // Canciones de la parte superior de recomendaciones
+        val responseS = get("artist/artists") // Llamada a la API para obtener canciones
+        responseS?.let {
+            val jsonArray = JSONArray(it)
+            val fetchedArtists = mutableListOf<Artist>()
+
+            for (i in 0 until 8) {
+                val jsonObject = jsonArray.getJSONObject(i)
+                fetchedArtists.add(
+                    Artist(
+                        id = jsonObject.getInt("id"),
+                        name = jsonObject.getString("name"),
+                        biography = "Prueba",//jsonObject.getString("bio")//
+                        photo = jsonObject.getString("photo"),
+                    )
+                )
+
+            }
+            Log.d("Artista", "Artistas: + " + fetchedArtists)
+            artists = fetchedArtists
+        }
 
     }
 
