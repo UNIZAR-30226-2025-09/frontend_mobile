@@ -17,6 +17,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.MusicOff
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
@@ -138,17 +139,36 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
     var songs by remember { mutableStateOf<List<Song>>(emptyList()) }
 
     // Usamos un Map para manejar el estado de "me gusta" por canción usando el índice o algún identificador único
-    val songLikes = remember { mutableStateOf(songs.associateWith { false }) }
-
-    // Función para cambiar el estado de "me gusta" de una canción
-    fun toggleLike(song: Song) {
-        songLikes.value = songLikes.value.toMutableMap().apply {
-            this[song] = !(this[song] ?: false) // Cambiar el estado de "me gusta" de esta canción
-        }
-    }
+    var songLikes by remember { mutableStateOf<Map<Int, Boolean>>(emptyMap()) }
 
     // Para poder realizar el post del like/unlike
     val coroutineScope = rememberCoroutineScope()
+
+    // Función para cambiar el estado de "me gusta" de una canción
+    fun toggleSongLike(songId: Int, userId: String) {
+        coroutineScope.launch {
+            try {
+                // Determine the new like state
+                val currentLikeState = songLikes[songId] ?: false
+                val newLikeState = !currentLikeState
+
+                // Make API call to like/unlike the song
+                val response = likeUnlikeSong(songId.toString(), userId, newLikeState)
+
+                if (response != null) {
+                    // Update local state only if API call is successful
+                    songLikes = songLikes.toMutableMap().apply {
+                        this[songId] = newLikeState
+                    }
+                } else {
+                    // Handle error case (e.g., show error message)
+                    println("Error updating song like status")
+                }
+            } catch (e: Exception) {
+                println("Exception in toggleSongLike: ${e.message}")
+            }
+        }
+    }
 
     // Id del usuario a guardar al darle like
     var userId by remember { mutableStateOf("") }  // Estado inicial
@@ -202,11 +222,22 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                 // Verificamos si la playlist actual está en la lista de "liked" del usuario
                 isLikedPlaylist = playlists.any { it.id == playlistId }
             }
+
+            // Consultar si el usuario ya le ha dado like a alguna cancion (para poder guardar el like)
+            val likedSongsResponse = getLikedSongsPlaylist(userId)
+            likedSongsResponse?.let { likedSongs ->
+                // Create a map of song IDs to their liked status
+                val likedSongIds = likedSongs.map { it.id }.toSet()
+
+                // Update song likes based on the fetched liked songs
+                songLikes = songs.associate { song ->
+                    song.id to likedSongIds.contains(song.id)
+                }
+            }
+
         }
 
     }
-
-
 
     val sortedSongs = remember(songs, sortOption) {
         when (sortOption) {
@@ -396,34 +427,40 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                         }
                     }
                     Spacer(modifier = Modifier.width(8.dp))
-                    IconButton(
-                        onClick = {
-                            coroutineScope.launch {
-                                // Invertir el estado local de "me gusta"
-                                isLikedPlaylist = !isLikedPlaylist
-
-                                // Hacer el POST al backend para actualizar el "me gusta"
-                                val response = playlistInfo?.let { likeUnlikePlaylist(playlistInfo!!.id, userId, isLikedPlaylist) }
-                                if (response != null) {
-                                    // Aquí puedes manejar la respuesta, como mostrar un mensaje o cambiar algo en UI
-                                    println("Respuesta del backend: $response")
-                                } else {
-                                    // En caso de que falle la solicitud, revertir el cambio en el estado
+                    if (playlistInfo?.esPublica != "private" && playlistInfo?.idAutor != userId) {
+                        IconButton(
+                            onClick = {
+                                coroutineScope.launch {
+                                    // Invertir el estado local de "me gusta"
                                     isLikedPlaylist = !isLikedPlaylist
-                                    println("Error al hacer el POST en el backend")
+                                    // Hacer el POST al backend para actualizar el "me gusta"
+                                    val response = playlistInfo?.let {
+                                        likeUnlikePlaylist(
+                                            playlistInfo!!.id,
+                                            userId,
+                                            isLikedPlaylist
+                                        )
+                                    }
+                                    if (response != null) {
+                                        // Aquí puedes manejar la respuesta, como mostrar un mensaje o cambiar algo en UI
+                                        println("Respuesta del backend: $response")
+                                    } else {
+                                        // En caso de que falle la solicitud, revertir el cambio en el estado
+                                        isLikedPlaylist = !isLikedPlaylist
+                                        println("Error al hacer el POST en el backend")
+                                    }
                                 }
-
-                            }
-                        },
-                        modifier = Modifier.size(48.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Favorite, // Usamos el ícono de "me gusta"
-                            contentDescription = "Me gusta",
-                            tint = if (isLikedPlaylist) Color.Red else Color.Gray // Si está seleccionado, se colorea rojo, si no es gris
-                        )
+                            },
+                            modifier = Modifier.size(48.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Favorite, // Usamos el ícono de "me gusta"
+                                contentDescription = "Me gusta",
+                                tint = if (isLikedPlaylist) Color.Red else Color.Gray // Si está seleccionado, se colorea rojo, si no es gris
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(2.dp)) // Espacio entre iconos
                     }
-                    Spacer(modifier = Modifier.width(2.dp)) // Espacio entre iconos
                     IconButton(
                         onClick = {
                             showBottomSheet = true // Mostrar el BottomSheet al hacer clic
@@ -438,288 +475,254 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                     }
                 }
             }
-            // Separador
-            // Separador
+
             item { Spacer(modifier = Modifier.height(26.dp)) }
+
             // Lista de canciones: Cada banner con imagen a la izquierda y título/artista a la derecha
-            items(sortedSongs) { song ->
-                //val artist = songArtistMap[song] ?: "Artista Desconocido"
-                var showSongOptionsBottomSheet by remember { mutableStateOf(false) } // Estado para mostrar el BottomSheet de opciones de la canción
-                SongItem(
-                    song = song,
-                    showHeartIcon = true,
-                    showMoreVertIcon = true,
-                    isLiked = songLikes.value[song] ?: false,
-                    onLikeToggle = {
-                        // Lógica para manejar el like
-                        toggleLike(song)
-                    },
-                    onMoreVertClick = {
-                        // Mostrar opciones de la canción
-                        showSongOptionsBottomSheet = true
-                    }
-                )
-                /*
-                // Reproducir la musica
-                // val context = LocalContext.current
-                // var exoPlayer: ExoPlayer? by remember { mutableStateOf(null) }
-                Box(
-                    modifier = Modifier.fillMaxWidth(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Card(
+            if (songs.isNullOrEmpty()) {
+                // Mostrar mensaje cuando no hay canciones
+                item {
+                    Box(
                         modifier = Modifier
-                            .fillMaxWidth(0.9f)
-                            .clickable {
-                                playerViewModel.loadSongsFromApi(songId = song.id.toString(), context = context, albumArtResId = R.drawable.kanyeperfil)
-                            },
-                        colors = CardDefaults.cardColors(containerColor = cardBackgroundColor),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 10.dp)
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
                         ) {
-                            // Imagen de la canción (cuadrado)
-                            Box(
-                                modifier = Modifier
-                                    .size(60.dp)
-                                    .background(Color.DarkGray) // Placeholder de la imagen
+                            Icon(
+                                imageVector = Icons.Default.MusicOff, // Puedes usar otro icono si prefieres
+                                contentDescription = "No hay canciones",
+                                modifier = Modifier.size(48.dp),
+                                tint = textColor.copy(alpha = 0.6f)
                             )
-                            Spacer(modifier = Modifier.width(16.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = song.name,
-                                    color = textColor,
-                                    style = TextStyle(fontSize = 18.sp)
-                                )
-                                Text(
-                                    text = /*song.artist*/"Artista de prueba",
-                                    color = textColor,
-                                    style = TextStyle(fontSize = 14.sp)
-                                )
-                            }
-                            // Botón de "me gusta"
-                            IconButton(
-                                onClick = {
-                                    toggleLike(song) // Cambia el estado de "me gusta" solo para esta canción
-                                },
-                                modifier = Modifier.size(48.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Favorite, // Ícono de "me gusta"
-                                    contentDescription = "Me gusta",
-                                    tint = if (songLikes.value[song] == true) Color.Red else Color.Gray // Color cambia dependiendo del like
-                                )
-                            }
-                            IconButton(onClick = { showSongOptionsBottomSheet = true }) {
-                                Icon(
-                                    Icons.Default.MoreVert,
-                                    contentDescription = "Opciones de la canción",
-                                    tint = textColor
-                                )
-                            }
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "No hay canciones en esta playlist",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = textColor.copy(alpha = 0.6f),
+                                textAlign = TextAlign.Center
+                            )
                         }
                     }
+                }
+            }
+            else {
+                items(sortedSongs) { song ->
+                    //val artist = songArtistMap[song] ?: "Artista Desconocido"
+                    var showSongOptionsBottomSheet by remember { mutableStateOf(false) } // Estado para mostrar el BottomSheet de opciones de la canción
+                    SongItem(
+                        song = song,
+                        showHeartIcon = true,
+                        showMoreVertIcon = true,
+                        isLiked = songLikes.value[song] ?: false,
+                        onLikeToggle = {
+                            // Lógica para manejar el like
+                            toggleSongLike(song.id, userId)
+                        },
+                        onMoreVertClick = {
+                            // Mostrar opciones de la canción
+                            showSongOptionsBottomSheet = true
+                        },
+                        viewModel = playerViewModel
+                    )
+                    // BottomSheet para opciones de la canción (dentro del items)
+                    if (showSongOptionsBottomSheet) {
+                        ModalBottomSheet(
+                            onDismissRequest = { showSongOptionsBottomSheet = false },
+                            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+                        ) {
+                            SongOptionsBottomSheetContent(
+                                onDismiss = { showSongOptionsBottomSheet = false },
+                                songTitle = song.name, // Pasa el título de la canción
+                                artistName = /*artist*/ "Artista de prueba" // Pasa el nombre del artista
+                            )
+                        }
                     }
-                 */
-
-
-                // BottomSheet para opciones de la canción (dentro del items)
-                if (showSongOptionsBottomSheet) {
-                    ModalBottomSheet(
-                        onDismissRequest = { showSongOptionsBottomSheet = false },
-                        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-                    ) {
-                        SongOptionsBottomSheetContent(
-                            onDismiss = { showSongOptionsBottomSheet = false },
-                            songTitle = song.name, // Pasa el título de la canción
-                            artistName = /*artist*/ "Artista de prueba" // Pasa el nombre del artista
+                }
+            }
+            }
+            // Mostrar el BottomSheet de la playlist (fuera del items)
+            if (showBottomSheet) {
+                ModalBottomSheet(
+                    onDismissRequest = { showBottomSheet = false },
+                    sheetState = sheetState
+                ) {
+                    val urlAntes = playlistInfo?.imageUrl
+                    val playlistImage = getImageUrl(urlAntes, "default-playlist.jpg")
+                    playlistInfo?.let {
+                        BottomSheetContent(
+                            playlistImage = playlistImage,
+                            playlistTitle = it.title, // Reemplaza con el título
+                            playlistAuthor = "Kanye Playlist", // Reemplaza con el autor
+                            onDismiss = { showBottomSheet = false },
+                            navController = navController,
+                            playlistId = playlistId
                         )
                     }
                 }
             }
-        }
-        // Mostrar el BottomSheet de la playlist (fuera del items)
-        if (showBottomSheet) {
-            ModalBottomSheet(
-                onDismissRequest = { showBottomSheet = false },
-                sheetState = sheetState
-            ) {
-                val urlAntes = playlistInfo?.imageUrl
-                val playlistImage = getImageUrl(urlAntes, "/default-playlist.jpg")
-                playlistInfo?.let {
-                    BottomSheetContent(
-                        playlistImage = playlistImage,
-                        playlistTitle = it.title, // Reemplaza con el título
-                        playlistAuthor = "Kanye Playlist", // Reemplaza con el autor
-                        onDismiss = { showBottomSheet = false },
-                        navController = navController,
-                        playlistId = playlistId
-                    )
-                }
-            }
-        }
+
     }
 }
 
-            /**
-             * Contenido del Bottom Sheet con las opciones de la playlist.
-             */
-            @Composable
-            fun BottomSheetContent(
-                playlistImage: String,
-                playlistTitle: String,
-                playlistAuthor: String,
-                navController: NavController,
-                playlistId: String?,
-                onDismiss: () -> Unit  // Llamar a esta función para cerrar
-            ) {
-                val scope = rememberCoroutineScope()  // Para lanzar corrutinas en Compose
-                val textColor = Color.White
-                var showAlertDialog by remember { mutableStateOf(false) }
-
-                // Función interna para manejar el dismissal
-                val dismiss = {
-                    showAlertDialog = false
-                }
-
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(12.dp)
-                ) {
-                    // Imagen, título y autor de la playlist en fila
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        AsyncImage(
-                            model = playlistImage,
-                            contentDescription = "Portada de la playlist",
-                            modifier = Modifier
-                                .size(50.dp)
-                                //.alpha(imageAlpha)
-                                .clip(RoundedCornerShape(8.dp)) // Opcional: añade esquinas redondeadas
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Column {
-                            Text(playlistTitle, color = textColor, fontSize = 16.sp)
-                            Text("de $playlistAuthor", color = Color.Gray, fontSize = 12.sp)
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    // Opciones de la playlist centradas
-                    Column(
-                        modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(start = 120.dp)
-                        .wrapContentWidth(Alignment.CenterHorizontally), // Centra el Column en su contenedor
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        SongOptionItem("Añadir a lista", onClick = dismiss)
-                        Spacer(modifier = Modifier.height(18.dp))
-                        SongOptionItem("Añadir a la biblioteca", onClick = dismiss)
-                        Spacer(modifier = Modifier.height(18.dp))
-                        SongOptionItem("Añadir a la cola", onClick = dismiss)
-                        Spacer(modifier = Modifier.height(18.dp))
-                        SongOptionItem("Eliminar de la lista", onClick = dismiss)
-                        Spacer(modifier = Modifier.height(18.dp))
-                        SongOptionItem("Compartir", onClick = dismiss)
-
-                        Spacer(modifier = Modifier.height(18.dp))
-
-                        // Opción "Eliminar Playlist" con estilo personalizado
-                        SongOptionItem(
-                            text = "Eliminar Playlist",
-                            textColor = Color(0xFFFF6B6B),
-                            onClick = {
-                                // Llamada al backend en una corrutina
-                                scope.launch {
-                                    if (!playlistId.isNullOrEmpty()) {
-                                        try {
-                                            eliminarPlaylistEnBackend(playlistId)
-                                            // Si se elimina con éxito, navega y cierra bottomSheet
-                                            navController.navigate("menu")
-                                            // Cierra tu bottomSheet como veas (estado local, etc.)
-                                        } catch (e: Exception) {
-                                            println("Error al eliminar la playlist: ${e.message}")
-                                        }
-                                    }
-                                }
-                            }
-                        )
-                        Spacer(modifier = Modifier.height(38.dp))
-                    }
-                }
-            }
-
-            /**
-             * Item de la lista de opciones en el Bottom Sheet.
-             */
-            @Composable
-            fun PlaylistOptionItem(text: String, onClick: () -> Unit) {
-                Text(
-                    text = text,
-                    color = Color.White,
-                    fontSize = 16.sp,
-                    modifier = Modifier
-                        .padding(vertical = 8.dp)
-                        .clickable { onClick() }
-                )
-            }
-
-// Desplegable para las canciones
+/**
+ * Contenido del Bottom Sheet con las opciones de la playlist.
+ */
 @Composable
-fun SongOptionsBottomSheetContent(
-    onDismiss: () -> Unit,
-    songTitle: String,
-    artistName: String
+fun BottomSheetContent(
+    playlistImage: String,
+    playlistTitle: String,
+    playlistAuthor: String,
+    navController: NavController,
+    playlistId: String?,
+    onDismiss: () -> Unit  // Llamar a esta función para cerrar
 ) {
+    val scope = rememberCoroutineScope()  // Para lanzar corrutinas en Compose
     val textColor = Color.White
+    var showAlertDialog by remember { mutableStateOf(false) }
+
+    // Función interna para manejar el dismissal
+    val dismiss = {
+        showAlertDialog = false
+    }
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(16.dp)
+            .padding(12.dp)
     ) {
-        Text(
-            songTitle,
-            color = textColor,
-            fontSize = 18.sp,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.fillMaxWidth()
-        )
-        Text(
-            "de $artistName",
-            color = Color.Gray,
-            fontSize = 14.sp,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.fillMaxWidth()
-        )
-
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                    SongOptionItem("Añadir a lista", onDismiss)
-                    Spacer(modifier = Modifier.height(8.dp))
-                    SongOptionItem("Añadir a la biblioteca", onDismiss)
-                    Spacer(modifier = Modifier.height(8.dp))
-                    SongOptionItem("Añadir a la cola", onDismiss)
-                    Spacer(modifier = Modifier.height(8.dp))
-                    SongOptionItem("Eliminar de la lista", onDismiss)
-                    Spacer(modifier = Modifier.height(8.dp))
-                    SongOptionItem("Compartir", onDismiss)
-                }
-                    Spacer(modifier = Modifier.height(16.dp))
-                }
+        // Imagen, título y autor de la playlist en fila
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            AsyncImage(
+                model = playlistImage,
+                contentDescription = "Portada de la playlist",
+                modifier = Modifier
+                    .size(50.dp)
+                    //.alpha(imageAlpha)
+                    .clip(RoundedCornerShape(8.dp)) // Opcional: añade esquinas redondeadas
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Column {
+                Text(playlistTitle, color = textColor, fontSize = 16.sp)
+                Text("de $playlistAuthor", color = Color.Gray, fontSize = 12.sp)
             }
+        }
+
+    Spacer(modifier = Modifier.height(8.dp))
+
+        // Opciones de la playlist centradas
+        Column(
+            modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 120.dp)
+            .wrapContentWidth(Alignment.CenterHorizontally), // Centra el Column en su contenedor
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            SongOptionItem("Añadir a lista", onClick = dismiss)
+            Spacer(modifier = Modifier.height(18.dp))
+            SongOptionItem("Añadir a la biblioteca", onClick = dismiss)
+            Spacer(modifier = Modifier.height(18.dp))
+            SongOptionItem("Añadir a la cola", onClick = dismiss)
+            Spacer(modifier = Modifier.height(18.dp))
+            SongOptionItem("Eliminar de la lista", onClick = dismiss)
+            Spacer(modifier = Modifier.height(18.dp))
+            SongOptionItem("Compartir", onClick = dismiss)
+
+            Spacer(modifier = Modifier.height(18.dp))
+
+            // Opción "Eliminar Playlist" con estilo personalizado
+            SongOptionItem(
+                text = "Eliminar Playlist",
+                textColor = Color(0xFFFF6B6B),
+                onClick = {
+                    // Llamada al backend en una corrutina
+                    scope.launch {
+                        if (!playlistId.isNullOrEmpty()) {
+                            try {
+                                eliminarPlaylistEnBackend(playlistId)
+                                // Si se elimina con éxito, navega y cierra bottomSheet
+                                navController.navigate("menu")
+                                // Cierra tu bottomSheet como veas (estado local, etc.)
+                            } catch (e: Exception) {
+                                println("Error al eliminar la playlist: ${e.message}")
+                            }
+                        }
+                    }
+                }
+            )
+            Spacer(modifier = Modifier.height(38.dp))
+        }
+    }
+}
+
+/**
+ * Item de la lista de opciones en el Bottom Sheet.
+ */
+@Composable
+fun PlaylistOptionItem(text: String, onClick: () -> Unit) {
+    Text(
+        text = text,
+        color = Color.White,
+        fontSize = 16.sp,
+        modifier = Modifier
+            .padding(vertical = 8.dp)
+            .clickable { onClick() }
+    )
+}
+
+// Desplegable para las canciones
+@Composable
+fun SongOptionsBottomSheetContent(
+onDismiss: () -> Unit,
+songTitle: String,
+artistName: String
+) {
+val textColor = Color.White
+
+Column(
+    modifier = Modifier
+        .fillMaxWidth()
+        .padding(16.dp)
+) {
+    Text(
+        songTitle,
+        color = textColor,
+        fontSize = 18.sp,
+        textAlign = TextAlign.Center,
+        modifier = Modifier.fillMaxWidth()
+    )
+    Text(
+        "de $artistName",
+        color = Color.Gray,
+        fontSize = 14.sp,
+        textAlign = TextAlign.Center,
+        modifier = Modifier.fillMaxWidth()
+    )
+
+                Spacer(modifier = Modifier.height(16.dp))
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                SongOptionItem("Añadir a lista", onDismiss)
+                Spacer(modifier = Modifier.height(8.dp))
+                SongOptionItem("Añadir a la biblioteca", onDismiss)
+                Spacer(modifier = Modifier.height(8.dp))
+                SongOptionItem("Añadir a la cola", onDismiss)
+                Spacer(modifier = Modifier.height(8.dp))
+                SongOptionItem("Eliminar de la lista", onDismiss)
+                Spacer(modifier = Modifier.height(8.dp))
+                SongOptionItem("Compartir", onDismiss)
+            }
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+        }
 
 @Composable
 fun SongOptionItem(

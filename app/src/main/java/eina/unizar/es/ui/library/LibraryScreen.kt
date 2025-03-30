@@ -387,7 +387,7 @@ fun LibraryScreen(navController: NavController, playerViewModel: MusicPlayerView
                             ),
                             enabled = newPlaylistName.isNotEmpty()
                         ) {
-                            Text("Confirmar", color = VibraWhite)
+                            Text("Confirmar", color = VibraBlack)
                         }
                     }
                 },
@@ -410,6 +410,7 @@ fun LibraryScreen(navController: NavController, playerViewModel: MusicPlayerView
 
 @Composable
 fun LibraryItem(playlist: Playlist, navController: NavController) {
+    var path = ""
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -420,11 +421,16 @@ fun LibraryItem(playlist: Playlist, navController: NavController) {
             },
         verticalAlignment = Alignment.CenterVertically
     ) {
-        val playlistImage = getImageUrl(playlist.imageUrl, "/default-playlist.jpg")
+        if (playlist?.esAlbum == "Vibra_likedSong"){path = "playlist_images/meGusta.png"} else {path = playlist.imageUrl}
+        val playlistImage = getImageUrl(path, "default-playlist.jpg")
+        Log.d("ImageURL", "URL final: $playlistImage")
         AsyncImage(
             model = playlistImage,
             contentDescription = "Imagen",
-            modifier = Modifier.size(50.dp)
+            modifier = Modifier.size(50.dp)/*,
+            placeholder = painterResource(id = playlistImage), // Asegúrate de tener este recurso
+            error = painterResource(id = playlistImage) // Imagen a mostrar en caso de error
+            */
         )
         Spacer(modifier = Modifier.width(10.dp))
         Column {
