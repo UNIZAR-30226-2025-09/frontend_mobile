@@ -57,11 +57,19 @@ import eina.unizar.es.data.model.network.ApiClient.likeUnlikePlaylist
 import eina.unizar.es.ui.navbar.BottomNavigationBar
 import eina.unizar.es.ui.player.FloatingMusicPlayer
 import eina.unizar.es.ui.player.MusicPlayerViewModel
+import eina.unizar.es.ui.search.SongItem
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.nio.file.Files.delete
+
+
+
+// Criterios de ordenacion de canciones de una lista
+enum class SortOption {
+    TITULO, DURACION, FECHA, ARTISTA
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -88,17 +96,9 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
 
     // Estados para búsqueda y orden
     var searchText by remember { mutableStateOf(TextFieldValue("")) }
-    var sortOption by remember { mutableStateOf("Título") }
+    var sortOption by remember { mutableStateOf(SortOption.TITULO) }
     val filteredSongs = allSongs.filter { it.contains(searchText.text, ignoreCase = true) }
-    val sortedSongs = remember(filteredSongs, sortOption) {
 
-        when (sortOption) {
-            "Título" -> filteredSongs.sortedBy { it }
-            "Añadido recientemente" -> filteredSongs.reversed()
-            "Artista" -> filteredSongs.sortedBy { songArtistMap[it] ?: "" }
-            else -> filteredSongs
-        }
-    }
 
     // Estado para mostrar/ocultar la barra de búsqueda
     var showSearch by remember { mutableStateOf(false) }
@@ -207,12 +207,15 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
     }
 
 
-    /*************************************************************************
-     * Añadir aqui un bucle que solo coja las canciones que estan relacionadas
-     * con nuestra playlist
-     *************************************************************************/
 
-
+    val sortedSongs = remember(songs, sortOption) {
+        when (sortOption) {
+            SortOption.TITULO -> songs.sortedBy { it.name } // Ordenar por título
+            SortOption.DURACION -> songs.sortedBy { it.duration } // Ordenar por duración
+            SortOption.FECHA -> songs.sortedBy { it.name } // FALTA DE IMPLEMENTAR
+            SortOption.ARTISTA -> songs.sortedBy { it.name } // FALTA DE IMPLEMENTAR
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -287,7 +290,7 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                     )
                 }
             }
-// Fila para la búsqueda: si showSearch es true, se muestra la barra de búsqueda que deja espacio para el icono de reproducir
+            // Fila para la búsqueda: si showSearch es true, se muestra la barra de búsqueda que deja espacio para el icono de reproducir
             item {
                 Row(
                     modifier = Modifier
@@ -326,7 +329,7 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                     Spacer(modifier = Modifier.width(8.dp))
                     IconButton(
                         onClick = {
-// Acción para reproducir la playlist (simulada)
+                        // Acción para reproducir la playlist (simulada)
                         },
                         modifier = Modifier
                             .size(48.dp)
@@ -341,11 +344,12 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                     }
                 }
             }
-// Fila con dropdown para ordenar y botón de añadir (Add)
+            // Fila con dropdown para ordenar y botón de añadir (Add)
             item {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.padding(horizontal = 16.dp)
+                        .padding(start = 12.dp)
                 ) {
                     Text("Ordenar por:", color = textColor)
                     Spacer(modifier = Modifier.width(8.dp))
@@ -355,7 +359,7 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                             onClick = { expandirMenu = true },
                             colors = ButtonDefaults.buttonColors(containerColor = buttonColor)
                         ) {
-                            Text(sortOption, color = textColor)
+                            Text(sortOption.toString(), color = textColor)
                         }
                         DropdownMenu(
                             expanded = expandirMenu,
@@ -364,21 +368,28 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                             DropdownMenuItem(
                                 text = { Text("Título") },
                                 onClick = {
-                                    sortOption = "Título"
+                                    sortOption = SortOption.TITULO
                                     expandirMenu = false
                                 }
                             )
                             DropdownMenuItem(
                                 text = { Text("Añadido recientemente") },
                                 onClick = {
-                                    sortOption = "Fecha"
+                                    sortOption = SortOption.FECHA
                                     expandirMenu = false
                                 }
                             )
                             DropdownMenuItem(
                                 text = { Text("Artista") },
                                 onClick = {
-                                    sortOption = "Artista"
+                                    sortOption = SortOption.ARTISTA
+                                    expandirMenu = false
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Duración") },
+                                onClick = {
+                                    sortOption = SortOption.DURACION
                                     expandirMenu = false
                                 }
                             )
@@ -428,10 +439,30 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                 }
             }
             // Separador
+            // Separador
             item { Spacer(modifier = Modifier.height(26.dp)) }
             // Lista de canciones: Cada banner con imagen a la izquierda y título/artista a la derecha
-            items(songs) { song ->
+            items(sortedSongs) { song ->
+                //val artist = songArtistMap[song] ?: "Artista Desconocido"
                 var showSongOptionsBottomSheet by remember { mutableStateOf(false) } // Estado para mostrar el BottomSheet de opciones de la canción
+                SongItem(
+                    song = song,
+                    showHeartIcon = true,
+                    showMoreVertIcon = true,
+                    isLiked = songLikes.value[song] ?: false,
+                    onLikeToggle = {
+                        // Lógica para manejar el like
+                        toggleLike(song)
+                    },
+                    onMoreVertClick = {
+                        // Mostrar opciones de la canción
+                        showSongOptionsBottomSheet = true
+                    }
+                )
+                /*
+                // Reproducir la musica
+                // val context = LocalContext.current
+                // var exoPlayer: ExoPlayer? by remember { mutableStateOf(null) }
                 Box(
                     modifier = Modifier.fillMaxWidth(),
                     contentAlignment = Alignment.Center
@@ -492,8 +523,9 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                             }
                         }
                     }
-                }
-                Spacer(modifier = Modifier.height(12.dp))
+                    }
+                 */
+
 
                 // BottomSheet para opciones de la canción (dentro del items)
                 if (showSongOptionsBottomSheet) {
@@ -579,7 +611,7 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
 
                     // Opciones de la playlist centradas
                     Column(
@@ -692,12 +724,13 @@ fun SongOptionsBottomSheetContent(
 @Composable
 fun SongOptionItem(
     text: String,
-    onClick: () -> Unit,  // Hacer onClick como una función normal y no @Composable
+    onClick: () -> Unit,
     textColor: Color = Color.White,
     background: Color = Color.Transparent,
     roundedCornerShape: RoundedCornerShape = RoundedCornerShape(0.dp),
-    textAlign: TextAlign = TextAlign.Start, // Alineación del texto
-    modifier: Modifier = Modifier.fillMaxWidth() // Modificador por defecto
+    textAlign: TextAlign = TextAlign.Start,
+    modifier: Modifier = Modifier
+        .fillMaxWidth()
 ) {
     Box(modifier = modifier) {
         Text(
@@ -708,12 +741,11 @@ fun SongOptionItem(
             modifier = Modifier
                 .clip(roundedCornerShape)
                 .background(background)
-                .padding(8.dp)
-                .clickable { onClick() }  // Ejecutar la función onClick cuando se haga clic
+                .padding(4.dp)
+                .clickable { onClick() }
         )
     }
 }
-
 
 
 suspend fun eliminarPlaylistEnBackend(

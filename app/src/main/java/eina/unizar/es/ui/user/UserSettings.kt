@@ -172,7 +172,7 @@ fun HeaderSection() {
             .padding(24.dp)
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-            // Imagen de perfil
+            /*// Imagen de perfil
             if (userPicture.isEmpty()) { // !!! Ojo la negacion para docker!!!
                 AsyncImage(
                     model = ImageRequest.Builder(LocalContext.current)
@@ -200,9 +200,9 @@ fun HeaderSection() {
                         fontWeight = FontWeight.Bold
                     )
                 }
-            }
+            }*/
             // Aqui podemos sacar la URI de la imagen del usuario
-            ProfileImagePicker("http://164.90.160.181/request/playlist_images/temardos.png")
+            ProfileImagePicker(userPicture, initials, profileColor)
 
             Spacer(modifier = Modifier.height(10.dp))
 
@@ -367,67 +367,71 @@ fun ProfileImagePicker(/*url: String*/) {
  */
  */
 
+
 @Composable
 fun ProfileImagePicker(
-    url: String? = null // URL de la foto en tu backend. Puede ser null o estar vacía.
+    userPicture: String?, // URL de la foto del usuario
+    initials: String, // Iniciales del usuario
+    profileColor: Color // Color de fondo para las iniciales
 ) {
-    // Estado que guarda la URI seleccionada de la galería
     var imageUri by remember { mutableStateOf<Uri?>(null) }
-
-
-    // Launcher para abrir la galería y capturar la URI
     val galleryLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uriSelected: Uri? ->
-        uriSelected?.let {
-            imageUri = it
-        }
-    }
-
-    // Decidimos cuál "painter" se usa:
-    // 1. Si el usuario seleccionó foto local (imageUri != null), usamos esa.
-    // 2. Si no hay foto local, intentamos cargar la URL del backend con Coil.
-    // 3. Si la URL es nula/vacía o falla la carga, imagen por defecto.
-    val painter = when {
-        imageUri != null -> {
-            rememberAsyncImagePainter(imageUri)
-        }
-        !url.isNullOrBlank() -> {
-            // Cargamos la imagen remota usando Coil
-            rememberAsyncImagePainter(model = url)
-        }
-        else -> {
-            // Imagen de perfil local por defecto
-            painterResource(id = R.drawable.kanyeperfil)
-        }
+        uriSelected?.let { imageUri = it }
     }
 
     Box(
         modifier = Modifier.size(100.dp),
         contentAlignment = Alignment.BottomEnd
     ) {
-        // Imagen de perfil
-        androidx.compose.foundation.Image(
-            painter = painter,
-            contentDescription = "Imagen de perfil",
-            modifier = Modifier
-                .fillMaxSize()
-                .clip(CircleShape)
-                .background(Color.Gray),
-            contentScale = ContentScale.Crop
-        )
+        if (imageUri != null) {
+            // Mostrar la imagen seleccionada de la galería
+            Image(
+                painter = rememberAsyncImagePainter(imageUri),
+                contentDescription = "Imagen de perfil",
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(CircleShape)
+                    .background(Color.Gray),
+                contentScale = ContentScale.Crop
+            )
+        } else if (userPicture.isNullOrEmpty()) {
+            // Mostrar la foto del usuario desde la URL
+            AsyncImage(
+                model = ImageRequest.Builder(LocalContext.current)
+                    .data(userPicture)
+                    .crossfade(true)
+                    .build(),
+                contentDescription = "Imagen de perfil",
+                modifier = Modifier
+                    .size(90.dp)
+                    .clip(CircleShape),
+                contentScale = ContentScale.Crop
+            )
+        } else {
+            // Mostrar las iniciales del usuario
+            Box(
+                modifier = Modifier
+                    .size(90.dp)
+                    .background(color = profileColor, shape = CircleShape)
+                    .clip(CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = initials,
+                    color = Color.White,
+                    fontSize = 36.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
 
-        // Botón con ícono de editar, para abrir la galería
         IconButton(
-            onClick = {
-                galleryLauncher.launch("image/*") // Filtra solo imágenes
-            },
+            onClick = { galleryLauncher.launch("image/*") },
             modifier = Modifier.padding(4.dp)
         ) {
-            Icon(
-                imageVector = Icons.Default.Edit,
-                contentDescription = "Editar imagen"
-            )
+            Icon(Icons.Default.Edit, contentDescription = "Editar imagen")
         }
     }
 }

@@ -270,15 +270,21 @@ fun ArtistScreen(navController: NavController, playerViewModel: MusicPlayerViewM
                             style = TextStyle(fontSize = 20.sp)
                         )
                     }
-                    Text(
-                        text = "Populares",
-                        fontSize = 24.sp, // Cambia el tamaño aquí
-                        textAlign = TextAlign.Start // Alinea el texto a la izquierda
-                    )
+
                 }
             }
 
-            item { Spacer(modifier = Modifier.height(26.dp)) }
+            item {
+                Spacer(modifier = Modifier.height(26.dp))
+                Text(
+                    text = "Populares",
+                    fontSize = 24.sp, // Cambia el tamaño aquí
+                    textAlign = TextAlign.Start,
+                    modifier = Modifier
+                            .padding(start = 20.dp)
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+            }
 
 
             // Lista de canciones: Cada banner con imagen a la izquierda y título/artista a la derecha
@@ -376,45 +382,103 @@ fun ArtistScreen(navController: NavController, playerViewModel: MusicPlayerViewM
             }
             item {
                 Text(
-                    text = "Albums y sencillos",
+                    text = "Albumes",
                     fontSize = 24.sp, // Cambia el tamaño aquí
-                    textAlign = TextAlign.Start // Alinea el texto a la izquierda
+                    textAlign = TextAlign.Start, // Alinea el texto a la izquierda
+                    modifier = Modifier
+                        .padding(start = 20.dp)
                 )
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    items(playlists) { album ->
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Card(
-                                modifier = Modifier
-                                    .size(120.dp)
-                                    .clickable {
-                                        navController.navigate("playlist/${album.id}")
-                                    }, // PASAMOS EL ID
-                                colors = CardDefaults.cardColors(containerColor = Color.Transparent)
-                            ) {
-                                Box(
-                                    modifier = Modifier.fillMaxSize(),
-                                    contentAlignment = Alignment.Center
+                Column(
+                    modifier = Modifier.padding(start = 20.dp) // Aplicamos el margen solo al principio del LazyRow
+                ) {
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                        items(playlists) { album ->
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Card(
+                                    modifier = Modifier
+                                        .size(120.dp)
+                                        .clickable {
+                                            navController.navigate("playlist/${album.id}")
+                                        }, // PASAMOS EL ID
+                                    colors = CardDefaults.cardColors(containerColor = Color.Transparent)
                                 ) {
-                                    // Cargar la imagen desde la URL
-                                    val urlAntes = album?.imageUrl
-                                    val playlistImage =
-                                        getImageUrl(urlAntes, "/default-playlist.jpg")
-                                    AsyncImage(
-                                        model = playlistImage,
-                                        contentDescription = "Portada de la playlist",
-                                        modifier = Modifier
-                                            //.size(imageSize)
-                                            //.alpha(imageAlpha)
-                                            .clip(RoundedCornerShape(8.dp)) // Opcional: añade esquinas redondeadas
-                                    )
+                                    Box(
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        // Cargar la imagen desde la URL
+                                        val urlAntes = album?.imageUrl
+                                        val playlistImage =
+                                            getImageUrl(urlAntes, "/default-playlist.jpg")
+                                        AsyncImage(
+                                            model = playlistImage,
+                                            contentDescription = "Portada de la playlist",
+                                            modifier = Modifier
+                                                //.size(imageSize)
+                                                //.alpha(imageAlpha)
+                                                .clip(RoundedCornerShape(8.dp)) // Opcional: añade esquinas redondeadas
+                                        )
+                                    }
                                 }
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = album.title,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
                             }
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = album.title,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                style = MaterialTheme.typography.bodyMedium
-                            )
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+            item {
+                Text(
+                    text = "Sencillos",
+                    fontSize = 24.sp, // Cambia el tamaño aquí
+                    textAlign = TextAlign.Start, // Alinea el texto a la izquierda
+                    modifier = Modifier
+                        .padding(start = 20.dp)
+                )
+                Column(
+                    modifier = Modifier.padding(start = 20.dp) // Aplicamos el margen solo al principio del LazyRow
+                ) {
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                        items(playlists) { album ->
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Card(
+                                    modifier = Modifier
+                                        .size(120.dp)
+                                        .clickable {
+                                            navController.navigate("playlist/${album.id}")
+                                        }, // PASAMOS EL ID
+                                    colors = CardDefaults.cardColors(containerColor = Color.Transparent)
+                                ) {
+                                    Box(
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        // Cargar la imagen desde la URL
+                                        val urlAntes = album?.imageUrl
+                                        val playlistImage =
+                                            getImageUrl(urlAntes, "/default-playlist.jpg")
+                                        AsyncImage(
+                                            model = playlistImage,
+                                            contentDescription = "Portada de la playlist",
+                                            modifier = Modifier
+                                                //.size(imageSize)
+                                                //.alpha(imageAlpha)
+                                                .clip(RoundedCornerShape(8.dp)) // Opcional: añade esquinas redondeadas
+                                        )
+                                    }
+                                }
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = album.title,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                            }
                         }
                     }
                 }

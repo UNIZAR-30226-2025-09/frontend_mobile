@@ -40,6 +40,7 @@ import kotlinx.coroutines.withContext
 fun UserLoginScreen(navController: NavController) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var showError by remember { mutableStateOf(false) } // Nuevo estado para el error
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
 
@@ -149,17 +150,26 @@ fun UserLoginScreen(navController: NavController) {
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
                 )
 
+                if (showError) { // Mostrar el error si showError es true
+                    Text(
+                        text = "Correo o contraseña incorrectos.",
+                        color = Color.Red,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+                }
+
                 Spacer(modifier = Modifier.height(20.dp))
 
                 Button(
-                    onClick = { /* Lógica de inicio de sesión */
+                    onClick = {
                         coroutineScope.launch {
-                            val loginSuccess = loginUser(context,email, password)
+                            val loginSuccess = loginUser(context, email, password)
                             if (loginSuccess) {
-                                navController.navigate("menu") //Navegar al menú si el login es correcto
+                                navController.navigate("menu")
                                 Toast.makeText(context, "Sesión iniciada con éxito", Toast.LENGTH_LONG).show()
+                                showError = false // Ocultar el mensaje de error si el login es correcto.
                             } else {
-                                Toast.makeText(context, "Credenciales incorrectas", Toast.LENGTH_LONG).show()
+                                showError = true // Mostrar el mensaje de error si el login falla.
                             }
                         }
                     },
