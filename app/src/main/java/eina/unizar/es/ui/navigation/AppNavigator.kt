@@ -2,6 +2,7 @@ package eina.unizar.es.ui.navigation
 
 import android.annotation.SuppressLint
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
@@ -24,6 +25,7 @@ import eina.unizar.es.ui.auth.UserRegisterScreen
 import eina.unizar.es.ui.library.LibraryScreen
 import eina.unizar.es.ui.main.MainScreen
 import eina.unizar.es.ui.menu.MenuScreen
+import eina.unizar.es.ui.navbar.BottomNavigationBar
 import eina.unizar.es.ui.plans.PlansScreen
 import eina.unizar.es.ui.player.FloatingMusicPlayer
 import eina.unizar.es.ui.player.MusicPlayerViewModel
@@ -34,10 +36,25 @@ import eina.unizar.es.ui.user.UserSettings
 
 @SuppressLint("UnrememberedGetBackStackEntry")
 @Composable
-fun AppNavigator(navController: NavController, paymentSheet: PaymentSheet, isPremium: Boolean, ) {
+fun AppNavigator(navController: NavController, paymentSheet: PaymentSheet, isPremium: Boolean) {
     val navController: NavHostController = rememberNavController()
+    val playerViewModel: MusicPlayerViewModel = viewModel()
 
-    Scaffold { innerPadding ->
+    Scaffold (
+        bottomBar = {
+            // Mostrar el reproductor solo si no estamos en la pantalla de canción
+            val currentRoute = navController.currentBackStackEntry?.destination?.route
+            if (currentRoute !in listOf("song/{songId}", "login", "register", "perfilEdit", "settings", "plans", "main")) {
+                Column {
+                    FloatingMusicPlayer(navController, playerViewModel)
+                    BottomNavigationBar(navController)
+                }
+            }
+            else if (currentRoute in listOf("song/{songId}")) {
+                BottomNavigationBar(navController)
+            }
+        }
+    ){ innerPadding ->
         Box(modifier = Modifier.fillMaxSize()) {
             NavHost(
                 navController = navController,
@@ -45,41 +62,35 @@ fun AppNavigator(navController: NavController, paymentSheet: PaymentSheet, isPre
                 modifier = Modifier.padding(innerPadding)
             ) {
                 composable("main") { MainScreen(navController) }
-                composable("player") {
-                    val parentEntry = remember(navController) { navController.getBackStackEntry("main") }
-                    val playerViewModel = viewModel<MusicPlayerViewModel>(parentEntry)
-
-                    FloatingMusicPlayer(viewModel = playerViewModel, navController = navController)
-                }
-
-                composable("plans") { PlansScreen(paymentSheet,navController,isPremium) }
+                composable("menu") { MenuScreen(navController, paymentSheet, isPremium, playerViewModel) }
+                composable("search") { SearchScreen(navController, playerViewModel) }
+                composable("library") { LibraryScreen(navController, playerViewModel) }
                 composable("login") { UserLoginScreen(navController) }
                 composable("register") { UserRegisterScreen(navController) }
-                composable("menu") { MenuScreen(navController, paymentSheet, isPremium) }
+                composable("perfilEdit") { EditProfileScreen(navController) }
                 composable("settings") { UserSettings(navController, isPremium) }
+                composable("plans") { PlansScreen(paymentSheet,navController,isPremium, playerViewModel) }
+                composable("artist") { ArtistScreen(navController, playerViewModel) }
+                //composable("player") { FloatingMusicPlayer(navController, playerViewModel) }
+
                 composable(
                     "playlist/{playlistId}",
-                    arguments = listOf(navArgument("playlistId") { type = NavType.StringType })
+                    arguments = listOf(navArgument("playlistId") { type = NavType.StringType } )
                 ) { backStackEntry ->
                     val playlistId = backStackEntry.arguments?.getString("playlistId")
-                    PlaylistScreen(navController, playlistId)
+                    PlaylistScreen(navController, playlistId, playerViewModel)
                 }
-                composable("library") { LibraryScreen(navController) }
-                composable("perfilEdit") { EditProfileScreen(navController) }
-                composable("search") { SearchScreen(navController) }
                 composable(
                     "song/{songId}",
-                    arguments = listOf(navArgument("songId") { type = NavType.StringType })
+                    arguments = listOf(navArgument("songId") { type = NavType.StringType } )
                 ) { backStackEntry ->
                     val songId = backStackEntry.arguments?.getString("songId")
-                    SongScreen(navController, songId)
+                    SongScreen(navController, songId, playerViewModel)
                 }
-                composable("artist") { ArtistScreen(navController) }
             }
         }
     }
 }
-
 
 
 

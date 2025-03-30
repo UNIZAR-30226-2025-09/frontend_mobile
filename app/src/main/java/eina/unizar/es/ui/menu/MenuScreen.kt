@@ -54,20 +54,16 @@ import com.example.musicapp.ui.theme.VibraLightGrey
 import com.example.musicapp.ui.theme.VibraWhite
 import eina.unizar.es.ui.artist.Artist
 import eina.unizar.es.ui.song.Song
+import kotlinx.coroutines.delay
 
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremium: Boolean) {
+fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremium: Boolean, playerViewModel: MusicPlayerViewModel) {
     val context = LocalContext.current
     var showPaymentDialog by remember { mutableStateOf(false) } // Estado para mostrar pop-up
     var isPremium by remember { mutableStateOf(isPremium) }
     val coroutineScope = rememberCoroutineScope()
-    //val parentEntry = remember(navController) { navController.getBackStackEntry("main") }
-    //val playerViewModel = viewModel<MusicPlayerViewModel>(parentEntry)
-
-    val playerViewModel: MusicPlayerViewModel = viewModel() // ✅ Crea aquí el viewModel
-
 
     LaunchedEffect(Unit) {
             coroutineScope.launch {
@@ -108,6 +104,28 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
                 )
             }
             playlists = fetchedPlaylists
+        }
+
+        // Canciones de la parte superior de recomendaciones
+        val responseSS = get("songs") // Llamada a la API para obtener canciones
+        responseSS?.let {
+            val jsonArray = JSONArray(it)
+            val fetchedSongs = mutableListOf<Song>()
+
+            for (i in 0 until 8) {
+                val jsonObject = jsonArray.getJSONObject(i)
+                fetchedSongs.add(
+                    Song(
+                        id = jsonObject.getInt("id"),
+                        name = jsonObject.getString("name"),
+                        duration = jsonObject.getInt("duration"),
+                        photo_video = jsonObject.getString("photo_video"),
+                        url_mp3 = jsonObject.getString("url_mp3"),
+                        letra = jsonObject.getString("lyrics")
+                    )
+                )
+            }
+            songs = fetchedSongs
         }
 
         val albumsAux = mutableListOf<Playlist>() // Lista para álbumes
@@ -152,16 +170,6 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
     // Mostrar el pop-up de publicidad al entrar a la pantalla
     var showAdvertPopup by remember { mutableStateOf(!isPremium) } // Cambiado a true inicialmente
 
-    // Mostrar el pop-up de publicidad
-    AdvertPopup(
-        showPopup = showAdvertPopup,
-        onDismiss = { showAdvertPopup = false },
-        onConfirm = {
-            showAdvertPopup = false
-            showPaymentDialog = true
-            // Lógica al confirmar la publicidad
-        }
-    )
 
 
     Scaffold(
@@ -173,6 +181,15 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         UserProfileMenu(navController)
+                        // Mostrar el pop-up de publicidad
+                        if(showAdvertPopup) {
+                            LaunchedEffect(Unit) {
+                                while (true) {
+                                    delay(300000) // 5 minutos
+                                    showPaymentDialog = true
+                                }
+                            }
+                        }
 
                         Spacer(modifier = Modifier.weight(0.9f))
                         //if (!isPremium) {
@@ -195,12 +212,12 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
             )
 
         },
-        bottomBar = {
-            Column {
-                FloatingMusicPlayer(viewModel = playerViewModel, navController = navController)
-                BottomNavigationBar(navController)
-            }
-        },
+//        bottomBar = {
+//            Column {
+//                FloatingMusicPlayer(navController, playerViewModel)
+//                BottomNavigationBar(navController)
+//            }
+//        },
     )
     { innerPadding ->
         Column(modifier = Modifier.fillMaxSize()) {
@@ -225,41 +242,39 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
                     )
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    LazyVerticalGrid(
-                        columns = GridCells.Fixed(2),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.weight(1f) // La grilla ocupa la mayor parte del espacio
-                    ) {
-                        items(songs) { cancion ->
-                            Card(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(50.dp)
-                                    .clickable {
-                                        playerViewModel.loadSongsFromApi(
-                                            songId = cancion.id.toString(),
-                                            context = context,
-                                            albumArtResId = R.drawable.kanyeperfil
-                                        )
-                                        navController.navigate("song/${cancion.id}")
-                                    }, // PASAMOS EL ID
-                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-                            ) {
-                                Box(
-                                    modifier = Modifier.fillMaxSize(),
-                                    contentAlignment = Alignment.Center
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                        items(artists) { artist ->
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Card(
+                                    modifier = Modifier
+                                        .size(100.dp)
+                                        .clickable { navController.navigate("artist") },
+                                    colors = CardDefaults.cardColors(containerColor = Color.Transparent)
                                 ) {
-                                    Text(
-                                        text = cancion.name,
-                                        color = MaterialTheme.colorScheme.onSurface,
-                                        style = MaterialTheme.typography.bodyLarge
-                                    )
+                                    Box(
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        val playlistImage = getImageUrl(artist.photo, "/default-playlist.jpg")
+                                        AsyncImage(
+                                            model = playlistImage,
+                                            contentDescription = "Foto del artista",
+                                            modifier = Modifier
+                                                .size(100.dp)
+                                                .clip(CircleShape)
+                                        )
+                                    }
                                 }
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = artist.name,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
                             }
                         }
                     }
+                }
 
                     Spacer(modifier = Modifier.height(16.dp))
 
@@ -378,7 +393,6 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
         }
         }
     }
-}
     /**
      * Composable que dibuja un banner degradado con un logo y el texto "Vibra".
      * El banner se muestra a la derecha. Reemplaza R.drawable.my_logo por el recurso de tu logo.
@@ -419,7 +433,8 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
             contentAlignment = Alignment.Center
         ) {
             Row(
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier
+                    .fillMaxSize()
                     .clip(RoundedCornerShape(16)),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
@@ -441,126 +456,6 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
         }
     }
 
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun AdvertPopup(
-    showPopup: Boolean,
-    onDismiss: () -> Unit,
-    onConfirm: () -> Unit,
-    imageResId: Int = R.drawable.vibrablanco
-) {
-    if (showPopup) {
-        AlertDialog(
-            onDismissRequest = onDismiss,
-            modifier = Modifier.padding(20.dp)
-        ) {
-            Card(
-                colors = CardDefaults.cardColors(containerColor = Color.Transparent),
-                modifier = Modifier
-                    .clip(RoundedCornerShape(24.dp))
-            ) {
-                Column(
-                    modifier = Modifier
-                        .padding(24.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(
-                            Brush.linearGradient(
-                                colors = listOf(
-                                    Color(0xFF2196F3), Color(0xFF0D47A1)
-                                )
-                            )
-                        )
-                ) {
-                    Text(
-                        text = "PREMIUM EXCLUSIVO",
-                        fontWeight = FontWeight.ExtraBold,
-                        fontSize = 22.sp,
-                        color = VibraWhite,
-                        modifier = Modifier
-                            .align(Alignment.CenterHorizontally)
-                            .fillMaxWidth()
-                            .wrapContentWidth(Alignment.CenterHorizontally)
-                    )
-
-
-                    Image(
-                        painter = painterResource(id = imageResId),
-                        contentDescription = "Premium Benefits",
-                        modifier = Modifier
-                            .size(200.dp)
-                            .align(Alignment.CenterHorizontally)
-                            .clip(RoundedCornerShape(16.dp))
-                    )
-
-
-                    Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-                        FeatureItem("✅ Sin anuncios molestos")
-                        FeatureItem("✅ Contenido exclusivo")
-                        FeatureItem("✅ Acceso prioritario")
-                        FeatureItem("✅ Soporte 24/7")
-                    }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    Text(
-                        text = "SOLO 5.99€/mes",
-                        fontSize = 26.sp,
-                        fontWeight = FontWeight.Black,
-                        color = Color(0xFFE91E63),
-                        modifier = Modifier.align(Alignment.CenterHorizontally)
-                    )
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceEvenly
-                    ) {
-                        Button(
-                            onClick = onDismiss,
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier
-                                .weight(0.7f)
-                                .height(48.dp)
-                                .border(2.dp, Color.Black, RoundedCornerShape(10.dp)),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = VibraLightGrey
-                            )
-                        ) {
-                            Text(
-                                "Ahora no",
-                                color = VibraDarkGrey,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-
-                        Button(
-                            onClick = onConfirm,
-                            shape = RoundedCornerShape(12.dp),
-
-                            modifier = Modifier
-                                .weight(0.7f)
-                                .height(48.dp)
-                                .border(2.dp, Color.Black, RoundedCornerShape(10.dp)),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = VibraBlue
-                            )
-
-                        ) {
-                            Text(
-                                "QUIERO PREMIUM",
-                                color = Color.White,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(12.dp))
-                    }
-                }
-            }
-        }
-    }
-}
 
 @Composable  // <-- No olvidar esta anotación
 private fun FeatureItem(text: String) {

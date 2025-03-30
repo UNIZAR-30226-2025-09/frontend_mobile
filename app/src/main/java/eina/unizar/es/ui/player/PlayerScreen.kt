@@ -29,10 +29,7 @@ import androidx.navigation.NavController
 import eina.unizar.es.R
 
 @Composable
-fun FloatingMusicPlayer(
-    viewModel: MusicPlayerViewModel,
-    navController: NavController
-) {
+fun FloatingMusicPlayer(navController: NavController, viewModel: MusicPlayerViewModel) {
     val currentSong by viewModel.currentSong.collectAsState()
 
     currentSong?.let { song ->

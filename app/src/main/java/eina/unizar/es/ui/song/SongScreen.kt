@@ -26,17 +26,17 @@ import eina.unizar.es.R
 import eina.unizar.es.ui.player.MusicPlayerViewModel
 import androidx.compose.animation.*
 import androidx.compose.ui.unit.sp
+import eina.unizar.es.ui.navbar.BottomNavigationBar
 import eina.unizar.es.ui.song.Song
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SongScreen(navController: NavController, songId: String?) {
+fun SongScreen(navController: NavController, songId: String?, playerViewModel: MusicPlayerViewModel) {
     val context = LocalContext.current
-    val viewModel: MusicPlayerViewModel = viewModel()
 
-    val currentSong by viewModel.currentSong.collectAsState()
+    val currentSong by playerViewModel.currentSong.collectAsState()
     val isPlaying = currentSong?.isPlaying ?: false
     val scaffoldState = rememberBottomSheetScaffoldState()
 
@@ -44,7 +44,7 @@ fun SongScreen(navController: NavController, songId: String?) {
 
 
     LaunchedEffect(songId) {
-        viewModel.loadSongsFromApi(songId, context, R.drawable.kanyeperfil)
+        playerViewModel.loadSongsFromApi(songId, context, R.drawable.kanyeperfil)
     }
 
 
@@ -76,6 +76,8 @@ fun SongScreen(navController: NavController, songId: String?) {
                     color = Color.White,
                     style = MaterialTheme.typography.bodyMedium
                 )
+
+                //BottomNavigationBar(navController)
             }
         }
     ) { innerPadding ->
@@ -134,7 +136,7 @@ fun SongScreen(navController: NavController, songId: String?) {
 
                 Spacer(modifier = Modifier.height(15.dp))
 
-                SongProgressBar(viewModel = viewModel)
+                SongProgressBar(viewModel = playerViewModel)
 
                 // Controles
                 Row(
@@ -142,14 +144,14 @@ fun SongScreen(navController: NavController, songId: String?) {
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    IconButton(onClick = { viewModel.previousSong(context) }) {
+                    IconButton(onClick = { playerViewModel.previousSong(context) }) {
                         Icon(Icons.Filled.FastRewind, contentDescription = "Anterior", tint = MaterialTheme.colorScheme.onBackground)
                     }
 
                     Spacer(modifier = Modifier.width(16.dp))
 
                     FloatingActionButton(
-                        onClick = { viewModel.togglePlayPause() },
+                        onClick = { playerViewModel.togglePlayPause() },
                         containerColor = MaterialTheme.colorScheme.primary
                     ) {
                         Icon(
@@ -161,7 +163,7 @@ fun SongScreen(navController: NavController, songId: String?) {
 
                     Spacer(modifier = Modifier.width(16.dp))
 
-                    IconButton(onClick = { viewModel.nextSong(context) }) {
+                    IconButton(onClick = { playerViewModel.nextSong(context) }) {
                         Icon(Icons.Default.FastForward, contentDescription = "Siguiente")
                     }
                 }

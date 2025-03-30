@@ -23,11 +23,12 @@ import com.stripe.android.paymentsheet.PaymentSheet
 import eina.unizar.es.R
 import eina.unizar.es.data.model.network.ApiClient.getUserData
 import eina.unizar.es.data.model.network.ApiClient.postTokenPremium
+import eina.unizar.es.ui.player.MusicPlayerViewModel
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 
 @Composable
-fun PlansScreen(paymentSheet: PaymentSheet, navController: NavController, isPremium: Boolean) {
+fun PlansScreen(paymentSheet: PaymentSheet, navController: NavController, isPremium: Boolean, playerViewModel: MusicPlayerViewModel) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     var isPremium by remember { mutableStateOf(isPremium) }
