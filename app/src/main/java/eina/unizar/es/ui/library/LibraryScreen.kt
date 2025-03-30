@@ -59,17 +59,12 @@ import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun LibraryScreen(navController: NavController) {
+fun LibraryScreen(navController: NavController, playerViewModel: MusicPlayerViewModel) {
     var searchText by remember { mutableStateOf(TextFieldValue("")) } // Estado del texto de búsqueda
     var isSearching by remember { mutableStateOf(false) } // Estado para mostrar la barra de búsqueda
 
     var showCreatePlaylistDialog by remember { mutableStateOf(false) }
     var newPlaylistName by remember { mutableStateOf("") }
-
-    //val parentEntry = remember(navController) { navController.getBackStackEntry("menu") }
-    //val playerViewModel = viewModel<MusicPlayerViewModel>(parentEntry)
-
-    val playerViewModel: MusicPlayerViewModel = viewModel()
 
 
     // Estado de la barra de navegación inferior
@@ -218,13 +213,12 @@ fun LibraryScreen(navController: NavController) {
                 )
             )
         },
-        bottomBar = {
-            Column {
-                val isPlaying = remember { mutableStateOf(false) }
-                FloatingMusicPlayer(playerViewModel, navController)
-                BottomNavigationBar(navController)
-            }
-        },
+//        bottomBar = {
+//            Column {
+//                FloatingMusicPlayer(navController, playerViewModel)
+//                BottomNavigationBar(navController)
+//            }
+//        },
     ) { innerPadding ->
         Column(
             modifier = Modifier

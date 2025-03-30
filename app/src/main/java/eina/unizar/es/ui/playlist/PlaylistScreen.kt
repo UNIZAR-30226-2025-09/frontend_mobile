@@ -65,27 +65,20 @@ import java.nio.file.Files.delete
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PlaylistScreen(navController: NavController, playlistId: String?) {
+fun PlaylistScreen(navController: NavController, playlistId: String?, playerViewModel: MusicPlayerViewModel) {
 
-    //val parentEntry = remember(navController) { navController.getBackStackEntry("menu") }
-    //val playerViewModel = viewModel<MusicPlayerViewModel>(parentEntry)
+    // Colores básicos
+    val backgroundColor = MaterialTheme.colorScheme.background // Negro
+    val textColor = MaterialTheme.colorScheme.onBackground // Blanco
+    val cardBackgroundColor = MaterialTheme.colorScheme.primaryContainer // Negro un poco más claro
+    val buttonColor = MaterialTheme.colorScheme.primary
 
-    val playerViewModel: MusicPlayerViewModel = viewModel()
-
-
-// Colores básicos
-    val backgroundColor = Color(0xFF000000) // Negro
-    val textColor = Color(0xFFFFFFFF) // Blanco
-    val cardBackgroundColor = Color(0xFF121212) // Negro un poco más claro
-    val buttonColor = Color(0xFF0D47A1) // Azul oscuro
-
-// Datos simulados de la playlist
+    // Datos simulados de la playlist
     val playlistTitle = "Playlist: Rock"
     val playlistAuthor = "Autor: John Doe"
 
 
-// Simulación de 20 canciones y sus artistas
-
+    // Simulación de 20 canciones y sus artistas
     val allSongs = (1..20).map { "Canción $it" }
     val songArtistMap = allSongs.associateWith { song ->
         val number = song.filter { it.isDigit() }
@@ -93,8 +86,7 @@ fun PlaylistScreen(navController: NavController, playlistId: String?) {
     }
 
 
-// Estados para búsqueda y orden
-
+    // Estados para búsqueda y orden
     var searchText by remember { mutableStateOf(TextFieldValue("")) }
     var sortOption by remember { mutableStateOf("Título") }
     val filteredSongs = allSongs.filter { it.contains(searchText.text, ignoreCase = true) }
@@ -108,20 +100,17 @@ fun PlaylistScreen(navController: NavController, playlistId: String?) {
         }
     }
 
-// Estado para mostrar/ocultar la barra de búsqueda
-
+    // Estado para mostrar/ocultar la barra de búsqueda
     var showSearch by remember { mutableStateOf(false) }
 
-// Estado del LazyColumn para detectar scroll y aplicar efecto en el header
-
+    // Estado del LazyColumn para detectar scroll y aplicar efecto en el header
     val lazyListState = rememberLazyListState()
     val imageSize = 150.dp
     val maxOffset = with(LocalDensity.current) { imageSize.toPx() }
     val scrollOffset = lazyListState.firstVisibleItemScrollOffset.toFloat()
     val collapseFraction = (scrollOffset / maxOffset).coerceIn(0f, 1f)
 
-// Ajustamos solo la opacidad (sin escala) con Modifier.alpha
-
+    // Ajustamos solo la opacidad (sin escala) con Modifier.alpha
     val imageAlpha = 1f - collapseFraction
 
     // Estado para controlar la visibilidad del BottomSheet
@@ -132,7 +121,6 @@ fun PlaylistScreen(navController: NavController, playlistId: String?) {
     val context = LocalContext.current
     var exoPlayer: ExoPlayer? by remember { mutableStateOf(null) }
     //val audioUrl = "URL_DEL_ARCHIVO_DE_AUDIO" // Reemplaza con la URL de tu archivo de audio
-
 
 
     // Alpha para el título en el TopAppBar: aparece gradualmente conforme se hace scroll
@@ -250,12 +238,12 @@ fun PlaylistScreen(navController: NavController, playlistId: String?) {
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = backgroundColor)
             )
         },
-        bottomBar = {
-            Column {
-                FloatingMusicPlayer(viewModel = playerViewModel, navController = navController)
-                BottomNavigationBar(navController)
-            }
-        },
+//        bottomBar = {
+//            Column {
+//                FloatingMusicPlayer(navController, playerViewModel)
+//                BottomNavigationBar(navController)
+//            }
+//        },
         containerColor = backgroundColor
     ) { innerPadding ->
         LazyColumn(
@@ -439,15 +427,11 @@ fun PlaylistScreen(navController: NavController, playlistId: String?) {
                     }
                 }
             }
-// Separador
+            // Separador
             item { Spacer(modifier = Modifier.height(26.dp)) }
-// Lista de canciones: Cada banner con imagen a la izquierda y título/artista a la derecha
+            // Lista de canciones: Cada banner con imagen a la izquierda y título/artista a la derecha
             items(songs) { song ->
-                //val artist = songArtistMap[song] ?: "Artista Desconocido"
                 var showSongOptionsBottomSheet by remember { mutableStateOf(false) } // Estado para mostrar el BottomSheet de opciones de la canción
-                // Reproducir la musica
-                // val context = LocalContext.current
-                // var exoPlayer: ExoPlayer? by remember { mutableStateOf(null) }
                 Box(
                     modifier = Modifier.fillMaxWidth(),
                     contentAlignment = Alignment.Center
@@ -456,15 +440,7 @@ fun PlaylistScreen(navController: NavController, playlistId: String?) {
                         modifier = Modifier
                             .fillMaxWidth(0.9f)
                             .clickable {
-                                val urlCompleta =
-                                    "http://164.90.160.181:5001/${(song.url_mp3).removePrefix("/")}"
-                                exoPlayer?.release()
-                                exoPlayer = ExoPlayer.Builder(context).build().apply {
-                                    val mediaItem = MediaItem.fromUri(urlCompleta)
-                                    setMediaItem(mediaItem)
-                                    prepare()
-                                    play()
-                                }
+                                playerViewModel.loadSongsFromApi(songId = song.id.toString(), context = context, albumArtResId = R.drawable.kanyeperfil)
                             },
                         colors = CardDefaults.cardColors(containerColor = cardBackgroundColor),
                         elevation = CardDefaults.cardElevation(defaultElevation = 10.dp)

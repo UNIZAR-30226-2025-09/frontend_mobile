@@ -36,7 +36,6 @@ val Rubik = FontFamily(
 
 @Composable
 fun MainScreen(navController: NavController) {
-    val playerViewModel: MusicPlayerViewModel = viewModel()
     val context = LocalContext.current
     var mediaPlayer: MediaPlayer? by remember { mutableStateOf(null) }
 

@@ -65,11 +65,9 @@ import java.nio.file.Files.delete
 
 @Composable
 
-fun ArtistScreen(navController: NavController) {
+fun ArtistScreen(navController: NavController, playerViewModel: MusicPlayerViewModel) {
 
-    val playerViewModel: MusicPlayerViewModel = viewModel()
-
-// Colores básicos
+    // Colores básicos
     val backgroundColor = Color(0xFF000000) // Negro
     val textColor = Color(0xFFFFFFFF) // Blanco
     val cardBackgroundColor = Color(0xFF121212) // Negro un poco más claro
@@ -79,7 +77,7 @@ fun ArtistScreen(navController: NavController) {
     val playlistAuthor = "Autor: John Doe"
 
 
-// Estado del LazyColumn para detectar scroll y aplicar efecto en el header
+    // Estado del LazyColumn para detectar scroll y aplicar efecto en el header
 
     val lazyListState = rememberLazyListState()
     val imageSize = 150.dp
@@ -87,7 +85,7 @@ fun ArtistScreen(navController: NavController) {
     val scrollOffset = lazyListState.firstVisibleItemScrollOffset.toFloat()
     val collapseFraction = (scrollOffset / maxOffset).coerceIn(0f, 1f)
 
-// Ajustamos solo la opacidad (sin escala) con Modifier.alpha
+    // Ajustamos solo la opacidad (sin escala) con Modifier.alpha
 
     val imageAlpha = 1f - collapseFraction
 
@@ -138,31 +136,31 @@ fun ArtistScreen(navController: NavController) {
 
 
     // Cargar playlists desde el backend
-   LaunchedEffect(Unit) {
-       val response = get("playlists") // Llamada a la API
-       response?.let {
-           val jsonArray = JSONArray(it)
-           val fetchedPlaylists = mutableListOf<Playlist>()
+    LaunchedEffect(Unit) {
+        val response = get("playlists") // Llamada a la API
+        response?.let {
+            val jsonArray = JSONArray(it)
+            val fetchedPlaylists = mutableListOf<Playlist>()
 
-           for (i in 0 until jsonArray.length()) {
-               val jsonObject = jsonArray.getJSONObject(i)
-               fetchedPlaylists.add(
-                   Playlist(
-                       id = jsonObject.getString("id"),
-                       title = jsonObject.getString("name"),
-                       idAutor = jsonObject.getString("user_id"),
-                       idArtista = jsonObject.getString("artist_id"),
-                       description = jsonObject.getString("description"),
-                       esPublica = jsonObject.getString("type"),
-                       esAlbum = jsonObject.getString("typeP"),
-                       imageUrl = jsonObject.getString("front_page")
-                   )
-               )
-           }
-           playlists = fetchedPlaylists
-       }
-   }
-        LaunchedEffect(Unit) {
+            for (i in 0 until jsonArray.length()) {
+                val jsonObject = jsonArray.getJSONObject(i)
+                fetchedPlaylists.add(
+                    Playlist(
+                        id = jsonObject.getString("id"),
+                        title = jsonObject.getString("name"),
+                        idAutor = jsonObject.getString("user_id"),
+                        idArtista = jsonObject.getString("artist_id"),
+                        description = jsonObject.getString("description"),
+                        esPublica = jsonObject.getString("type"),
+                        esAlbum = jsonObject.getString("typeP"),
+                        imageUrl = jsonObject.getString("front_page")
+                    )
+                )
+            }
+            playlists = fetchedPlaylists
+        }
+    }
+    LaunchedEffect(Unit) {
         val response = get("songs") // Llamada a la API
         response?.let {
             val songsArray = JSONArray(it)
@@ -182,7 +180,6 @@ fun ArtistScreen(navController: NavController) {
             }
             songs = fetchedSongs
 
-
             // Artistas
             val responseS = get("artist/artists") // Llamada a la API para obtener canciones
             responseS?.let {
@@ -200,14 +197,12 @@ fun ArtistScreen(navController: NavController) {
                 }
             }
         }
-        }
+    }
 
     /*************************************************************************
      * Añadir aqui un bucle que solo coja las canciones que estan relacionadas
      * con nuestra playlist
      *************************************************************************/
-
-
 
     Scaffold(
         topBar = {
@@ -233,13 +228,13 @@ fun ArtistScreen(navController: NavController) {
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = backgroundColor)
             )
         },
-        bottomBar = {
-            Column {
-                val isPlaying = remember { mutableStateOf(false) }
-                FloatingMusicPlayer(playerViewModel, navController)
-                BottomNavigationBar(navController)
-            }
-        },
+//        bottomBar = {
+//            Column {
+//                val isPlaying = remember { mutableStateOf(false) }
+//                FloatingMusicPlayer(navController, playerViewModel)
+//                BottomNavigationBar(navController)
+//            }
+//        },
         containerColor = backgroundColor
     ) { innerPadding ->
         LazyColumn(
@@ -286,7 +281,7 @@ fun ArtistScreen(navController: NavController) {
             item { Spacer(modifier = Modifier.height(26.dp)) }
 
 
-// Lista de canciones: Cada banner con imagen a la izquierda y título/artista a la derecha
+            // Lista de canciones: Cada banner con imagen a la izquierda y título/artista a la derecha
             items(songs) { song ->
                 //val artist = songArtistMap[song] ?: "Artista Desconocido"
                 var showSongOptionsBottomSheet by remember { mutableStateOf(false) } // Estado para mostrar el BottomSheet de opciones de la canción
@@ -362,9 +357,6 @@ fun ArtistScreen(navController: NavController) {
                         }
                     }
                 }
-
-
-
 
                 Spacer(modifier = Modifier.height(12.dp))
 

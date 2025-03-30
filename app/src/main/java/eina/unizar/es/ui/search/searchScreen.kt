@@ -30,12 +30,7 @@ import eina.unizar.es.ui.user.UserProfileMenu
 @SuppressLint("UnrememberedGetBackStackEntry")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SearchScreen(navController: NavController) {
-    //val parentEntry = remember(navController) { navController.getBackStackEntry("menu") }
-    //val playerViewModel = viewModel<MusicPlayerViewModel>(parentEntry)
-
-    val playerViewModel: MusicPlayerViewModel = viewModel()
-
+fun SearchScreen(navController: NavController, playerViewModel: MusicPlayerViewModel) {
 
     val backgroundColor = MaterialTheme.colorScheme.background
     val searchBarUnfocusedColor = MaterialTheme.colorScheme.onBackground
@@ -78,13 +73,12 @@ fun SearchScreen(navController: NavController) {
                 )
             )
         },
-        bottomBar = {
-            Column {
-                val isPlaying = remember { mutableStateOf(false) }
-                FloatingMusicPlayer(viewModel = playerViewModel, navController = navController)
-                BottomNavigationBar(navController)
-            }
-        },
+//        bottomBar = {
+//            Column {
+//                FloatingMusicPlayer(navController, playerViewModel)
+//                BottomNavigationBar(navController)
+//            }
+//        },
         containerColor = backgroundColor
     ) { innerPadding ->
         Column(

@@ -58,16 +58,11 @@ import eina.unizar.es.ui.song.Song
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremium: Boolean) {
+fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremium: Boolean, playerViewModel: MusicPlayerViewModel) {
     val context = LocalContext.current
     var showPaymentDialog by remember { mutableStateOf(false) } // Estado para mostrar pop-up
     var isPremium by remember { mutableStateOf(isPremium) }
     val coroutineScope = rememberCoroutineScope()
-    //val parentEntry = remember(navController) { navController.getBackStackEntry("main") }
-    //val playerViewModel = viewModel<MusicPlayerViewModel>(parentEntry)
-
-    val playerViewModel: MusicPlayerViewModel = viewModel() // ✅ Crea aquí el viewModel
-
 
     LaunchedEffect(Unit) {
             coroutineScope.launch {
@@ -110,6 +105,28 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
             playlists = fetchedPlaylists
         }
 
+        // Canciones de la parte superior de recomendaciones
+        val responseS = get("songs") // Llamada a la API para obtener canciones
+        responseS?.let {
+            val jsonArray = JSONArray(it)
+            val fetchedSongs = mutableListOf<Song>()
+
+            for (i in 0 until 8) {
+                val jsonObject = jsonArray.getJSONObject(i)
+                fetchedSongs.add(
+                    Song(
+                        id = jsonObject.getInt("id"),
+                        name = jsonObject.getString("name"),
+                        duration = jsonObject.getInt("duration"),
+                        photo_video = jsonObject.getString("photo_video"),
+                        url_mp3 = jsonObject.getString("url_mp3"),
+                        letra = jsonObject.getString("lyrics")
+                    )
+                )
+            }
+            songs = fetchedSongs
+        }
+
         val albumsAux = mutableListOf<Playlist>() // Lista para álbumes
         val listasDeReproduccionAux = mutableListOf<Playlist>() // Lista para playlists
 
@@ -125,27 +142,27 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
         playlists = listasDeReproduccionAux;
 
 
-        // Canciones de la parte superior de recomendaciones
-        val responseS = get("artist/artists") // Llamada a la API para obtener canciones
-        responseS?.let {
-            val jsonArray = JSONArray(it)
-            val fetchedArtists = mutableListOf<Artist>()
-
-            for (i in 0 until 8) {
-                val jsonObject = jsonArray.getJSONObject(i)
-                fetchedArtists.add(
-                    Artist(
-                        id = jsonObject.getInt("id"),
-                        name = jsonObject.getString("name"),
-                        biography = "Prueba",//jsonObject.getString("bio")//
-                        photo = jsonObject.getString("photo"),
-                    )
-                )
-
-            }
-            Log.d("Artista", "Artistas: + " + fetchedArtists)
-            artists = fetchedArtists
-        }
+//        // Canciones de la parte superior de recomendaciones
+//        val responseS = get("artist/artists") // Llamada a la API para obtener canciones
+//        responseS?.let {
+//            val jsonArray = JSONArray(it)
+//            val fetchedArtists = mutableListOf<Artist>()
+//
+//            for (i in 0 until 8) {
+//                val jsonObject = jsonArray.getJSONObject(i)
+//                fetchedArtists.add(
+//                    Artist(
+//                        id = jsonObject.getInt("id"),
+//                        name = jsonObject.getString("name"),
+//                        biography = "Prueba",//jsonObject.getString("bio")//
+//                        photo = jsonObject.getString("photo"),
+//                    )
+//                )
+//
+//            }
+//            Log.d("Artista", "Artistas: + " + fetchedArtists)
+//            artists = fetchedArtists
+//        }
 
     }
 
@@ -195,12 +212,12 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
             )
 
         },
-        bottomBar = {
-            Column {
-                FloatingMusicPlayer(viewModel = playerViewModel, navController = navController)
-                BottomNavigationBar(navController)
-            }
-        },
+//        bottomBar = {
+//            Column {
+//                FloatingMusicPlayer(navController, playerViewModel)
+//                BottomNavigationBar(navController)
+//            }
+//        },
     )
     { innerPadding ->
         Column(modifier = Modifier.fillMaxSize()) {
@@ -237,11 +254,7 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
                                     .fillMaxWidth()
                                     .height(50.dp)
                                     .clickable {
-                                        playerViewModel.loadSongsFromApi(
-                                            songId = cancion.id.toString(),
-                                            context = context,
-                                            albumArtResId = R.drawable.kanyeperfil
-                                        )
+                                        playerViewModel.loadSongsFromApi(songId = cancion.id.toString(), context = context, albumArtResId = R.drawable.kanyeperfil)
                                         navController.navigate("song/${cancion.id}")
                                     }, // PASAMOS EL ID
                                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
