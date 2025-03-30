@@ -63,8 +63,8 @@ fun AppNavigator(navController: NavController, paymentSheet: PaymentSheet, isPre
             ) {
                 composable("main") { MainScreen(navController) }
                 composable("menu") { MenuScreen(navController, paymentSheet, isPremium, playerViewModel) }
-                composable("search") { SearchScreen(navController, playerViewModel) }
-                composable("library") { LibraryScreen(navController, playerViewModel) }
+                composable("buscar") { SearchScreen(navController, playerViewModel) }
+                composable("tu biblioteca") { LibraryScreen(navController, playerViewModel) }
                 composable("login") { UserLoginScreen(navController) }
                 composable("register") { UserRegisterScreen(navController) }
                 composable("perfilEdit") { EditProfileScreen(navController) }
