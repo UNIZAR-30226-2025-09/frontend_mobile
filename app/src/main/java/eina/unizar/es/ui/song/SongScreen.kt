@@ -60,15 +60,6 @@ fun SongScreen(navController: NavController, songId: String?, playerViewModel: M
                     .verticalScroll(rememberScrollState()),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Handle visual
-                Box(
-                    modifier = Modifier
-                        .width(50.dp)
-                        .height(6.dp)
-                        .clip(RoundedCornerShape(50))
-                        .background(Color.LightGray)
-                )
-                Spacer(modifier = Modifier.height(12.dp))
                 Text("LETRA", fontSize = 18.sp, color = Color.White)
                 Spacer(modifier = Modifier.height(12.dp))
                 Text(
@@ -76,8 +67,6 @@ fun SongScreen(navController: NavController, songId: String?, playerViewModel: M
                     color = Color.White,
                     style = MaterialTheme.typography.bodyMedium
                 )
-
-                //BottomNavigationBar(navController)
             }
         }
     ) { innerPadding ->
