@@ -40,7 +40,6 @@ import eina.unizar.es.ui.user.UserSettings
 @SuppressLint("UnrememberedGetBackStackEntry")
 @Composable
 fun AppNavigator(navController: NavHostController, paymentSheet: PaymentSheet, isPremium: Boolean) {
-    //val navController: NavHostController = rememberNavController()
     val playerViewModel: MusicPlayerViewModel = viewModel()
 
     // Estado para ruta actual observada
@@ -67,7 +66,6 @@ fun AppNavigator(navController: NavHostController, paymentSheet: PaymentSheet, i
 
     val baseRoute = getBaseRoute(currentRoute.value)
     val showFloatingPlayer = baseRoute !in routesWithoutBottomBar
-    val showOnlyNavBar = baseRoute == "song"
 
     Scaffold(
         bottomBar = {
@@ -77,9 +75,6 @@ fun AppNavigator(navController: NavHostController, paymentSheet: PaymentSheet, i
                         FloatingMusicPlayer(navController, playerViewModel)
                         BottomNavigationBar(navController)
                     }
-                }
-                showOnlyNavBar -> {
-                    BottomNavigationBar(navController)
                 }
                 // Si no queremos nada, no ponemos nada
             }
