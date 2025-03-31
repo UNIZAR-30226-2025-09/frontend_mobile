@@ -7,10 +7,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import androidx.navigation.NavHost
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -36,22 +39,44 @@ import eina.unizar.es.ui.user.UserSettings
 
 @SuppressLint("UnrememberedGetBackStackEntry")
 @Composable
-fun AppNavigator(navController: NavController, paymentSheet: PaymentSheet, isPremium: Boolean) {
-    val navController: NavHostController = rememberNavController()
+fun AppNavigator(navController: NavHostController, paymentSheet: PaymentSheet, isPremium: Boolean) {
     val playerViewModel: MusicPlayerViewModel = viewModel()
 
-    Scaffold (
+    // Estado para ruta actual observada
+    val currentRoute = remember(navController) {
+        mutableStateOf("")
+    }
+
+    // Observa cambios de ruta (mejor que currentBackStackEntry?.destination?.route)
+    LaunchedEffect(navController) {
+        navController.addOnDestinationChangedListener { _, destination, _ ->
+            currentRoute.value = destination.route ?: ""
+        }
+    }
+
+    // Rutas que no deben mostrar bottomBar
+    val routesWithoutBottomBar = listOf(
+        "login", "register", "perfilEdit", "settings", "plans", "main", "song"
+    )
+
+    // Extrae el prefijo de la ruta para detectar dinámicas como "song/{id}" => "song"
+    fun getBaseRoute(route: String): String {
+        return route.substringBefore("/")
+    }
+
+    val baseRoute = getBaseRoute(currentRoute.value)
+    val showFloatingPlayer = baseRoute !in routesWithoutBottomBar
+
+    Scaffold(
         bottomBar = {
-            // Mostrar el reproductor solo si no estamos en la pantalla de canción
-            val currentRoute = navController.currentBackStackEntry?.destination?.route
-            if (currentRoute !in listOf("song/{songId}", "login", "register", "perfilEdit", "settings", "plans", "main")) {
-                Column {
-                    FloatingMusicPlayer(navController, playerViewModel)
-                    BottomNavigationBar(navController)
+            when {
+                showFloatingPlayer -> {
+                    Column {
+                        FloatingMusicPlayer(navController, playerViewModel)
+                        BottomNavigationBar(navController)
+                    }
                 }
-            }
-            else if (currentRoute in listOf("song/{songId}")) {
-                BottomNavigationBar(navController)
+                // Si no queremos nada, no ponemos nada
             }
         }
     ){ innerPadding ->
