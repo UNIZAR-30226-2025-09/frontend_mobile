@@ -95,6 +95,16 @@ class MusicPlayerViewModel : ViewModel() {
         }
     }
 
+    fun loadSongsFromPlaylist(playlistSongs: List<CurrentSong>, songId: String?, context: Context) {
+        songList = playlistSongs
+        currentIndex = songList.indexOfFirst { it.id == songId } // Establecer el índice de la canción seleccionada
+
+        // Reproducir la canción seleccionada
+        val selectedSong = songList[currentIndex]
+        _currentSong.value = selectedSong
+        initializePlayer(context, selectedSong.url)
+    }
+
     private fun initializePlayer(context: Context, songUri: String) {
         if (exoPlayer == null) {
             exoPlayer = ExoPlayer.Builder(context).build()
