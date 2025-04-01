@@ -1,6 +1,5 @@
 package eina.unizar.es.ui.player
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -26,7 +25,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import coil.compose.AsyncImage
 import eina.unizar.es.R
+import eina.unizar.es.data.model.network.ApiClient.getImageUrl
 
 @Composable
 fun FloatingMusicPlayer(navController: NavController, viewModel: MusicPlayerViewModel) {
@@ -48,8 +49,8 @@ fun FloatingMusicPlayer(navController: NavController, viewModel: MusicPlayerView
                 modifier = Modifier.fillMaxSize(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Image(
-                    painter = painterResource(id = song.albumArt),
+                AsyncImage(
+                    model= getImageUrl(song.photo, "default-playlist.jpg"),
                     contentDescription = "Album Art",
                     modifier = Modifier
                         .size(64.dp)
@@ -82,8 +83,8 @@ fun FloatingMusicPlayer(navController: NavController, viewModel: MusicPlayerView
                 )
                 Spacer(modifier = Modifier.width(4.dp))
                 Icon(
-                    imageVector = if (song.isPlaying) Icons.Filled.PlayArrow else Icons.Filled.Pause,
-                    contentDescription = if (song.isPlaying) "Play" else "Pause",
+                    imageVector = if (!song.isPlaying) Icons.Filled.PlayArrow else Icons.Filled.Pause,
+                    contentDescription = if (!song.isPlaying) "Play" else "Pause",
                     modifier = Modifier
                         .size(32.dp)
                         .clickable { viewModel.togglePlayPause() }

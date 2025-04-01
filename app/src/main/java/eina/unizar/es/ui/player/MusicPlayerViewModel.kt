@@ -23,6 +23,7 @@ data class CurrentSong(
     val id: String,
     val title: String,
     val artist: String,
+    val photo: String,
     val albumArt: Int,
     val url: String,
     val lyrics: String,
@@ -55,6 +56,7 @@ class MusicPlayerViewModel : ViewModel() {
                             id = json.getInt("id").toString(),
                             title = json.getString("name"),
                             artist = "(artista)",
+                            photo = json.getString("photo_video"),
                             albumArt = albumArtResId,
                             url = "http://164.90.160.181:5001/${json.getString("url_mp3").removePrefix("/")}",
                             lyrics = json.getString("lyrics"),
@@ -78,6 +80,7 @@ class MusicPlayerViewModel : ViewModel() {
                                 id = json.getInt("id").toString(),
                                 title = json.getString("name"),
                                 artist = "Artista desconocido",
+                                photo = json.getString("photo_video"),
                                 albumArt = albumArtResId,
                                 url = "http://164.90.160.181:5001/${json.getString("url_mp3").removePrefix("/")}",
                                 lyrics = json.getString("lyrics"),
@@ -142,12 +145,18 @@ class MusicPlayerViewModel : ViewModel() {
     fun togglePlayPause() {
         val player = exoPlayer ?: return
         val current = _currentSong.value ?: return
-        if (player.isPlaying) {
-            player.pause()
-        } else {
+
+        // Guarda el nuevo estado que queremos
+        val newPlayingState = !player.isPlaying
+
+        if (newPlayingState) {
             player.play()
+        } else {
+            player.pause()
         }
-        _currentSong.value = current.copy(isPlaying = !player.isPlaying)
+
+        // Actualiza con el nuevo estado que sabemos es correcto
+        _currentSong.value = current.copy(isPlaying = newPlayingState)
     }
 
     fun getDuration(): Long? = exoPlayer?.duration

@@ -21,10 +21,10 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 
 object ApiClient {
-    //const val BASE_URL = "http://10.0.2.2/request/api" // Usa la IP local del backend
-    const val BASE_URL = "http://164.90.160.181/request/api" // Usa la IP publica (nube) del backend
-    const val BASE_URL_IMG = "http://164.90.160.181/request"
-    //const val BASE_URL_IMG = "http://10.0.2.2/request"
+    const val BASE_URL = "http://10.0.2.2/request/api" // Usa la IP local del backend
+    //const val BASE_URL = "http://164.90.160.181/request/api" // Usa la IP publica (nube) del backend
+    //const val BASE_URL_IMG = "http://164.90.160.181/request"
+    const val BASE_URL_IMG = "http://10.0.2.2/request"
 
 
     /**
