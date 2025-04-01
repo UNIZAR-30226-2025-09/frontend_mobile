@@ -323,6 +323,7 @@ fun convertSongsToCurrentSongs(songs: List<Song>, albumArtResId: Int): List<Curr
             id = song.id.toString(),  // Convertir el id de Int a String
             title = song.name,
             artist = "Desconocido",  // Puedes modificar esto según sea necesario
+            photo = song.photo_video,
             albumArt = albumArtResId,  // Aquí pasas el valor de albumArt como parámetro
             url = "http://164.90.160.181:5001/${song.url_mp3.removePrefix("/")}",
             lyrics = song.letra,
