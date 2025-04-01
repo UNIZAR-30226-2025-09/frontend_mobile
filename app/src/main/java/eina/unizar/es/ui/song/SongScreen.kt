@@ -1,5 +1,6 @@
 package com.example.musicapp.ui.song
 
+import android.annotation.SuppressLint
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -26,11 +27,14 @@ import eina.unizar.es.R
 import eina.unizar.es.ui.player.MusicPlayerViewModel
 import androidx.compose.animation.*
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
+import eina.unizar.es.data.model.network.ApiClient.getImageUrl
 import eina.unizar.es.ui.navbar.BottomNavigationBar
 import eina.unizar.es.ui.song.Song
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
+@SuppressLint("StateFlowValueCalledInComposition")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SongScreen(navController: NavController, songId: String?, playerViewModel: MusicPlayerViewModel) {
@@ -99,14 +103,14 @@ fun SongScreen(navController: NavController, songId: String?, playerViewModel: M
 
             Spacer(modifier = Modifier.height(74.dp))
 
-            Image(
-                painter = painterResource(id = R.drawable.kanyeperfil),
+            AsyncImage(
+                model = getImageUrl(playerViewModel.currentSong.value?.photo, "default-song.jpg"),
                 contentDescription = "Portada",
                 modifier = Modifier
                     .size(320.dp)
                     .clip(RoundedCornerShape(16.dp))
-                    .background(MaterialTheme.colorScheme.background)
             )
+
 
             Spacer(modifier = Modifier.height(72.dp))
 
@@ -144,8 +148,8 @@ fun SongScreen(navController: NavController, songId: String?, playerViewModel: M
                         containerColor = MaterialTheme.colorScheme.primary
                     ) {
                         Icon(
-                            imageVector = if (isPlaying) Icons.Filled.PlayArrow else Icons.Filled.Pause,
-                            contentDescription = if (isPlaying) "Reproducir" else "Pausar",
+                            imageVector = if (!isPlaying) Icons.Filled.PlayArrow else Icons.Filled.Pause,
+                            contentDescription = if (!isPlaying) "Reproducir" else "Pausar",
                             tint = Color.White
                         )
                     }

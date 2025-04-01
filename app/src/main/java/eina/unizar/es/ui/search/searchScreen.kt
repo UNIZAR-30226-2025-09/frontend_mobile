@@ -368,10 +368,12 @@ fun SongItem(
                 .padding(8.dp)
         ) {
             // Imagen de la canción
-            Box(
+            AsyncImage(
+                model = getImageUrl(song?.photo_video, "default-song.jpg"),
+                contentDescription = "Foto Cancion",
                 modifier = Modifier
                     .size(40.dp)
-                    .background(Color.DarkGray)
+                    .clip(RoundedCornerShape(8.dp))
             )
 
             Spacer(modifier = Modifier.width(8.dp))

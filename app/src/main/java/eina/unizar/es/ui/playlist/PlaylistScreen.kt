@@ -550,8 +550,8 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                 playlistInfo?.let {
                     BottomSheetContent(
                         playlistImage = playlistImage,
-                        playlistTitle = it.title, // Reemplaza con el título
-                        playlistAuthor = "Kanye Playlist", // Reemplaza con el autor
+                        playlistTitle = playlistInfo!!.title, // Reemplaza con el título
+                        playlistAuthor = playlistInfo!!.idAutor, // Reemplaza por getAutorbyId()
                         onDismiss = { showBottomSheet = false },
                         navController = navController,
                         playlistId = playlistId
