@@ -122,8 +122,6 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
 
     // Reproducir la musica
     val context = LocalContext.current
-    var exoPlayer: ExoPlayer? by remember { mutableStateOf(null) }
-    //val audioUrl = "URL_DEL_ARCHIVO_DE_AUDIO" // Reemplaza con la URL de tu archivo de audio
 
 
     // Alpha para el título en el TopAppBar: aparece gradualmente conforme se hace scroll
@@ -274,12 +272,6 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = backgroundColor)
             )
         },
-//        bottomBar = {
-//            Column {
-//                FloatingMusicPlayer(navController, playerViewModel)
-//                BottomNavigationBar(navController)
-//            }
-//        },
         containerColor = backgroundColor
     ) { innerPadding ->
         LazyColumn(
@@ -527,7 +519,9 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                             // Mostrar opciones de la canción
                             showSongOptionsBottomSheet = true
                         },
-                        viewModel = playerViewModel
+                        viewModel = playerViewModel,
+                        isPlaylist = true,
+                        playlistSongs = sortedSongs
                     )
                     // BottomSheet para opciones de la canción (dentro del items)
                     if (showSongOptionsBottomSheet) {
@@ -680,50 +674,50 @@ fun PlaylistOptionItem(text: String, onClick: () -> Unit) {
 // Desplegable para las canciones
 @Composable
 fun SongOptionsBottomSheetContent(
-onDismiss: () -> Unit,
-songTitle: String,
-artistName: String
+    onDismiss: () -> Unit,
+    songTitle: String,
+    artistName: String
 ) {
-val textColor = Color.White
+    val textColor = Color.White
 
-Column(
-    modifier = Modifier
-        .fillMaxWidth()
-        .padding(16.dp)
-) {
-    Text(
-        songTitle,
-        color = textColor,
-        fontSize = 18.sp,
-        textAlign = TextAlign.Center,
-        modifier = Modifier.fillMaxWidth()
-    )
-    Text(
-        "de $artistName",
-        color = Color.Gray,
-        fontSize = 14.sp,
-        textAlign = TextAlign.Center,
-        modifier = Modifier.fillMaxWidth()
-    )
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp)
+    ) {
+        Text(
+            songTitle,
+            color = textColor,
+            fontSize = 18.sp,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth()
+        )
+        Text(
+            "de $artistName",
+            color = Color.Gray,
+            fontSize = 14.sp,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth()
+        )
 
-                Spacer(modifier = Modifier.height(16.dp))
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                SongOptionItem("Añadir a lista", onDismiss)
-                Spacer(modifier = Modifier.height(8.dp))
-                SongOptionItem("Añadir a la biblioteca", onDismiss)
-                Spacer(modifier = Modifier.height(8.dp))
-                SongOptionItem("Añadir a la cola", onDismiss)
-                Spacer(modifier = Modifier.height(8.dp))
-                SongOptionItem("Eliminar de la lista", onDismiss)
-                Spacer(modifier = Modifier.height(8.dp))
-                SongOptionItem("Compartir", onDismiss)
-            }
-                Spacer(modifier = Modifier.height(16.dp))
-            }
+        Spacer(modifier = Modifier.height(16.dp))
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            SongOptionItem("Añadir a lista", onDismiss)
+            Spacer(modifier = Modifier.height(8.dp))
+            SongOptionItem("Añadir a la biblioteca", onDismiss)
+            Spacer(modifier = Modifier.height(8.dp))
+            SongOptionItem("Añadir a la cola", onDismiss)
+            Spacer(modifier = Modifier.height(8.dp))
+            SongOptionItem("Eliminar de la lista", onDismiss)
+            Spacer(modifier = Modifier.height(8.dp))
+            SongOptionItem("Compartir", onDismiss)
         }
+        Spacer(modifier = Modifier.height(16.dp))
+    }
+}
 
 @Composable
 fun SongOptionItem(

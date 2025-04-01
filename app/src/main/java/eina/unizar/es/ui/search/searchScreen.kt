@@ -37,6 +37,7 @@ import eina.unizar.es.data.model.network.ApiClient.getImageUrl
 import eina.unizar.es.ui.artist.Artist
 import eina.unizar.es.ui.library.LibraryItem
 import eina.unizar.es.ui.navbar.BottomNavigationBar
+import eina.unizar.es.ui.player.CurrentSong
 import eina.unizar.es.ui.player.FloatingMusicPlayer
 import eina.unizar.es.ui.player.MusicPlayerViewModel
 import eina.unizar.es.ui.playlist.Playlist
@@ -201,7 +202,7 @@ fun SearchScreen(navController: NavController, playerViewModel: MusicPlayerViewM
                         )
                     }
                     items(filteredSongs) { song ->
-                        SongItem(song = song, viewModel = playerViewModel)
+                        SongItem(song = song, viewModel = playerViewModel, isPlaylist = false)
                     }
                 }
 
@@ -316,6 +317,21 @@ fun SearchScreen(navController: NavController, playerViewModel: MusicPlayerViewM
         }
     }
 
+fun convertSongsToCurrentSongs(songs: List<Song>, albumArtResId: Int): List<CurrentSong> {
+    return songs.map { song ->
+        CurrentSong(
+            id = song.id.toString(),  // Convertir el id de Int a String
+            title = song.name,
+            artist = "Desconocido",  // Puedes modificar esto según sea necesario
+            albumArt = albumArtResId,  // Aquí pasas el valor de albumArt como parámetro
+            url = "http://164.90.160.181:5001/${song.url_mp3.removePrefix("/")}",
+            lyrics = song.letra,
+            isPlaying = false,  // Puedes poner el valor por defecto según lo que necesites
+            progress = 0f  // Valor inicial para el progreso
+        )
+    }
+}
+
 
 @Composable
 fun SongItem(
@@ -326,6 +342,8 @@ fun SongItem(
     onLikeToggle: (() -> Unit) = {},
     onMoreVertClick: (() -> Unit) = {},
     viewModel: MusicPlayerViewModel,
+    isPlaylist: Boolean = false,
+    playlistSongs: List<Song> = emptyList(),
 ) {
     val context = LocalContext.current
     Card(
@@ -334,7 +352,11 @@ fun SongItem(
             .padding(vertical = 4.dp)
             .padding(start = 16.dp, end = 16.dp)
             .clickable {
-                viewModel.loadSongsFromApi(songId = song.id.toString(), context = context, albumArtResId = R.drawable.kanyeperfil)
+                if (!isPlaylist) {
+                    viewModel.loadSongsFromApi(songId = song.id.toString(), context = context, albumArtResId = R.drawable.kanyeperfil)
+                } else {
+                    viewModel.loadSongsFromPlaylist(playlistSongs = convertSongsToCurrentSongs(playlistSongs, R.drawable.kanyeperfil), songId = song.id.toString(), context)
+                }
             },
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
