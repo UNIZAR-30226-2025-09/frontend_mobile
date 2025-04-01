@@ -43,6 +43,9 @@ class MusicPlayerViewModel : ViewModel() {
     fun loadSongsFromApi(songId: String?, context: Context, albumArtResId: Int) {
         viewModelScope.launch {
             try {
+                // Evitar reiniciar si ya se está reproduciendo la canción solicitada
+                if (_currentSong.value?.id == songId) return@launch
+
                 // Obtener canción específica
                 songId?.let {
                     val response = get("songs/$it")
@@ -51,7 +54,7 @@ class MusicPlayerViewModel : ViewModel() {
                         val selectedSong = CurrentSong(
                             id = json.getInt("id").toString(),
                             title = json.getString("name"),
-                            artist = "Artista desconocido",
+                            artist = "(artista)",
                             albumArt = albumArtResId,
                             url = "http://164.90.160.181:5001/${json.getString("url_mp3").removePrefix("/")}",
                             lyrics = json.getString("lyrics"),
@@ -105,6 +108,9 @@ class MusicPlayerViewModel : ViewModel() {
             addListener(object : Player.Listener {
                 override fun onIsPlayingChanged(isPlaying: Boolean) {
                     _currentSong.value = _currentSong.value?.copy(isPlaying = isPlaying)
+                    if (isPlaying) {
+                        startProgressTracking() // <-- Reanudar seguimiento
+                    }
                 }
 
                 override fun onPlaybackStateChanged(playbackState: Int) {
