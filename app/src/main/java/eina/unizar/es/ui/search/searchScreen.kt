@@ -345,6 +345,7 @@ fun SongItem(
     viewModel: MusicPlayerViewModel,
     isPlaylist: Boolean = false,
     playlistSongs: List<Song> = emptyList(),
+    idPlaylist: String = ""
 ) {
     val context = LocalContext.current
     Card(
@@ -356,7 +357,8 @@ fun SongItem(
                 if (!isPlaylist) {
                     viewModel.loadSongsFromApi(songId = song.id.toString(), context = context, albumArtResId = R.drawable.kanyeperfil)
                 } else {
-                    viewModel.loadSongsFromPlaylist(playlistSongs = convertSongsToCurrentSongs(playlistSongs, R.drawable.kanyeperfil), songId = song.id.toString(), context)
+                    viewModel.loadSongsFromPlaylist(playlistSongs = convertSongsToCurrentSongs(playlistSongs, R.drawable.kanyeperfil),
+                        songId = song.id.toString(), context, idPlaylist = idPlaylist)
                 }
             },
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),

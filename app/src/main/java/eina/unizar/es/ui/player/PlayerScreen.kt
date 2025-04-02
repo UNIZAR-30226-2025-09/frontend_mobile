@@ -7,8 +7,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Computer
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -30,10 +32,11 @@ import eina.unizar.es.R
 import eina.unizar.es.data.model.network.ApiClient.getImageUrl
 
 @Composable
-fun FloatingMusicPlayer(navController: NavController, viewModel: MusicPlayerViewModel) {
+fun FloatingMusicPlayer(navController: NavController, viewModel: MusicPlayerViewModel, onLikeToggle: (() -> Unit) = {}) {
     val currentSong by viewModel.currentSong.collectAsState()
 
     currentSong?.let { song ->
+        val isLiked = true//songLikes[song.id] ?: false
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
@@ -74,13 +77,16 @@ fun FloatingMusicPlayer(navController: NavController, viewModel: MusicPlayerView
                         .clickable { /* acción futuro */ }
                 )
                 Spacer(modifier = Modifier.width(4.dp))
-                Icon(
-                    imageVector = Icons.Filled.FavoriteBorder,
-                    contentDescription = "Favorite",
-                    modifier = Modifier
-                        .size(32.dp)
-                        .clickable { /* acción futuro */ }
-                )
+                IconButton(
+                    onClick = onLikeToggle,
+                    modifier = Modifier.size(24.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Favorite,
+                        contentDescription = "Me gusta",
+                        tint = if (isLiked) Color.Red else Color.Gray
+                    )
+                }
                 Spacer(modifier = Modifier.width(4.dp))
                 Icon(
                     imageVector = if (!song.isPlaying) Icons.Filled.PlayArrow else Icons.Filled.Pause,
