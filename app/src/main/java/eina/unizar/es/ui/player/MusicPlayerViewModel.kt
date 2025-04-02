@@ -1,6 +1,9 @@
 package eina.unizar.es.ui.player
 
 import android.content.Context
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.media3.common.MediaItem
@@ -40,6 +43,7 @@ class MusicPlayerViewModel : ViewModel() {
 
     private var songList: List<CurrentSong> = emptyList()
     private var currentIndex: Int = 0
+    var idCurrentPlaylist by mutableStateOf("")
 
     fun loadSongsFromApi(songId: String?, context: Context, albumArtResId: Int) {
         viewModelScope.launch {
@@ -91,6 +95,7 @@ class MusicPlayerViewModel : ViewModel() {
                     }
                     songList = fetched
                     currentIndex = songList.indexOfFirst { it.id == songId }
+                    idCurrentPlaylist = ""
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -98,9 +103,10 @@ class MusicPlayerViewModel : ViewModel() {
         }
     }
 
-    fun loadSongsFromPlaylist(playlistSongs: List<CurrentSong>, songId: String?, context: Context) {
+    fun loadSongsFromPlaylist(playlistSongs: List<CurrentSong>, songId: String?, context: Context, idPlaylist: String) {
         songList = playlistSongs
         currentIndex = songList.indexOfFirst { it.id == songId } // Establecer el índice de la canción seleccionada
+        idCurrentPlaylist = idPlaylist
 
         // Reproducir la canción seleccionada
         val selectedSong = songList[currentIndex]
