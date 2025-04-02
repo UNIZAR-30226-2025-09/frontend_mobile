@@ -382,15 +382,15 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                     Spacer(modifier = Modifier.width(8.dp))
                     IconButton(
                         onClick = {
-                            if (!isPlaying || currentIdPlaylist != playlistId) {
+                            if (isPlaying && currentIdPlaylist == playlistId) {
+                                playerViewModel.togglePlayPause()
+                            } else {
                                 if (playlistId != null) {
                                     playerViewModel.loadSongsFromPlaylist(
                                         convertSongsToCurrentSongs(sortedAndFilteredSongs, 1),
                                         sortedAndFilteredSongs.first().id.toString(), context,
                                         playlistId)
                                 }
-                            } else {
-                                playerViewModel.togglePlayPause()
                             }
                         },
                         modifier = Modifier
@@ -581,7 +581,7 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                 onDismissRequest = { showBottomSheet = false },
                 sheetState = sheetState
             ) {
-                val urlAntes = playlistInfo?.imageUrl
+                var urlAntes = playlistInfo?.imageUrl
                 val playlistImage = getImageUrl(urlAntes, "default-playlist.jpg")
                 playlistInfo?.let {
                     BottomSheetContent(
@@ -590,7 +590,8 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                         playlistAuthor = playlistInfo!!.idAutor, // Reemplaza por getAutorbyId()
                         onDismiss = { showBottomSheet = false },
                         navController = navController,
-                        playlistId = playlistId
+                        playlistId = playlistId,
+                        playlistMeGusta = playlistInfo!!.esAlbum
                     )
                 }
             }
@@ -609,7 +610,8 @@ fun BottomSheetContent(
     playlistAuthor: String,
     navController: NavController,
     playlistId: String?,
-    onDismiss: () -> Unit  // Llamar a esta función para cerrar
+    onDismiss: () -> Unit,  // Llamar a esta función para cerrar
+    playlistMeGusta: String
 ) {
     val scope = rememberCoroutineScope()  // Para lanzar corrutinas en Compose
     val textColor = Color.White
@@ -667,26 +669,28 @@ fun BottomSheetContent(
 
             Spacer(modifier = Modifier.height(18.dp))
 
-            // Opción "Eliminar Playlist" con estilo personalizado
-            SongOptionItem(
-                text = "Eliminar Playlist",
-                textColor = Color(0xFFFF6B6B),
-                onClick = {
-                    // Llamada al backend en una corrutina
-                    scope.launch {
-                        if (!playlistId.isNullOrEmpty()) {
-                            try {
-                                eliminarPlaylistEnBackend(playlistId)
-                                // Si se elimina con éxito, navega y cierra bottomSheet
-                                navController.navigate("menu")
-                                // Cierra tu bottomSheet como veas (estado local, etc.)
-                            } catch (e: Exception) {
-                                println("Error al eliminar la playlist: ${e.message}")
+            if(playlistMeGusta != "Vibra_likedSong") {
+                // Opción "Eliminar Playlist" con estilo personalizado
+                SongOptionItem(
+                    text = "Eliminar Playlist",
+                    textColor = Color(0xFFFF6B6B),
+                    onClick = {
+                        // Llamada al backend en una corrutina
+                        scope.launch {
+                            if (!playlistId.isNullOrEmpty()) {
+                                try {
+                                    eliminarPlaylistEnBackend(playlistId)
+                                    // Si se elimina con éxito, navega y cierra bottomSheet
+                                    navController.navigate("menu")
+                                    // Cierra tu bottomSheet como veas (estado local, etc.)
+                                } catch (e: Exception) {
+                                    println("Error al eliminar la playlist: ${e.message}")
+                                }
                             }
                         }
                     }
-                }
-            )
+                )
+            }
             Spacer(modifier = Modifier.height(38.dp))
         }
     }
