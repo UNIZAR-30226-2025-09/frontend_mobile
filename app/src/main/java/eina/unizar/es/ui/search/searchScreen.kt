@@ -48,6 +48,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
+import org.json.JSONObject
 
 @SuppressLint("UnrememberedGetBackStackEntry")
 @OptIn(ExperimentalMaterial3Api::class)
@@ -384,6 +385,31 @@ fun SongItem(
             Spacer(modifier = Modifier.width(8.dp))
 
             // Texto de la canción y artista
+            var idsArtistas by remember { mutableStateOf(listOf<Int>()) }
+            var nombresArtistas by remember { mutableStateOf(listOf<String>()) }
+
+            LaunchedEffect(song.id) {
+                launch { // Necesitas usar launch porque ApiClient.get es suspendida
+                    val response = ApiClient.get("player/details/${song.id}")
+                    response?.let {
+                        val jsonObject = JSONObject(it)
+                        val artistsArray = jsonObject.getJSONArray("artists")
+
+                        val ids = mutableListOf<Int>()
+                        val nombres = mutableListOf<String>()
+
+                        for (i in 0 until artistsArray.length()) {
+                            val artistObject = artistsArray.getJSONObject(i)
+                            ids.add(artistObject.getInt("id"))
+                            nombres.add(artistObject.getString("name"))
+                        }
+
+                        idsArtistas = ids
+                        nombresArtistas = nombres
+                    }
+                }
+            }
+
             Column(
                 modifier = Modifier
                     .weight(1f)
@@ -395,7 +421,7 @@ fun SongItem(
                     color = if (song.id == viewModel.currentSong.value?.id?.toInt()){ VibraBlue } else Color.White
                 )
                 Text(
-                    text = "Anuel AA",
+                    text = nombresArtistas.joinToString(", "),
                     fontSize = 12.sp,
                     color = Color.White
                 )
