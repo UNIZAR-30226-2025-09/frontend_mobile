@@ -53,6 +53,7 @@ import kotlinx.coroutines.launch
 import coil.compose.AsyncImage
 import com.stripe.android.core.strings.resolvableString
 import eina.unizar.es.data.model.network.ApiClient
+import eina.unizar.es.data.model.network.ApiClient.checkIfSongIsLiked
 import eina.unizar.es.data.model.network.ApiClient.getImageUrl
 import eina.unizar.es.data.model.network.ApiClient.getLikedPlaylists
 import eina.unizar.es.data.model.network.ApiClient.getLikedSongsPlaylist
@@ -100,8 +101,8 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
     var searchText by remember { mutableStateOf(TextFieldValue("")) }
     var sortOption by remember { mutableStateOf(SortOption.TITULO) }
 
-
-
+    // Variable para poder saber si se ha dado like desde el viewModel
+    val likedSongsSet by playerViewModel.likedSongs.collectAsState()
 
     // Estado para mostrar/ocultar la barra de búsqueda
     var showSearch by remember { mutableStateOf(false) }
@@ -154,6 +155,7 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
 
                 // Make API call to like/unlike the song
                 val response = likeUnlikeSong(songId.toString(), userId, newLikeState)
+                val responseCheck = checkIfSongIsLiked(songId.toString(), userId)
 
                 if (response != null) {
                     // Update local state only if API call is successful
@@ -164,9 +166,22 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                     // Handle error case (e.g., show error message)
                     println("Error updating song like status")
                 }
+
+                if (responseCheck != null) {
+                    playerViewModel.loadLikedStatus(songId.toString())
+                } else {
+                    // Handle error case (e.g., show error message)
+                    println("Error updating song check like status")
+                }
             } catch (e: Exception) {
                 println("Exception in toggleSongLike: ${e.message}")
             }
+        }
+    }
+
+    LaunchedEffect(songs, likedSongsSet) {
+        songLikes = songs.associate { song ->
+            song.id to likedSongsSet.contains(song.id.toString())
         }
     }
 
@@ -404,7 +419,8 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                             } else {
                                 Icons.Default.PlayArrow
                             },
-                            contentDescription = if (isPlaying) "Pausar" else "Reproducir"
+                            contentDescription = if (isPlaying) "Pausar" else "Reproducir",
+                            tint = Color.Black
                         )
                     }
                 }
@@ -424,7 +440,7 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                             onClick = { expandirMenu = true },
                             colors = ButtonDefaults.buttonColors(containerColor = buttonColor)
                         ) {
-                            Text(sortOption.toString(), color = textColor)
+                            Text(sortOption.toString(), color = Color.Black)
                         }
                         DropdownMenu(
                             expanded = expandirMenu,

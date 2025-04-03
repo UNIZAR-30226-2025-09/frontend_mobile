@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.*
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import com.example.musicapp.ui.theme.VibraBlue
 import eina.unizar.es.R
 import eina.unizar.es.data.model.network.ApiClient
 import eina.unizar.es.data.model.network.ApiClient.getImageUrl
@@ -334,6 +335,7 @@ fun convertSongsToCurrentSongs(songs: List<Song>, albumArtResId: Int): List<Curr
 }
 
 
+@SuppressLint("StateFlowValueCalledInComposition")
 @Composable
 fun SongItem(
     song: Song,
@@ -390,7 +392,7 @@ fun SongItem(
                 Text(
                     text = song.name,
                     fontSize = 16.sp,
-                    color = Color.White
+                    color = if (song.id == viewModel.currentSong.value?.id?.toInt()){ VibraBlue } else Color.White
                 )
                 Text(
                     text = "Anuel AA",
