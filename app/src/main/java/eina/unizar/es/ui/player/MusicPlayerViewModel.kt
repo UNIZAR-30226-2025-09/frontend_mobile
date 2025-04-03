@@ -61,6 +61,17 @@ class MusicPlayerViewModel : ViewModel() {
     // Add this property
     private var _userId: String = ""
 
+
+    // Function to get the liked songs
+    fun getLikedSongs(): Set<String> {
+        return _likedSongs.value
+    }
+
+    // Function to get the userId
+    fun getUserId(): String {
+        return _userId
+    }
+
     // Function to set the userId when context is available
     fun setUserId(context: Context) {
         viewModelScope.launch {
@@ -125,9 +136,6 @@ class MusicPlayerViewModel : ViewModel() {
 
                 // Call API to update like status on the server
                 val response = likeUnlikeSong(songIdInt.toString(), _userId, newLikeState)
-
-                // Update toggleSongLike PlaylistScreen
-                val responseCheck =
 
                 if (response != null) {
                     // Update local state only if API call is successful
@@ -332,5 +340,29 @@ class MusicPlayerViewModel : ViewModel() {
     override fun onCleared() {
         super.onCleared()
         releasePlayer()
+    }
+
+    // Function to initialize liked songs
+    fun initializeLikedSongs(userId: String) {
+        if (userId.isEmpty()) return
+
+        viewModelScope.launch {
+            try {
+                val response = get("/song_like/$userId/likedSongs")
+                val jsonArray = JSONArray(response)
+                val likedIds = mutableSetOf<String>()
+
+                for (i in 0 until jsonArray.length()) {
+                    val songObject = jsonArray.getJSONObject(i)
+                    likedIds.add(songObject.getInt("id").toString())
+                }
+
+                _likedSongs.value = likedIds
+                println("Cargadas ${likedIds.size} canciones con like")
+            } catch (e: Exception) {
+                e.printStackTrace()
+                println("Error cargando canciones con like: ${e.message}")
+            }
+        }
     }
 }

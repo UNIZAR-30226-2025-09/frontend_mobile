@@ -469,6 +469,7 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                             )
                         }
                     }
+
                     Spacer(modifier = Modifier.width(8.dp))
                     if (playlistInfo?.esPublica != "private" && playlistInfo?.idAutor != userId) {
                         IconButton(
@@ -516,6 +517,7 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                             tint = textColor
                         )
                     }
+
                 }
             }
 
