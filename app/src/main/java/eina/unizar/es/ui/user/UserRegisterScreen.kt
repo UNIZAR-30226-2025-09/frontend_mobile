@@ -42,6 +42,8 @@ fun UserRegisterScreen(navController: NavController) {
     var confirmPassword by remember { mutableStateOf("") }
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
+    var errorMessage by remember { mutableStateOf<String?>(null) } // Estado para el mensaje de error
+
 
     Box(
         modifier = Modifier
@@ -205,16 +207,36 @@ fun UserRegisterScreen(navController: NavController) {
 
                 Spacer(modifier = Modifier.height(20.dp))
 
+                // Mensaje de error (si existe)
+                if (errorMessage != null) {
+                    Text(
+                        text = errorMessage!!,
+                        color = Color(0xFFFF6B6B),
+                        fontSize = 14.sp,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                }
+
                 // Botón de Registrarse
                 Button(
                     onClick = {
-                        coroutineScope.launch {
-                            val loginSuccess = registerUser(username, email, password, confirmPassword)
-                            if (loginSuccess) {
-                                navController.navigate("login")
-                                Toast.makeText(context, "Cuenta creada correctamente", Toast.LENGTH_LONG).show()
-                            } else {
-                                Toast.makeText(context, "Error al registrarse", Toast.LENGTH_LONG).show()
+                        if (username.isBlank() || email.isBlank() || password.isBlank() || confirmPassword.isBlank()) {
+                            errorMessage = "Completa todos los campos." // Establecer mensaje de error
+                        } else {
+                            errorMessage = null
+                            coroutineScope.launch {
+                                val loginSuccess = registerUser(username, email, password, confirmPassword)
+                                if (loginSuccess) {
+                                    navController.navigate("login")
+                                    Toast.makeText(context,
+                                    "Cuenta creada correctamente",
+                                    Toast.LENGTH_LONG).show()
+                                } else {
+                                    Toast.makeText(
+                                    context,
+                                    "Error al registrarse",
+                                    Toast.LENGTH_LONG).show()
+                                }
                             }
                         }
                     },

@@ -153,7 +153,7 @@ fun UserLoginScreen(navController: NavController) {
                 if (showError) { // Mostrar el error si showError es true
                     Text(
                         text = "Correo o contraseña incorrectos.",
-                        color = Color.Red,
+                        color = Color(0xFFFF6B6B),
                         modifier = Modifier.padding(top = 8.dp)
                     )
                 }

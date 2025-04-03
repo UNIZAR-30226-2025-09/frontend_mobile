@@ -4,13 +4,11 @@ import android.content.SharedPreferences
 import android.util.Log
 import android.widget.Toast
 import androidx.navigation.NavController
-import eina.unizar.es.data.model.network.ApiClient.BASE_URL
 import eina.unizar.es.ui.playlist.Playlist
 import eina.unizar.es.ui.song.Song
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
-import okhttp3.RequestBody
 import org.json.JSONObject
 import java.io.IOException
 import java.net.HttpURLConnection
@@ -22,9 +20,10 @@ import org.json.JSONArray
 
 object ApiClient {
     const val BASE_URL = "http://10.0.2.2/request/api" // Usa la IP local del backend
+    //const val BASE_URL_IMG = "http://10.0.2.2/request"
     //const val BASE_URL = "http://164.90.160.181/request/api" // Usa la IP publica (nube) del backend
-    //const val BASE_URL_IMG = "http://164.90.160.181/request"
-    const val BASE_URL_IMG = "http://10.0.2.2/request"
+    const val BASE_URL_IMG = "http://164.90.160.181/request"
+
 
 
     /**
@@ -556,6 +555,51 @@ suspend fun postTokenPremium(
             } catch (e: Exception) {
                 Log.e("getLikedSongsPlaylist", "Exception occurred", e)
                 null
+            }
+        }
+    }
+
+    suspend fun checkIfSongIsLiked(songId: String?, userId: String): Boolean {
+        return withContext(Dispatchers.IO) {
+            try {
+                if (songId.isNullOrEmpty() || userId.isEmpty()) {
+                    Log.e("checkIfSongIsLiked", "User ID or Song ID is invalid")
+                    return@withContext false
+                }
+
+                // Use your actual base URL with query parameter for userId
+                val url = URL("$BASE_URL/song_like/$songId/like?userId=$userId")
+
+                val connection = url.openConnection() as HttpURLConnection
+                connection.apply {
+                    requestMethod = "GET"
+                    setRequestProperty("Accept", "application/json")
+                    connectTimeout = 10000 // 10 seconds
+                    readTimeout = 10000 // 10 seconds
+                }
+
+                when (val responseCode = connection.responseCode) {
+                    HttpURLConnection.HTTP_OK -> {
+                        val response = connection.inputStream.bufferedReader().use { it.readText() }
+                        Log.d("checkIfSongIsLiked", "Response: $response")
+
+                        val jsonObject = JSONObject(response)
+                        return@withContext jsonObject.optBoolean("isLiked", false)
+                    }
+                    HttpURLConnection.HTTP_BAD_REQUEST -> {
+                        Log.e("checkIfSongIsLiked", "Bad request - invalid parameters")
+                        false
+                    }
+                    else -> {
+                        Log.e("checkIfSongIsLiked", "Error response code: $responseCode")
+                        val errorResponse = connection.errorStream?.bufferedReader()?.use { it.readText() }
+                        Log.e("checkIfSongIsLiked", "Error response: $errorResponse")
+                        false
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("checkIfSongIsLiked", "Exception occurred", e)
+                false
             }
         }
     }

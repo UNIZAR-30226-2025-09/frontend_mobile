@@ -18,6 +18,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.MusicOff
+import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
@@ -50,7 +51,9 @@ import eina.unizar.es.data.model.network.ApiClient.getUserData
 import eina.unizar.es.data.model.network.ApiClient.likeUnlikePlaylist
 import kotlinx.coroutines.launch
 import coil.compose.AsyncImage
+import com.stripe.android.core.strings.resolvableString
 import eina.unizar.es.data.model.network.ApiClient
+import eina.unizar.es.data.model.network.ApiClient.checkIfSongIsLiked
 import eina.unizar.es.data.model.network.ApiClient.getImageUrl
 import eina.unizar.es.data.model.network.ApiClient.getLikedPlaylists
 import eina.unizar.es.data.model.network.ApiClient.getLikedSongsPlaylist
@@ -61,6 +64,7 @@ import eina.unizar.es.ui.navbar.BottomNavigationBar
 import eina.unizar.es.ui.player.FloatingMusicPlayer
 import eina.unizar.es.ui.player.MusicPlayerViewModel
 import eina.unizar.es.ui.search.SongItem
+import eina.unizar.es.ui.search.convertSongsToCurrentSongs
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
@@ -71,7 +75,7 @@ import java.nio.file.Files.delete
 
 // Criterios de ordenacion de canciones de una lista
 enum class SortOption {
-    TITULO, DURACION, FECHA, ARTISTA
+    TITULO, DURACION, ARTISTA
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -84,24 +88,21 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
     val cardBackgroundColor = MaterialTheme.colorScheme.primaryContainer // Negro un poco más claro
     val buttonColor = MaterialTheme.colorScheme.primary
 
-    // Datos simulados de la playlist
-    val playlistTitle = "Playlist: Rock"
+    //Gestion del ViewModel
+    val currentSong by playerViewModel.currentSong.collectAsState()
+    var currentIdPlaylist = playerViewModel.idCurrentPlaylist
+    val isPlaying = currentSong?.isPlaying ?: false
+
+
     val playlistAuthor = "Autor: John Doe"
-
-
-    // Simulación de 20 canciones y sus artistas
-    val allSongs = (1..20).map { "Canción $it" }
-    val songArtistMap = allSongs.associateWith { song ->
-        val number = song.filter { it.isDigit() }
-        "Artista $number"
-    }
 
 
     // Estados para búsqueda y orden
     var searchText by remember { mutableStateOf(TextFieldValue("")) }
     var sortOption by remember { mutableStateOf(SortOption.TITULO) }
-    val filteredSongs = allSongs.filter { it.contains(searchText.text, ignoreCase = true) }
 
+    // Variable para poder saber si se ha dado like desde el viewModel
+    val likedSongsSet by playerViewModel.likedSongs.collectAsState()
 
     // Estado para mostrar/ocultar la barra de búsqueda
     var showSearch by remember { mutableStateOf(false) }
@@ -154,6 +155,7 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
 
                 // Make API call to like/unlike the song
                 val response = likeUnlikeSong(songId.toString(), userId, newLikeState)
+                val responseCheck = checkIfSongIsLiked(songId.toString(), userId)
 
                 if (response != null) {
                     // Update local state only if API call is successful
@@ -164,9 +166,22 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                     // Handle error case (e.g., show error message)
                     println("Error updating song like status")
                 }
+
+                if (responseCheck != null) {
+                    playerViewModel.loadLikedStatus(songId.toString())
+                } else {
+                    // Handle error case (e.g., show error message)
+                    println("Error updating song check like status")
+                }
             } catch (e: Exception) {
                 println("Exception in toggleSongLike: ${e.message}")
             }
+        }
+    }
+
+    LaunchedEffect(songs, likedSongsSet) {
+        songLikes = songs.associate { song ->
+            song.id to likedSongsSet.contains(song.id.toString())
         }
     }
 
@@ -209,6 +224,9 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                 songs = fetchedSongs
             }
         }
+
+
+
         coroutineScope.launch {
             val userData = getUserData(context)
             if (userData != null) {
@@ -243,8 +261,27 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
         when (sortOption) {
             SortOption.TITULO -> songs.sortedBy { it.name } // Ordenar por título
             SortOption.DURACION -> songs.sortedBy { it.duration } // Ordenar por duración
-            SortOption.FECHA -> songs.sortedBy { it.name } // FALTA DE IMPLEMENTAR
             SortOption.ARTISTA -> songs.sortedBy { it.name } // FALTA DE IMPLEMENTAR
+        }
+    }
+
+    // Primero filtramos por búsqueda
+    val filteredSongs = remember(songs, searchText.text) {
+        if (searchText.text.isEmpty()) {
+            sortedSongs
+        } else {
+            songs.filter { song ->
+                song.name.contains(searchText.text, ignoreCase = true)
+            }
+        }
+    }
+
+    // Luego ordenamos las canciones filtradas
+    val sortedAndFilteredSongs = remember(filteredSongs, sortOption) {
+        when (sortOption) {
+            SortOption.TITULO -> filteredSongs.sortedBy { it.name }
+            SortOption.DURACION -> filteredSongs.sortedBy { it.duration }
+            SortOption.ARTISTA -> filteredSongs.sortedBy { it.name } // FALTA DE IMPLEMENTAR
         }
     }
 
@@ -342,7 +379,13 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                     }
                     Spacer(modifier = Modifier.width(8.dp))
                     IconButton(
-                        onClick = { showSearch = !showSearch },
+                        onClick = {
+                            showSearch = !showSearch
+                            // Si estamos ocultando la búsqueda, limpiamos el texto
+                            if (!showSearch) {
+                                searchText = TextFieldValue("")
+                            }
+                        },
                         modifier = Modifier.size(48.dp)
                     ) {
                         Icon(
@@ -354,7 +397,16 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                     Spacer(modifier = Modifier.width(8.dp))
                     IconButton(
                         onClick = {
-                            // Acción para reproducir la playlist (simulada)
+                            if (isPlaying && currentIdPlaylist == playlistId) {
+                                playerViewModel.togglePlayPause()
+                            } else {
+                                if (playlistId != null) {
+                                    playerViewModel.loadSongsFromPlaylist(
+                                        convertSongsToCurrentSongs(sortedAndFilteredSongs, 1),
+                                        sortedAndFilteredSongs.first().id.toString(), context,
+                                        playlistId)
+                                }
+                            }
                         },
                         modifier = Modifier
                             .size(48.dp)
@@ -362,14 +414,18 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                             .background(buttonColor)
                     ) {
                         Icon(
-                            imageVector = Icons.Default.PlayArrow,
-                            contentDescription = "Reproducir Playlist",
-                            tint = textColor
+                            imageVector = if (isPlaying) {
+                                Icons.Default.Pause
+                            } else {
+                                Icons.Default.PlayArrow
+                            },
+                            contentDescription = if (isPlaying) "Pausar" else "Reproducir",
+                            tint = Color.Black
                         )
                     }
                 }
             }
-            // Fila con dropdown para ordenar y botón de añadir (Add)
+            // Fila con dropdown para ordenar y botón de like
             item {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -384,7 +440,7 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                             onClick = { expandirMenu = true },
                             colors = ButtonDefaults.buttonColors(containerColor = buttonColor)
                         ) {
-                            Text(sortOption.toString(), color = textColor)
+                            Text(sortOption.toString(), color = Color.Black)
                         }
                         DropdownMenu(
                             expanded = expandirMenu,
@@ -394,13 +450,6 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                                 text = { Text("Título") },
                                 onClick = {
                                     sortOption = SortOption.TITULO
-                                    expandirMenu = false
-                                }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Añadido recientemente") },
-                                onClick = {
-                                    sortOption = SortOption.FECHA
                                     expandirMenu = false
                                 }
                             )
@@ -503,26 +552,29 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                     }
                 }
             } else {
-                items(sortedSongs) { song ->
+                items(sortedAndFilteredSongs) { song ->
                     //val artist = songArtistMap[song] ?: "Artista Desconocido"
                     var showSongOptionsBottomSheet by remember { mutableStateOf(false) } // Estado para mostrar el BottomSheet de opciones de la canción
-                    SongItem(
-                        song = song,
-                        showHeartIcon = true,
-                        showMoreVertIcon = true,
-                        isLiked = songLikes[song.id] ?: false,
-                        onLikeToggle = {
-                            // Lógica para manejar el like
-                            toggleSongLike(song.id, userId)
-                        },
-                        onMoreVertClick = {
-                            // Mostrar opciones de la canción
-                            showSongOptionsBottomSheet = true
-                        },
-                        viewModel = playerViewModel,
-                        isPlaylist = true,
-                        playlistSongs = sortedSongs
-                    )
+                    if (playlistId != null) {
+                        SongItem(
+                            song = song,
+                            showHeartIcon = true,
+                            showMoreVertIcon = true,
+                            isLiked = songLikes[song.id] ?: false,
+                            onLikeToggle = {
+                                // Lógica para manejar el like
+                                toggleSongLike(song.id, userId)
+                            },
+                            onMoreVertClick = {
+                                // Mostrar opciones de la canción
+                                showSongOptionsBottomSheet = true
+                            },
+                            viewModel = playerViewModel,
+                            isPlaylist = true,
+                            playlistSongs = sortedSongs,
+                            idPlaylist = playlistId
+                        )
+                    }
                     // BottomSheet para opciones de la canción (dentro del items)
                     if (showSongOptionsBottomSheet) {
                         ModalBottomSheet(
@@ -545,7 +597,7 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                 onDismissRequest = { showBottomSheet = false },
                 sheetState = sheetState
             ) {
-                val urlAntes = playlistInfo?.imageUrl
+                var urlAntes = playlistInfo?.imageUrl
                 val playlistImage = getImageUrl(urlAntes, "default-playlist.jpg")
                 playlistInfo?.let {
                     BottomSheetContent(
@@ -554,7 +606,8 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                         playlistAuthor = playlistInfo!!.idAutor, // Reemplaza por getAutorbyId()
                         onDismiss = { showBottomSheet = false },
                         navController = navController,
-                        playlistId = playlistId
+                        playlistId = playlistId,
+                        playlistMeGusta = playlistInfo!!.esAlbum
                     )
                 }
             }
@@ -573,7 +626,8 @@ fun BottomSheetContent(
     playlistAuthor: String,
     navController: NavController,
     playlistId: String?,
-    onDismiss: () -> Unit  // Llamar a esta función para cerrar
+    onDismiss: () -> Unit,  // Llamar a esta función para cerrar
+    playlistMeGusta: String
 ) {
     val scope = rememberCoroutineScope()  // Para lanzar corrutinas en Compose
     val textColor = Color.White
@@ -631,26 +685,28 @@ fun BottomSheetContent(
 
             Spacer(modifier = Modifier.height(18.dp))
 
-            // Opción "Eliminar Playlist" con estilo personalizado
-            SongOptionItem(
-                text = "Eliminar Playlist",
-                textColor = Color(0xFFFF6B6B),
-                onClick = {
-                    // Llamada al backend en una corrutina
-                    scope.launch {
-                        if (!playlistId.isNullOrEmpty()) {
-                            try {
-                                eliminarPlaylistEnBackend(playlistId)
-                                // Si se elimina con éxito, navega y cierra bottomSheet
-                                navController.navigate("menu")
-                                // Cierra tu bottomSheet como veas (estado local, etc.)
-                            } catch (e: Exception) {
-                                println("Error al eliminar la playlist: ${e.message}")
+            if(playlistMeGusta != "Vibra_likedSong") {
+                // Opción "Eliminar Playlist" con estilo personalizado
+                SongOptionItem(
+                    text = "Eliminar Playlist",
+                    textColor = Color(0xFFFF6B6B),
+                    onClick = {
+                        // Llamada al backend en una corrutina
+                        scope.launch {
+                            if (!playlistId.isNullOrEmpty()) {
+                                try {
+                                    eliminarPlaylistEnBackend(playlistId)
+                                    // Si se elimina con éxito, navega y cierra bottomSheet
+                                    navController.navigate("menu")
+                                    // Cierra tu bottomSheet como veas (estado local, etc.)
+                                } catch (e: Exception) {
+                                    println("Error al eliminar la playlist: ${e.message}")
+                                }
                             }
                         }
                     }
-                }
-            )
+                )
+            }
             Spacer(modifier = Modifier.height(38.dp))
         }
     }

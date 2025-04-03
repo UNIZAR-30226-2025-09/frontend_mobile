@@ -48,7 +48,7 @@ fun SongScreen(navController: NavController, songId: String?, playerViewModel: M
 
 
     LaunchedEffect(songId) {
-        playerViewModel.loadSongsFromApi(songId, context, R.drawable.kanyeperfil)
+        //playerViewModel.loadSongsFromApi(songId, context, R.drawable.kanyeperfil)
     }
 
 
