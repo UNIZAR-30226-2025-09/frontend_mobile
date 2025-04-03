@@ -177,10 +177,9 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
             TopAppBar(
                 title = {
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
+//                        modifier = Modifier.fillMaxWidth(),
+//                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        UserProfileMenu(navController)
                         // Mostrar el pop-up de publicidad
                         if(showAdvertPopup) {
                             LaunchedEffect(Unit) {
@@ -194,30 +193,29 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
                         Spacer(modifier = Modifier.weight(0.9f))
                         //if (!isPremium) {
                             // Hacerse Premium activa el pop-up en lugar de cambiar de pantalla
-                            VibraBanner(
-                                modifier = Modifier
-                                    .align(Alignment.CenterVertically)
-                                    .padding(end = 16.dp, top = 16.dp, bottom = 16.dp),
-                                premium = isPremium,
-                                onPremiumClick = { showPaymentDialog = true } // Mostrar pop-up
-                            )
+//                            VibraBanner(
+//                                modifier = Modifier
+//                                    .align(Alignment.CenterVertically)
+//                                    .padding(end = 16.dp, top = 16.dp, bottom = 16.dp),
+//                                premium = isPremium,
+//                                onPremiumClick = { showPaymentDialog = true } // Mostrar pop-up
+//                            )
                         //}
                     }
                 },
-
-
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(8.dp),
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background
-                )
+                ),
+                navigationIcon = {
+                    Box(modifier = Modifier.padding(start = 4.dp)) {
+                        UserProfileMenu(navController)
+                    }
+                }
             )
-
-        },
-//        bottomBar = {
-//            Column {
-//                FloatingMusicPlayer(navController, playerViewModel)
-//                BottomNavigationBar(navController)
-//            }
-//        },
+        }
     )
     { innerPadding ->
         Column(modifier = Modifier.fillMaxSize()) {
