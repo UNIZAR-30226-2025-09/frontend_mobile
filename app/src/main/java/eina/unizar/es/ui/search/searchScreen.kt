@@ -34,7 +34,9 @@ import coil.compose.AsyncImage
 import com.example.musicapp.ui.theme.VibraBlue
 import eina.unizar.es.R
 import eina.unizar.es.data.model.network.ApiClient
+import eina.unizar.es.data.model.network.ApiClient.checkIfSongIsLiked
 import eina.unizar.es.data.model.network.ApiClient.getImageUrl
+import eina.unizar.es.data.model.network.ApiClient.likeUnlikeSong
 import eina.unizar.es.ui.artist.Artist
 import eina.unizar.es.ui.library.LibraryItem
 import eina.unizar.es.ui.navbar.BottomNavigationBar
@@ -42,6 +44,7 @@ import eina.unizar.es.ui.player.CurrentSong
 import eina.unizar.es.ui.player.FloatingMusicPlayer
 import eina.unizar.es.ui.player.MusicPlayerViewModel
 import eina.unizar.es.ui.playlist.Playlist
+import eina.unizar.es.ui.playlist.PlaylistScreen
 import eina.unizar.es.ui.song.Song
 import eina.unizar.es.ui.user.UserProfileMenu
 import kotlinx.coroutines.Dispatchers
@@ -50,7 +53,7 @@ import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 
-@SuppressLint("UnrememberedGetBackStackEntry")
+@SuppressLint("UnrememberedGetBackStackEntry", "CoroutineCreationDuringComposition")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchScreen(navController: NavController, playerViewModel: MusicPlayerViewModel) {
@@ -88,11 +91,25 @@ fun SearchScreen(navController: NavController, playerViewModel: MusicPlayerViewM
 
     val focusManager = LocalFocusManager.current
 
+    // Observa la lista de canciones con like desde el ViewModel
+    val likedSongs by playerViewModel.likedSongs.collectAsState()
+
+    var context = LocalContext.current
+
     LaunchedEffect(Unit) {
         coroutineScope.launch {
             allSongs = fetchAllSongs()
             allPlaylists = fetchAllPlaylists()
             allArtists = fetchAllArtists()
+
+            // Inicializar el ViewModel con el ID de usuario
+            if (playerViewModel.getUserId().isEmpty()) {
+                playerViewModel.setUserId(context)
+            }
+
+            // Cargar explícitamente el estado de "me gusta"
+            // ya que si el ViewModel no se inicializa, no se saben las likedSongs
+            playerViewModel.initializeLikedSongs(playerViewModel.getUserId())
         }
     }
 
@@ -192,8 +209,30 @@ fun SearchScreen(navController: NavController, playerViewModel: MusicPlayerViewM
                         )
                     }
                     items(filteredSongs) { song ->
-                        SongItem(song = song, viewModel = playerViewModel, isPlaylist = false)
+                        var songIsLiked = song.id.toString() in likedSongs
+
+                        SongItem(
+                            song = song,
+                            showHeartIcon = true,
+                            showMoreVertIcon = true,
+                            isLiked = songIsLiked,
+                            onLikeToggle = {
+                                coroutineScope.launch {
+                                    try {
+                                        likeUnlikeSong(song.id.toString(), playerViewModel.getUserId(), !songIsLiked)
+                                        songIsLiked = !songIsLiked
+                                        playerViewModel.loadLikedStatus(song.id.toString())
+                                    } catch (e: Exception) {
+                                        Log.e("SearchScreen", "Error al cambiar like: ${e.message}")
+                                    }
+                                }
+                            },
+                            onMoreVertClick = {},
+                            viewModel = playerViewModel,
+                            isPlaylist = false
+                        )
                     }
+
                 }
 
                 if (filteredPlaylists.isNotEmpty()) {
@@ -339,6 +378,12 @@ fun SongItem(
     idPlaylist: String = ""
 ) {
     val context = LocalContext.current
+    // Colecta el estado actual de la canción que está sonando
+    val currentSong by viewModel.currentSong.collectAsState()
+
+    // Determina si esta canción es la que está sonando actualmente
+    val isCurrentlyPlaying = song.id.toString() == currentSong?.id
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -406,7 +451,7 @@ fun SongItem(
                 Text(
                     text = song.name,
                     fontSize = 16.sp,
-                    color = if (song.id == viewModel.currentSong.value?.id?.toInt()){ VibraBlue } else Color.White
+                    color = if (isCurrentlyPlaying){ VibraBlue } else Color.White
                 )
                 Text(
                     text = nombresArtistas.joinToString(", "),
