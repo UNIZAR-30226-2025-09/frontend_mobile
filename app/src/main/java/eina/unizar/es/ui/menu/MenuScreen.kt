@@ -189,16 +189,16 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
                         }
 
                         Spacer(modifier = Modifier.weight(0.9f))
-                        //if (!isPremium) {
+                        if (!isPremium) {
                             // Hacerse Premium activa el pop-up en lugar de cambiar de pantalla
-//                            VibraBanner(
-//                                modifier = Modifier
-//                                    .align(Alignment.CenterVertically)
-//                                    .padding(end = 16.dp, top = 16.dp, bottom = 16.dp),
-//                                premium = isPremium,
-//                                onPremiumClick = { showPaymentDialog = true } // Mostrar pop-up
-//                            )
-                        //}
+                            VibraBanner(
+                                modifier = Modifier
+                                    .align(Alignment.CenterVertically)
+                                   .padding(end = 16.dp, top = 16.dp, bottom = 16.dp),
+                                premium = isPremium,
+                                onPremiumClick = { showPaymentDialog = true } // Mostrar pop-up
+                            )
+                        }
                     }
                 },
                 modifier = Modifier

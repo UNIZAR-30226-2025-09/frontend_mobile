@@ -703,24 +703,20 @@ fun BottomSheetContent(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 120.dp)
+                //.padding(start = 120.dp)
                 .wrapContentWidth(Alignment.CenterHorizontally), // Centra el Column en su contenedor
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            SongOptionItem("Añadir a lista", onClick = dismiss)
-            Spacer(modifier = Modifier.height(18.dp))
+            Spacer(modifier = Modifier.height(15.dp))
             SongOptionItem("Añadir a la biblioteca", onClick = dismiss)
-            Spacer(modifier = Modifier.height(18.dp))
-            SongOptionItem("Añadir a la cola", onClick = dismiss)
-            Spacer(modifier = Modifier.height(18.dp))
-            SongOptionItem("Eliminar de la lista", onClick = dismiss)
-            Spacer(modifier = Modifier.height(18.dp))
+            Spacer(modifier = Modifier.height(8.dp))
             SongOptionItem("Compartir", onClick = dismiss)
-
-            Spacer(modifier = Modifier.height(18.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
             if(playlistMeGusta != "Vibra_likedSong") {
                 // Opción "Eliminar Playlist" con estilo personalizado
+                SongOptionItem("Editar Playlist", onClick = dismiss)
+                Spacer(modifier = Modifier.height(8.dp))
                 SongOptionItem(
                     text = "Eliminar Playlist",
                     textColor = Color(0xFFFF6B6B),
@@ -797,13 +793,11 @@ fun SongOptionsBottomSheetContent(
         ) {
             SongOptionItem("Añadir a lista", onDismiss)
             Spacer(modifier = Modifier.height(8.dp))
-            SongOptionItem("Añadir a la biblioteca", onDismiss)
-            Spacer(modifier = Modifier.height(8.dp))
             SongOptionItem("Añadir a la cola", onDismiss)
             Spacer(modifier = Modifier.height(8.dp))
-            SongOptionItem("Eliminar de la lista", onDismiss)
-            Spacer(modifier = Modifier.height(8.dp))
             SongOptionItem("Compartir", onDismiss)
+            Spacer(modifier = Modifier.height(8.dp))
+            SongOptionItem("Eliminar de esta lista", onDismiss)
         }
         Spacer(modifier = Modifier.height(16.dp))
     }
