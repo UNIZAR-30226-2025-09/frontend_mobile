@@ -1,6 +1,7 @@
 package com.example.musicapp.ui.song
 
 import android.annotation.SuppressLint
+import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -30,6 +31,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import eina.unizar.es.data.model.network.ApiClient.getImageUrl
 import eina.unizar.es.ui.navbar.BottomNavigationBar
+import eina.unizar.es.ui.playlist.getArtistName
 import eina.unizar.es.ui.song.Song
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -46,9 +48,13 @@ fun SongScreen(navController: NavController, songId: String?, playerViewModel: M
 
     val scrollState = rememberScrollState()
 
+    var artista by remember { mutableStateOf<String?>(null) }
 
-    LaunchedEffect(songId) {
-        //playerViewModel.loadSongsFromApi(songId, context, R.drawable.kanyeperfil)
+    LaunchedEffect(Unit){
+        if (songId != null) {
+            artista = getArtistName(songId.toInt())
+            Log.d("Nombre", "Nombre : " + artista)
+        }
     }
 
 
@@ -121,11 +127,15 @@ fun SongScreen(navController: NavController, songId: String?, playerViewModel: M
                     color = MaterialTheme.colorScheme.onBackground
                 )
                 Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = song.artist,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                )
+                artista?.let {
+                    Text(
+                        text = it,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                    )
+                    Log.d("Nombre", "Nombre despues: " + it)
+                }
+
 
                 Spacer(modifier = Modifier.height(15.dp))
 

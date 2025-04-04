@@ -26,12 +26,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -347,6 +349,7 @@ fun ArtistScreen(navController: NavController, playerViewModel: MusicPlayerViewM
                     }
                 }
             }
+            item { Spacer(modifier = Modifier.height(12.dp)) }
 
             // Canciones populares
             if (songsList.isEmpty()) {
@@ -417,6 +420,9 @@ fun ArtistScreen(navController: NavController, playerViewModel: MusicPlayerViewM
                     }
                 }
             }
+
+            item { Spacer(modifier = Modifier.height(12.dp)) }
+
             // Álbumes
             if (albums.isEmpty()) {
                 item {
@@ -445,39 +451,57 @@ fun ArtistScreen(navController: NavController, playerViewModel: MusicPlayerViewM
                 )
             }
 
-            // Lista de canciones populares
-            items(songsList) { song ->
-                //val artist = songArtistMap[song] ?: "Artista Desconocido"
-                var showSongOptionsBottomSheet by remember { mutableStateOf(false) } // Estado para mostrar el BottomSheet de opciones de la canción
-                SongItem(
-                    song = song,
-                    showHeartIcon = true,
-                    showMoreVertIcon = true,
-                    isLiked = true,//songLikes[song.id] ?: false,
-                    /* onLikeToggle = {
-                         // Lógica para manejar el like
-                         //toggleSongLike(song.id, userId)
-                     },*/
-                    onMoreVertClick = {
-                        // Mostrar opciones de la canción
-                        showSongOptionsBottomSheet = true
-                    },
-                    viewModel = playerViewModel,
-                    isPlaylist = false,
-                )
-
-
-                // BottomSheet para opciones de la canción (dentro del items)
-                if (showSongOptionsBottomSheet) {
-                    ModalBottomSheet(
-                        onDismissRequest = { showSongOptionsBottomSheet = false },
-                        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+            item {
+                Column(
+                    modifier = Modifier.padding(start = 12.dp)
+                ) {
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        contentPadding = PaddingValues(end = 20.dp)  // Padding al final para mejor scroll
                     ) {
-                        SongOptionsBottomSheetContent(
-                            onDismiss = { showSongOptionsBottomSheet = false },
-                            songTitle = song.name, // Pasa el título de la canción
-                            artistName = /*artist*/ "Artista de prueba" // Pasa el nombre del artista
-                        )
+                        items(songsList) { single ->
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                modifier = Modifier
+                                    .width(140.dp)  // Ancho fijo para toda la columna (imagen + texto)
+                            ) {
+                                Card(
+                                    modifier = Modifier
+                                        .size(120.dp)
+                                        .clickable {
+                                            navController.navigate("playlist/${single.id}")
+                                        },
+                                    colors = CardDefaults.cardColors(containerColor = Color.Transparent)
+                                ) {
+                                    Box(
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        AsyncImage(
+                                            model = getImageUrl(single.photo_video, "/default-playlist.jpg"),
+                                            contentDescription = "Portada de la playlist",
+                                            contentScale = ContentScale.Crop,  // Añadir scale para recortar imagen
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(8.dp))
+                                        )
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(4.dp))
+
+                                Text(
+                                    text = single.name,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    modifier = Modifier
+                                        .fillMaxWidth(0.8f)  // Ocupa todo el ancho disponible
+                                        .padding(horizontal = 4.dp),  // Pequeño padding lateral
+                                    textAlign = TextAlign.Center,  // Texto centrado
+                                    maxLines = 2,  // Máximo 2 líneas
+                                    overflow = TextOverflow.Ellipsis  // Puntos suspensivos si sobrepasa
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -499,6 +523,7 @@ fun ArtistScreen(navController: NavController, playerViewModel: MusicPlayerViewM
                     }
                 }
             }
+            item { Spacer(modifier = Modifier.height(12.dp)) }
         }
     }
 }
