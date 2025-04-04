@@ -95,8 +95,16 @@ fun AppNavigator(navController: NavHostController, paymentSheet: PaymentSheet, i
                 composable("perfilEdit") { EditProfileScreen(navController) }
                 composable("settings") { UserSettings(navController, isPremium) }
                 composable("plans") { PlansScreen(paymentSheet,navController,isPremium, playerViewModel) }
-                composable("artist") { ArtistScreen(navController, playerViewModel) }
+                //composable("artist") { ArtistScreen(navController, playerViewModel) }
                 //composable("player") { FloatingMusicPlayer(navController, playerViewModel) }
+
+                composable(
+                    "artist/{artistId}",
+                    arguments = listOf(navArgument("artistId") { type = NavType.IntType } )
+                ) { backStackEntry ->
+                    val artistId = backStackEntry.arguments?.getInt("artistId")
+                    ArtistScreen(navController, playerViewModel, artistId)
+                }
 
                 composable(
                     "playlist/{playlistId}",

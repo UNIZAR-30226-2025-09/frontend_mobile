@@ -304,7 +304,7 @@ fun SearchScreen(navController: NavController, playerViewModel: MusicPlayerViewM
                 val jsonObject = jsonArray.getJSONObject(i)
                 artists.add(
                         Artist(
-                            id = jsonObject.getInt("id"),
+                            id = jsonObject.getString("id"),
                             name = jsonObject.getString("name"),
                             biography = "Prueba",//jsonObject.getString("bio")//
                             photo = jsonObject.getString("photo"),
@@ -469,8 +469,7 @@ fun ArtistItem(
             .fillMaxWidth()
             .clickable {
                 // Navegar a la pantalla de detalle del artista
-                //navController.navigate("artist/${artist.id}")
-                navController.navigate("artist")
+                navController.navigate("artist/${artist.id}")
             }
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically

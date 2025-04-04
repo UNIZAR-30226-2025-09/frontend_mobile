@@ -153,13 +153,12 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
                 val jsonObject = jsonArray.getJSONObject(i)
                 fetchedArtists.add(
                     Artist(
-                        id = jsonObject.getInt("id"),
+                        id = jsonObject.getString("id"),
                         name = jsonObject.getString("name"),
                         biography = "Prueba",//jsonObject.getString("bio")//
                         photo = jsonObject.getString("photo"),
                     )
                 )
-
             }
             Log.d("Artista", "Artistas: + " + fetchedArtists)
             artists = fetchedArtists
@@ -169,7 +168,6 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
 
     // Mostrar el pop-up de publicidad al entrar a la pantalla
     var showAdvertPopup by remember { mutableStateOf(!isPremium) } // Cambiado a true inicialmente
-
 
 
     Scaffold(
@@ -248,7 +246,7 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
                                 Card(
                                     modifier = Modifier
                                         .size(100.dp)
-                                        .clickable { navController.navigate("artist") },
+                                        .clickable { navController.navigate("artist/${artist.id}") },
                                     colors = CardDefaults.cardColors(containerColor = Color.Transparent)
                                 ) {
                                     Box(
@@ -288,8 +286,8 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
                     Spacer(modifier = Modifier.height(8.dp))
 
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                        items(playlists) { album ->
-                            if (album?.esPublica != "private") {
+                        items(albums) { album ->
+                            if (album.esPublica == "public") {
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                     Card(
                                         modifier = Modifier
@@ -341,7 +339,7 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
 
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                         items(playlists) { playlist ->
-                            if (playlist?.esPublica != "private") {
+                            if (playlist?.esAlbum == "Vibra") {
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                     Card(
                                         modifier = Modifier
