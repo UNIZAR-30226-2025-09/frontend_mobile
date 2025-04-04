@@ -96,8 +96,7 @@ fun AppNavigator(navController: NavHostController, paymentSheet: PaymentSheet, i
                 composable("register") { UserRegisterScreen(navController) }
                 composable("perfilEdit") { EditProfileScreen(navController) }
                 composable("settings") { UserSettings(navController, isPremium) }
-                composable("plans") { PlansScreen(paymentSheet,navController,isPremium, playerViewModel) }
-                composable("artist") { ArtistScreen(navController, playerViewModel) }
+                composable("plans") { PlansScreen(paymentSheet,navController,isPremium, playerViewModel) }       
                 composable("friends") { FriendsScreen(navController, playerViewModel) }
 
                 composable(
@@ -106,6 +105,14 @@ fun AppNavigator(navController: NavHostController, paymentSheet: PaymentSheet, i
                 ) { backStackEntry ->
                     val friendId = backStackEntry.arguments?.getString("friendId")
                     ChatScreen(navController, friendId, playerViewModel) 
+                }
+
+                composable(
+                    "artist/{artistId}",
+                    arguments = listOf(navArgument("artistId") { type = NavType.IntType } )
+                ) { backStackEntry ->
+                    val artistId = backStackEntry.arguments?.getInt("artistId")
+                    ArtistScreen(navController, playerViewModel, artistId)
                 }
 
                 composable(

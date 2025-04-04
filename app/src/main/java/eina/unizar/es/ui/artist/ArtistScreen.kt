@@ -55,17 +55,19 @@ import eina.unizar.es.ui.navbar.BottomNavigationBar
 import eina.unizar.es.ui.player.FloatingMusicPlayer
 import eina.unizar.es.ui.player.MusicPlayerViewModel
 import eina.unizar.es.ui.playlist.Playlist
+import eina.unizar.es.ui.search.SongItem
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.json.JSONException
 import java.nio.file.Files.delete
 
 @OptIn(ExperimentalMaterial3Api::class)
 
 @Composable
 
-fun ArtistScreen(navController: NavController, playerViewModel: MusicPlayerViewModel) {
+fun ArtistScreen(navController: NavController, playerViewModel: MusicPlayerViewModel, artistId: Int?) {
 
     // Colores básicos
     val backgroundColor = Color(0xFF000000) // Negro
@@ -107,14 +109,14 @@ fun ArtistScreen(navController: NavController, playerViewModel: MusicPlayerViewM
     }
 
 
-    var songs by remember { mutableStateOf<List<Song>>(emptyList()) }
-    var artistInfo: Artist? = null
+    var songsList by remember { mutableStateOf<List<Song>>(emptyList()) }
+    var artistInfo by remember { mutableStateOf<Artist?>(null) }
     var albums by remember { mutableStateOf<List<Playlist>>(emptyList()) }
-    var sencillos by remember { mutableStateOf<List<Playlist>>(emptyList()) }
+    var sencillos by remember { mutableStateOf<List<Song>>(emptyList()) }
 
 
     // Usamos un Map para manejar el estado de "me gusta" por canción usando el índice o algún identificador único
-    val songLikes = remember { mutableStateOf(songs.associateWith { false }) }
+    val songLikes = remember { mutableStateOf(songsList.associateWith { false }) }
 
     // Función para cambiar el estado de "me gusta" de una canción
     fun toggleLike(song: Song) {
@@ -129,80 +131,105 @@ fun ArtistScreen(navController: NavController, playerViewModel: MusicPlayerViewM
     // Id del usuario a guardar al darle like
     var userId by remember { mutableStateOf("") }  // Estado inicial
 
-
-
     var playlists by remember { mutableStateOf<List<Playlist>>(emptyList()) }
 
-
-
-    // Cargar playlists desde el backend
     LaunchedEffect(Unit) {
-        val response = get("playlists") // Llamada a la API
-        response?.let {
-            val jsonArray = JSONArray(it)
-            val fetchedPlaylists = mutableListOf<Playlist>()
+        val responseS = get("artist/${artistId}")
+        responseS?.let { jsonResponse ->
+            try {
+                val jsonObject = JSONObject(jsonResponse)
 
-            for (i in 0 until jsonArray.length()) {
-                val jsonObject = jsonArray.getJSONObject(i)
-                fetchedPlaylists.add(
-                    Playlist(
-                        id = jsonObject.getString("id"),
-                        title = jsonObject.getString("name"),
-                        idAutor = jsonObject.getString("user_id"),
-                        idArtista = jsonObject.getString("artist_id"),
-                        description = jsonObject.getString("description"),
-                        esPublica = jsonObject.getString("type"),
-                        esAlbum = jsonObject.getString("typeP"),
-                        imageUrl = jsonObject.getString("front_page")
-                    )
-                )
-            }
-            playlists = fetchedPlaylists
-        }
-    }
-    LaunchedEffect(Unit) {
-        val response = get("songs") // Llamada a la API
-        response?.let {
-            val songsArray = JSONArray(it)
-            val fetchedSongs = mutableListOf<Song>()
-            for (i in 0 until 5) {
-                val songObject = songsArray.getJSONObject(i)
-                fetchedSongs.add(
-                    Song(
-                        id = songObject.getInt("id"),
-                        name = songObject.getString("name"),
-                        duration = songObject.getInt("duration"),
-                        letra = songObject.getString("lyrics"),
-                        photo_video = songObject.getString("photo_video"),
-                        url_mp3 = songObject.getString("url_mp3")
-                    )
-                )
-            }
-            songs = fetchedSongs
-
-            // Artistas
-            val responseS = get("artist/artists") // Llamada a la API para obtener canciones
-            responseS?.let {
-                val jsonArray = JSONArray(it)
-
-                if (jsonArray.length() > 0) { // Verifica si hay al menos un elemento en el array
-                    val jsonObject =
-                        jsonArray.getJSONObject(0) // Obtiene el primer objeto del array
+                // Parsear artista
+                val artistJson = jsonObject.optJSONObject("artist")
+                artistJson?.let {
                     artistInfo = Artist(
-                        id = jsonObject.getInt("id"),
-                        name = jsonObject.getString("name"),
-                        biography = "Prueba", // o jsonObject.getString("bio") si prefieres la biografía real
-                        photo = jsonObject.getString("photo"),
+                        id = it.getString("id"),
+                        name = it.optString("name", "Nombre no disponible"),
+                        biography = it.optString("bio", ""),
+                        photo = it.optString("photo", "")
                     )
+                    Log.d("PARSING", "Artista parseado: ${artistInfo}")
                 }
+
+                // Parsear canciones
+                val songsArray = jsonObject.optJSONArray("songs")
+                val fetchedSongs = mutableListOf<Song>()
+
+                songsArray?.let {
+                    for (i in 0 until it.length()) {
+                        val songJson = it.getJSONObject(i)
+                        val song = Song(
+                            id = songJson.getInt("id"),
+                            name = songJson.optString("name", "Sin título"),
+                            duration = songJson.optInt("duration", 0),
+                            photo_video = songJson.optString("photo_video", ""),
+                            //type = songJson.optString("type"),
+                            url_mp3 = songJson.optString("url_mp3", ""),
+                            letra = ""
+                            //songId = songJson.optInt("artists.song_artist.song_id", 0),
+                            //artistId = songJson.optInt("artists.song_artist.artist_id", 0),
+                            //likes = songJson.optInt("likes", 0)
+                        )
+                        fetchedSongs.add(song)
+                        Log.d("PARSING", "Canción ${i + 1}: $song")
+                    }
+                    songsList = fetchedSongs
+                }
+
+                // Parsear álbumes
+                val albumsArray = jsonObject.optJSONArray("albums")
+                val fetchedAlbums = mutableListOf<Playlist>()
+
+                albumsArray?.let {
+                    for (i in 0 until it.length()) {
+                        val songJson = it.getJSONObject(i)
+                        val album = Playlist(
+                            id = songJson.getString("id"),
+                            title = songJson.optString("name", "Sin título"),
+                            imageUrl = songJson.optString("front_page", ""),
+                            idArtista = artistId.toString(),
+                            idAutor = "",
+                            description = "",
+                            esPublica = "public",
+                            esAlbum = "album"
+                        )
+                        fetchedAlbums.add(album)
+                        Log.d("PARSING", "Canción ${i + 1}: $album")
+                    }
+                    albums = fetchedAlbums
+                    Log.d("PARSING", "Número de álbumes: ${it.length()}")
+                }
+
+                // Parsear canciones
+                val singlesArray = jsonObject.optJSONArray("songs")
+                val fetchedSingles = mutableListOf<Song>()
+
+                singlesArray?.let {
+                    for (i in 0 until it.length()) {
+                        val songJson = it.getJSONObject(i)
+                        val song = Song(
+                            id = songJson.getInt("id"),
+                            name = songJson.optString("name", "Sin título"),
+                            duration = songJson.optInt("duration", 0),
+                            photo_video = songJson.optString("photo_video", ""),
+                            //type = songJson.optString("type"),
+                            url_mp3 = songJson.optString("url_mp3", ""),
+                            letra = ""
+                            //songId = songJson.optInt("artists.song_artist.song_id", 0),
+                            //artistId = songJson.optInt("artists.song_artist.artist_id", 0),
+                            //likes = songJson.optInt("likes", 0)
+                        )
+                        fetchedSingles.add(song)
+                        Log.d("PARSING", "Canción ${i + 1}: $song")
+                    }
+                    sencillos = fetchedSingles
+                }
+            } catch (e: JSONException) {
+                Log.e("PARSE_ERROR", "Error al parsear JSON: ${e.message}")
             }
         }
     }
-
-    /*************************************************************************
-     * Añadir aqui un bucle que solo coja las canciones que estan relacionadas
-     * con nuestra playlist
-     *************************************************************************/
+    
 
     Scaffold(
         topBar = {
@@ -283,80 +310,30 @@ fun ArtistScreen(navController: NavController, playerViewModel: MusicPlayerViewM
                     modifier = Modifier
                             .padding(start = 20.dp)
                 )
-                Spacer(modifier = Modifier.height(12.dp))
             }
 
 
-            // Lista de canciones: Cada banner con imagen a la izquierda y título/artista a la derecha
-            items(songs) { song ->
+            // Lista de canciones populares
+            items(songsList) { song ->
                 //val artist = songArtistMap[song] ?: "Artista Desconocido"
                 var showSongOptionsBottomSheet by remember { mutableStateOf(false) } // Estado para mostrar el BottomSheet de opciones de la canción
-                // Reproducir la musica
-                // val context = LocalContext.current
-                // var exoPlayer: ExoPlayer? by remember { mutableStateOf(null) }
-                Box(
-                    modifier = Modifier.fillMaxWidth(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth(0.9f)
-                            .clickable {
-                                playerViewModel.loadSongsFromApi(songId = song.id.toString(), context = context, albumArtResId = R.drawable.kanyeperfil)
-                            },
-                        colors = CardDefaults.cardColors(containerColor = cardBackgroundColor),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 10.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            // Imagen de la canción (cuadrado)
-                            Box(
-                                modifier = Modifier
-                                    .size(60.dp)
-                                    .background(Color.DarkGray) // Placeholder de la imagen
-                            )
-                            Spacer(modifier = Modifier.width(16.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = song.name,
-                                    color = textColor,
-                                    style = TextStyle(fontSize = 18.sp)
-                                )
-                                Text(
-                                    text = /*song.artist*/"Artista de prueba",
-                                    color = textColor,
-                                    style = TextStyle(fontSize = 14.sp)
-                                )
-                            }
-                            // Botón de "me gusta"
-                            IconButton(
-                                onClick = {
-                                    toggleLike(song) // Cambia el estado de "me gusta" solo para esta canción
-                                },
-                                modifier = Modifier.size(48.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Favorite, // Ícono de "me gusta"
-                                    contentDescription = "Me gusta",
-                                    tint = if (songLikes.value[song] == true) Color.Red else Color.Gray // Color cambia dependiendo del like
-                                )
-                            }
-                            IconButton(onClick = { showSongOptionsBottomSheet = true }) {
-                                Icon(
-                                    Icons.Default.MoreVert,
-                                    contentDescription = "Opciones de la canción",
-                                    tint = textColor
-                                )
-                            }
-                        }
-                    }
-                }
+                SongItem(
+                    song = song,
+                    showHeartIcon = true,
+                    showMoreVertIcon = true,
+                    isLiked = true,//songLikes[song.id] ?: false,
+                   /* onLikeToggle = {
+                        // Lógica para manejar el like
+                        //toggleSongLike(song.id, userId)
+                    },*/
+                    onMoreVertClick = {
+                        // Mostrar opciones de la canción
+                        showSongOptionsBottomSheet = true
+                    },
+                    viewModel = playerViewModel,
+                    isPlaylist = false,
+                )
 
-                Spacer(modifier = Modifier.height(12.dp))
 
                 // BottomSheet para opciones de la canción (dentro del items)
                 if (showSongOptionsBottomSheet) {
@@ -372,11 +349,30 @@ fun ArtistScreen(navController: NavController, playerViewModel: MusicPlayerViewM
                     }
                 }
             }
+
+            // Canciones populares
+            if (songsList.isEmpty()) {
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "No tiene canciones populares",
+                            color = Color.White.copy(alpha = 0.7f),
+                            fontSize = 16.sp
+                        )
+                    }
+                }
+            }
+
             item {
                 Text(
                     text = "Albumes",
-                    fontSize = 24.sp, // Cambia el tamaño aquí
-                    textAlign = TextAlign.Start, // Alinea el texto a la izquierda
+                    fontSize = 24.sp,
+                    textAlign = TextAlign.Start,
                     modifier = Modifier
                         .padding(start = 20.dp)
                 )
@@ -384,7 +380,7 @@ fun ArtistScreen(navController: NavController, playerViewModel: MusicPlayerViewM
                     modifier = Modifier.padding(start = 20.dp) // Aplicamos el margen solo al principio del LazyRow
                 ) {
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                        items(playlists) { album ->
+                        items(albums) { album ->
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Card(
                                     modifier = Modifier
@@ -399,7 +395,7 @@ fun ArtistScreen(navController: NavController, playerViewModel: MusicPlayerViewM
                                         contentAlignment = Alignment.Center
                                     ) {
                                         // Cargar la imagen desde la URL
-                                        val urlAntes = album?.imageUrl
+                                        val urlAntes = album.imageUrl
                                         val playlistImage =
                                             getImageUrl(urlAntes, "/default-playlist.jpg")
                                         AsyncImage(
@@ -422,56 +418,86 @@ fun ArtistScreen(navController: NavController, playerViewModel: MusicPlayerViewM
                         }
                     }
                 }
-                Spacer(modifier = Modifier.height(16.dp))
             }
+            // Álbumes
+            if (albums.isEmpty()) {
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "No tiene álbumes publicados",
+                            color = Color.White.copy(alpha = 0.7f),
+                            fontSize = 16.sp
+                        )
+                    }
+                }
+            }
+
             item {
                 Text(
                     text = "Sencillos",
                     fontSize = 24.sp, // Cambia el tamaño aquí
-                    textAlign = TextAlign.Start, // Alinea el texto a la izquierda
+                    textAlign = TextAlign.Start,
                     modifier = Modifier
                         .padding(start = 20.dp)
                 )
-                Column(
-                    modifier = Modifier.padding(start = 20.dp) // Aplicamos el margen solo al principio del LazyRow
-                ) {
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                        items(playlists) { album ->
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Card(
-                                    modifier = Modifier
-                                        .size(120.dp)
-                                        .clickable {
-                                            navController.navigate("playlist/${album.id}")
-                                        }, // PASAMOS EL ID
-                                    colors = CardDefaults.cardColors(containerColor = Color.Transparent)
-                                ) {
-                                    Box(
-                                        modifier = Modifier.fillMaxSize(),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        // Cargar la imagen desde la URL
-                                        val urlAntes = album?.imageUrl
-                                        val playlistImage =
-                                            getImageUrl(urlAntes, "/default-playlist.jpg")
-                                        AsyncImage(
-                                            model = playlistImage,
-                                            contentDescription = "Portada de la playlist",
-                                            modifier = Modifier
-                                                //.size(imageSize)
-                                                //.alpha(imageAlpha)
-                                                .clip(RoundedCornerShape(8.dp)) // Opcional: añade esquinas redondeadas
-                                        )
-                                    }
-                                }
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(
-                                    text = album.title,
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                    style = MaterialTheme.typography.bodyMedium
-                                )
-                            }
-                        }
+            }
+
+            // Lista de canciones populares
+            items(songsList) { song ->
+                //val artist = songArtistMap[song] ?: "Artista Desconocido"
+                var showSongOptionsBottomSheet by remember { mutableStateOf(false) } // Estado para mostrar el BottomSheet de opciones de la canción
+                SongItem(
+                    song = song,
+                    showHeartIcon = true,
+                    showMoreVertIcon = true,
+                    isLiked = true,//songLikes[song.id] ?: false,
+                    /* onLikeToggle = {
+                         // Lógica para manejar el like
+                         //toggleSongLike(song.id, userId)
+                     },*/
+                    onMoreVertClick = {
+                        // Mostrar opciones de la canción
+                        showSongOptionsBottomSheet = true
+                    },
+                    viewModel = playerViewModel,
+                    isPlaylist = false,
+                )
+
+
+                // BottomSheet para opciones de la canción (dentro del items)
+                if (showSongOptionsBottomSheet) {
+                    ModalBottomSheet(
+                        onDismissRequest = { showSongOptionsBottomSheet = false },
+                        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+                    ) {
+                        SongOptionsBottomSheetContent(
+                            onDismiss = { showSongOptionsBottomSheet = false },
+                            songTitle = song.name, // Pasa el título de la canción
+                            artistName = /*artist*/ "Artista de prueba" // Pasa el nombre del artista
+                        )
+                    }
+                }
+            }
+
+            // Sencillos
+            if (sencillos.isEmpty()) {
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "No tiene sencillos disponibles",
+                            color = Color.White.copy(alpha = 0.7f),
+                            fontSize = 16.sp
+                        )
                     }
                 }
             }
