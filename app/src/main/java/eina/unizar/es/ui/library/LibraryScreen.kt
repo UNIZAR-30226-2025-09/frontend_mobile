@@ -188,37 +188,35 @@ fun LibraryScreen(navController: NavController, playerViewModel: MusicPlayerView
         topBar = {
             TopAppBar(
                 title = {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            UserProfileMenu(navController) // Icono de usuario
-                            Spacer(modifier = Modifier.width(10.dp))
-                        }
+                    Row (verticalAlignment = Alignment.CenterVertically) {
+                        Spacer(modifier = Modifier.width(5.dp))
+                        Text("Tu biblioteca", color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.titleLarge)
 
-                        // Icono de lupa para activar la búsqueda
-                        IconButton(onClick = { isSearching = !isSearching }) {
-                            Icon(
-                                imageVector = Icons.Default.Search,
-                                contentDescription = "Buscar",
-                                tint = MaterialTheme.colorScheme.onBackground
-                            )
+                        Spacer(modifier = Modifier.width(50.dp))
+
+                        Button(
+                            onClick = { showCreatePlaylistDialog = true },
+                            shape = RoundedCornerShape(16.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = VibraBlue),
+                            modifier = Modifier.height(40.dp)
+                        ) {
+                            Text("Crear Playlist", color = VibraBlack)
                         }
                     }
                 },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(8.dp),
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background
-                )
+                ),
+                navigationIcon = {
+                    Box(modifier = Modifier.padding(start = 4.dp)) {
+                        UserProfileMenu(navController)
+                    }
+                }
             )
         },
-//        bottomBar = {
-//            Column {
-//                FloatingMusicPlayer(navController, playerViewModel)
-//                BottomNavigationBar(navController)
-//            }
-//        },
     ) { innerPadding ->
         Column(
             modifier = Modifier
@@ -227,68 +225,6 @@ fun LibraryScreen(navController: NavController, playerViewModel: MusicPlayerView
                 .background(MaterialTheme.colorScheme.background)
                 .padding(8.dp)
         ) {
-            // Si la búsqueda está activa, mostramos el cuadro de búsqueda debajo del perfil
-            if (isSearching) {
-
-                OutlinedTextField(
-                    value = searchText,
-                    onValueChange = { searchText = it },
-                    placeholder = {
-                        Text(
-                            "Buscar en tu biblioteca",
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                        )
-                    },
-                    textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onBackground),
-                    shape = RoundedCornerShape(16.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    colors = TextFieldDefaults.outlinedTextFieldColors(
-                        focusedBorderColor = MaterialTheme.colorScheme.primary,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                        cursorColor = MaterialTheme.colorScheme.primary
-                    ),
-                    singleLine = true,
-                    trailingIcon = {
-                        IconButton(onClick = {
-                            searchText = TextFieldValue("")
-                            isSearching = false // Cerrar la búsqueda al tocar la "X"
-                        }) {
-                            Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = "Cerrar búsqueda",
-                                tint = MaterialTheme.colorScheme.onBackground
-                            )
-                        }
-                    }
-                )
-            }
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    text = "Tu Biblioteca",
-                    style = MaterialTheme.typography.titleLarge,
-                    color = MaterialTheme.colorScheme.onBackground,
-                    //fontFamily = Rubik
-                )
-
-                Button(
-                    onClick = { showCreatePlaylistDialog = true },
-                    shape = RoundedCornerShape(16.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = VibraBlue),
-                    modifier = Modifier.height(40.dp)
-                ) {
-                    Text("Crear Playlist", color = VibraBlack)
-                }
-            }
-
-
             // Lista de elementos filtrados según la búsqueda
             LazyColumn(modifier = Modifier.padding(8.dp)) {
                 // Playlists Creadas section

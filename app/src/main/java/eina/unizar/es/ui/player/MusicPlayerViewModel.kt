@@ -9,7 +9,11 @@ import androidx.lifecycle.viewModelScope
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
+import eina.unizar.es.data.model.network.ApiClient.checkIfSongIsLiked
 import eina.unizar.es.data.model.network.ApiClient.get
+import eina.unizar.es.data.model.network.ApiClient.getUserData
+import eina.unizar.es.data.model.network.ApiClient.likeUnlikeSong
+import eina.unizar.es.ui.playlist.PlaylistScreen
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -17,6 +21,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.combine
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -45,11 +50,125 @@ class MusicPlayerViewModel : ViewModel() {
     private var currentIndex: Int = 0
     var idCurrentPlaylist by mutableStateOf("")
 
+    private val _likedSongs = MutableStateFlow<Set<String>>(emptySet())
+    val likedSongs: StateFlow<Set<String>> = _likedSongs
+
+    // Check if current song is liked
+        val isCurrentSongLiked = currentSong.combine(likedSongs) { song, liked ->
+        song?.id?.let { id -> id in liked } ?: false
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), false)
+
+    // Add this property
+    private var _userId: String = ""
+
+
+    // Function to get the liked songs
+    fun getLikedSongs(): Set<String> {
+        return _likedSongs.value
+    }
+
+    // Function to get the userId
+    fun getUserId(): String {
+        return _userId
+    }
+
+    // Function to set the userId when context is available
+    fun setUserId(context: Context) {
+        viewModelScope.launch {
+            try {
+                val userData = getUserData(context)
+                if (userData != null) {
+                    _userId = (userData["id"] ?: "").toString()
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+    // Function to load initial liked status
+    fun loadLikedStatus(songId: String?) {
+        viewModelScope.launch {
+            try {
+                // If userId is empty, try to get it first
+                if (_userId.isEmpty()) {
+                    // This might be why it's not working - we need to ensure userId is set
+                    return@launch
+                }
+
+                if (songId.isNullOrEmpty()) {
+                    return@launch
+                }
+
+                // Call the API to check if the song is liked
+                val isLiked = checkIfSongIsLiked(songId, _userId)
+
+                // Log for debugging
+                println("Song $songId is liked: $isLiked")
+
+                // Update the liked songs set based on the API response
+                _likedSongs.value = if (isLiked) {
+                    _likedSongs.value + songId
+                } else {
+                    _likedSongs.value - songId
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+    fun toggleLike(context: Context) {
+        val currentSongId = _currentSong.value?.id ?: return
+
+        // Make sure userId is set
+        if (_userId.isEmpty()) {
+            setUserId(context)
+            if (_userId.isEmpty()) return
+        }
+
+        viewModelScope.launch {
+            try {
+                // Determine the current like state
+                val currentlyLiked = currentSongId in _likedSongs.value
+                val newLikeState = !currentlyLiked
+
+                // Convert song ID to Int for the API call
+                val songIdInt = currentSongId.toIntOrNull() ?: return@launch
+
+                // Call API to update like status on the server
+                val response = likeUnlikeSong(songIdInt.toString(), _userId, newLikeState)
+
+                if (response != null) {
+                    // Update local state only if API call is successful
+                    _likedSongs.value = if (newLikeState) {
+                        _likedSongs.value + currentSongId
+                    } else {
+                        _likedSongs.value - currentSongId
+                    }
+
+                    // Log for debugging
+                    println("Song $currentSongId like status updated to: $newLikeState")
+                } else {
+                    // Handle error case
+                    println("Error updating song like status")
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                println("Exception in toggleLike: ${e.message}")
+            }
+        }
+    }
+
+
     fun loadSongsFromApi(songId: String?, context: Context, albumArtResId: Int) {
         viewModelScope.launch {
             try {
                 // Evitar reiniciar si ya se está reproduciendo la canción solicitada
                 if (_currentSong.value?.id == songId) return@launch
+
+                // Set userId if needed
+                if (_userId.isEmpty()) {
+                    setUserId(context)
+                }
 
                 // Obtener canción específica
                 songId?.let {
@@ -97,6 +216,7 @@ class MusicPlayerViewModel : ViewModel() {
                     currentIndex = songList.indexOfFirst { it.id == songId }
                     idCurrentPlaylist = ""
                 }
+                songId?.let { loadLikedStatus(it) }
             } catch (e: Exception) {
                 e.printStackTrace()
             }
@@ -104,6 +224,11 @@ class MusicPlayerViewModel : ViewModel() {
     }
 
     fun loadSongsFromPlaylist(playlistSongs: List<CurrentSong>, songId: String?, context: Context, idPlaylist: String) {
+        // Set userId if needed
+        if (_userId.isEmpty()) {
+            setUserId(context)
+        }
+
         songList = playlistSongs
         currentIndex = songList.indexOfFirst { it.id == songId } // Establecer el índice de la canción seleccionada
         idCurrentPlaylist = idPlaylist
@@ -112,6 +237,7 @@ class MusicPlayerViewModel : ViewModel() {
         val selectedSong = songList[currentIndex]
         _currentSong.value = selectedSong
         initializePlayer(context, selectedSong.url)
+        songId?.let { loadLikedStatus(it) }
     }
 
     private fun initializePlayer(context: Context, songUri: String) {
@@ -190,6 +316,9 @@ class MusicPlayerViewModel : ViewModel() {
         val song = songList[currentIndex]
         _currentSong.value = song.copy(isPlaying = true, progress = 0f)
         initializePlayer(context, song.url)
+
+        // Load liked status for the new song
+        loadLikedStatus(song.id)
     }
 
     fun previousSong(context: Context) {
@@ -198,6 +327,9 @@ class MusicPlayerViewModel : ViewModel() {
         val song = songList[currentIndex]
         _currentSong.value = song.copy(isPlaying = true, progress = 0f)
         initializePlayer(context, song.url)
+
+        // Load liked status for the new song
+        loadLikedStatus(song.id)
     }
 
     fun releasePlayer() {
@@ -208,5 +340,29 @@ class MusicPlayerViewModel : ViewModel() {
     override fun onCleared() {
         super.onCleared()
         releasePlayer()
+    }
+
+    // Function to initialize liked songs
+    fun initializeLikedSongs(userId: String) {
+        if (userId.isEmpty()) return
+
+        viewModelScope.launch {
+            try {
+                val response = get("/song_like/$userId/likedSongs")
+                val jsonArray = JSONArray(response)
+                val likedIds = mutableSetOf<String>()
+
+                for (i in 0 until jsonArray.length()) {
+                    val songObject = jsonArray.getJSONObject(i)
+                    likedIds.add(songObject.getInt("id").toString())
+                }
+
+                _likedSongs.value = likedIds
+                println("Cargadas ${likedIds.size} canciones con like")
+            } catch (e: Exception) {
+                e.printStackTrace()
+                println("Error cargando canciones con like: ${e.message}")
+            }
+        }
     }
 }
