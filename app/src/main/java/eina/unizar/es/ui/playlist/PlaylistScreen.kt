@@ -94,9 +94,6 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
     val isPlaying = currentSong?.isPlaying ?: false
 
 
-    val playlistAuthor = "Autor: John Doe"
-
-
     // Estados para búsqueda y orden
     var searchText by remember { mutableStateOf(TextFieldValue("")) }
     var sortOption by remember { mutableStateOf(SortOption.TITULO) }
@@ -226,7 +223,6 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
         }
 
 
-
         coroutineScope.launch {
             val userData = getUserData(context)
             if (userData != null) {
@@ -257,24 +253,11 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
 
     }
 
+    val playlistAuthor = playlistInfo?.let { getPlaylistAuthor(it) };
+
     // Mapa para almacenar el nombre del artista por canción
     var songArtistMap by remember { mutableStateOf<Map<Song, String>>(emptyMap()) }
 
-    // Función para obtener el nombre del artista de una canción
-    suspend fun getArtistName(songId: Int): String {
-        return withContext(Dispatchers.IO) {
-            val response = get("player/details/$songId")
-            response?.let {
-                val jsonObject = JSONObject(it)
-                val artistsArray = jsonObject.getJSONArray("artists")
-                if (artistsArray.length() > 0) {
-                    artistsArray.getJSONObject(0).getString("name")
-                } else {
-                    "Artista Desconocido"
-                }
-            } ?: "Artista Desconocido"
-        }
-    }
 
     // Obtener los nombres de los artistas para cada canción
     LaunchedEffect(songs) {
@@ -377,11 +360,13 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                             style = TextStyle(fontSize = 20.sp)
                         )
                     }
-                    Text(
-                        text = playlistAuthor,
-                        color = textColor,
-                        style = TextStyle(fontSize = 14.sp)
-                    )
+                    if (playlistAuthor != null && playlistInfo?.esAlbum != "album") {
+                        Text(
+                            text = "Autor: " + playlistAuthor,
+                            color = textColor,
+                            style = TextStyle(fontSize = 14.sp)
+                        )
+                    }
                 }
             }
             // Fila para la búsqueda: si showSearch es true, se muestra la barra de búsqueda que deja espacio para el icono de reproducir
@@ -634,15 +619,17 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                 var urlAntes = playlistInfo?.imageUrl
                 val playlistImage = getImageUrl(urlAntes, "default-playlist.jpg")
                 playlistInfo?.let {
-                    BottomSheetContent(
-                        playlistImage = playlistImage,
-                        playlistTitle = playlistInfo!!.title, // Reemplaza con el título
-                        playlistAuthor = playlistInfo!!.idAutor, // Reemplaza por getAutorbyId()
-                        onDismiss = { showBottomSheet = false },
-                        navController = navController,
-                        playlistId = playlistId,
-                        playlistMeGusta = playlistInfo!!.esAlbum
-                    )
+                    if (playlistAuthor != null) {
+                        BottomSheetContent(
+                            playlistImage = playlistImage,
+                            playlistTitle = playlistInfo!!.title, // Reemplaza con el título
+                            playlistAuthor = playlistAuthor,
+                            onDismiss = { showBottomSheet = false },
+                            navController = navController,
+                            playlistId = playlistId,
+                            playlistMeGusta = playlistInfo!!.esAlbum
+                        )
+                    }
                 }
             }
         }
@@ -846,4 +833,30 @@ suspend fun eliminarPlaylistEnBackend(
     println("Respuesta de la API: $response")
     // Devuelve true/false, o lanza excepción, según sea tu preferencia
     return true
+}
+
+// Función para obtener el nombre del artista de una canción
+suspend fun getArtistName(songId: Int): String {
+    return withContext(Dispatchers.IO) {
+        val response = get("player/details/$songId")
+        response?.let {
+            val jsonObject = JSONObject(it)
+            val artistsArray = jsonObject.getJSONArray("artists")
+            if (artistsArray.length() > 0) {
+                artistsArray.getJSONObject(0).getString("name")
+            } else {
+                "Artista Desconocido"
+            }
+        } ?: "Artista Desconocido"
+    }
+}
+
+//Funcion para obtener el autor de la lista
+private fun getPlaylistAuthor(playlist: Playlist): String {
+    return when (playlist?.esAlbum) {
+        "Vibra" -> "Vibra"
+        "album" -> playlist.title?.let { "$it" } ?: "Álbum sin título"
+        null -> "Origen desconocido"
+        else -> "Colección personalizada"
+    }
 }

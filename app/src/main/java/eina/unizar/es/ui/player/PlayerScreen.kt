@@ -17,7 +17,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -30,6 +33,7 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import eina.unizar.es.data.model.network.ApiClient.checkIfSongIsLiked
 import eina.unizar.es.data.model.network.ApiClient.getImageUrl
+import eina.unizar.es.ui.playlist.getArtistName
 import kotlinx.coroutines.launch
 
 @Composable
@@ -38,10 +42,13 @@ fun FloatingMusicPlayer(navController: NavController, viewModel: MusicPlayerView
     val isLiked by viewModel.isCurrentSongLiked.collectAsState()
     val context = LocalContext.current
 
+    var artista by remember { mutableStateOf<String?>(null) }
+
     LaunchedEffect(currentSong?.id) {
         currentSong?.id?.let {
             viewModel.loadLikedStatus(it)
         }
+        artista = currentSong?.id?.let { getArtistName(it.toInt()) }.toString()
     }
     currentSong?.let { song ->
         Surface(
@@ -74,7 +81,7 @@ fun FloatingMusicPlayer(navController: NavController, viewModel: MusicPlayerView
                         .padding(start = 8.dp)
                 ) {
                     Text(text = song.title, fontSize = 16.sp)
-                    Text(text = song.artist, fontSize = 14.sp)
+                    artista?.let { Text(text = it, fontSize = 14.sp) }
                 }
                 Icon(
                     imageVector = Icons.Filled.Computer,

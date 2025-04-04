@@ -3,6 +3,7 @@ package eina.unizar.es.ui.player
 import android.content.Context
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -14,6 +15,7 @@ import eina.unizar.es.data.model.network.ApiClient.get
 import eina.unizar.es.data.model.network.ApiClient.getUserData
 import eina.unizar.es.data.model.network.ApiClient.likeUnlikeSong
 import eina.unizar.es.ui.playlist.PlaylistScreen
+import eina.unizar.es.ui.playlist.getArtistName
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -202,7 +204,7 @@ class MusicPlayerViewModel : ViewModel() {
                             CurrentSong(
                                 id = json.getInt("id").toString(),
                                 title = json.getString("name"),
-                                artist = "Artista desconocido",
+                                artist ="Desconocido" ,
                                 photo = json.getString("photo_video"),
                                 albumArt = albumArtResId,
                                 url = "http://164.90.160.181:5001/${json.getString("url_mp3").removePrefix("/")}",
