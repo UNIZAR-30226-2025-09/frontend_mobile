@@ -1,5 +1,6 @@
 package eina.unizar.es.ui.auth
 
+import android.content.Context
 import android.util.Log
 import android.widget.Toast
 import androidx.compose.foundation.background
@@ -32,6 +33,7 @@ import eina.unizar.es.data.model.network.ApiClient
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 import androidx.compose.ui.platform.LocalContext
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -225,7 +227,7 @@ fun UserRegisterScreen(navController: NavController) {
                         } else {
                             errorMessage = null
                             coroutineScope.launch {
-                                val loginSuccess = registerUser(username, email, password, confirmPassword)
+                                val loginSuccess = registerUser(username, email, password, confirmPassword, context)
                                 if (loginSuccess) {
                                     navController.navigate("login")
                                     Toast.makeText(context,
@@ -307,9 +309,10 @@ fun UserRegisterScreen(navController: NavController) {
  * Realiza la petición de registro a la API y devuelve `true` si el registro fue exitoso.
  * Retorna `false` si hay un error o si las contraseñas no coinciden.
  */
-suspend fun registerUser(username: String, email: String, password: String, confirmPassword: String): Boolean {
+suspend fun registerUser(username: String, email: String, password: String, confirmPassword: String,
+                        context: Context): Boolean {
     if (password != confirmPassword) {
-        Log.e("RegisterError", "Las contraseñas no coinciden")
+        Toast.makeText(context, "Las contraseñas no coinciden", Toast.LENGTH_LONG).show()
         return false
     }
 
@@ -333,6 +336,7 @@ suspend fun registerUser(username: String, email: String, password: String, conf
                 return true
             } else {
                 Log.e("RegisterError", "Error en el registro: $message")
+                Toast.makeText(context, "Ya existe un usuario con ese correo", Toast.LENGTH_LONG).show()
                 return false
             }
         } else {
@@ -342,6 +346,7 @@ suspend fun registerUser(username: String, email: String, password: String, conf
     } catch (e: Exception) {
         e.printStackTrace()
         Log.e("RegisterError", "Error de conexión: ${e.message}")
+        Toast.makeText(context, "Error de conexión", Toast.LENGTH_LONG).show()
         return false
     }
 }

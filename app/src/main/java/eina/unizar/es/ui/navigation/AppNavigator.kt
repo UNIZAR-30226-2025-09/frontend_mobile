@@ -36,6 +36,8 @@ import eina.unizar.es.ui.playlist.PlaylistScreen
 import eina.unizar.es.ui.search.SearchScreen
 import eina.unizar.es.ui.user.EditProfileScreen
 import eina.unizar.es.ui.user.UserSettings
+import eina.unizar.es.ui.chat.ChatScreen
+import eina.unizar.es.ui.friends.FriendsScreen
 
 @SuppressLint("UnrememberedGetBackStackEntry")
 @Composable
@@ -96,7 +98,15 @@ fun AppNavigator(navController: NavHostController, paymentSheet: PaymentSheet, i
                 composable("settings") { UserSettings(navController, isPremium) }
                 composable("plans") { PlansScreen(paymentSheet,navController,isPremium, playerViewModel) }
                 composable("artist") { ArtistScreen(navController, playerViewModel) }
-                //composable("player") { FloatingMusicPlayer(navController, playerViewModel) }
+                composable("friends") { FriendsScreen(navController, playerViewModel) }
+
+                composable(
+                    "chat/{friendId}",
+                    arguments = listOf(navArgument("friendId") { type = NavType.StringType } )
+                ) { backStackEntry ->
+                    val friendId = backStackEntry.arguments?.getString("friendId")
+                    ChatScreen(navController, friendId, playerViewModel) 
+                }
 
                 composable(
                     "playlist/{playlistId}",

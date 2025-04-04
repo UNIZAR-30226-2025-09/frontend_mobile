@@ -51,6 +51,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
+import org.json.JSONObject
 
 @SuppressLint("UnrememberedGetBackStackEntry", "CoroutineCreationDuringComposition")
 @OptIn(ExperimentalMaterial3Api::class)
@@ -134,28 +135,24 @@ fun SearchScreen(navController: NavController, playerViewModel: MusicPlayerViewM
         topBar = {
             TopAppBar(
                 title = {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            UserProfileMenu(navController)
-                            Spacer(modifier = Modifier.width(10.dp))
-                        }
+                    Row (verticalAlignment = Alignment.CenterVertically) {
+                        Spacer(modifier = Modifier.width(5.dp))
+                        Text("Buscar", color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.titleLarge)
                     }
                 },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(8.dp),
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background
-                )
+                ),
+                navigationIcon = {
+                    Box(modifier = Modifier.padding(start = 4.dp)) {
+                        UserProfileMenu(navController)
+                    }
+                }
             )
         },
-//        bottomBar = {
-//            Column {
-//                FloatingMusicPlayer(navController, playerViewModel)
-//                BottomNavigationBar(navController)
-//            }
-//        },
         containerColor = backgroundColor
     ) { innerPadding ->
         Column(
@@ -165,12 +162,6 @@ fun SearchScreen(navController: NavController, playerViewModel: MusicPlayerViewM
                 .background(backgroundColor)
                 .padding(16.dp)
         ) {
-            Text(
-                text = "Buscar",
-                style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.onBackground,
-            )
-
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
@@ -188,8 +179,6 @@ fun SearchScreen(navController: NavController, playerViewModel: MusicPlayerViewM
                     unfocusedLabelColor = currentTextColor
                 ),
                 interactionSource = interactionSource,
-
-
 
                 trailingIcon = {
                     if (searchQuery.isNotEmpty()) {
@@ -429,6 +418,31 @@ fun SongItem(
             Spacer(modifier = Modifier.width(8.dp))
 
             // Texto de la canción y artista
+            var idsArtistas by remember { mutableStateOf(listOf<Int>()) }
+            var nombresArtistas by remember { mutableStateOf(listOf<String>()) }
+
+            LaunchedEffect(song.id) {
+                launch { // Necesitas usar launch porque ApiClient.get es suspendida
+                    val response = ApiClient.get("player/details/${song.id}")
+                    response?.let {
+                        val jsonObject = JSONObject(it)
+                        val artistsArray = jsonObject.getJSONArray("artists")
+
+                        val ids = mutableListOf<Int>()
+                        val nombres = mutableListOf<String>()
+
+                        for (i in 0 until artistsArray.length()) {
+                            val artistObject = artistsArray.getJSONObject(i)
+                            ids.add(artistObject.getInt("id"))
+                            nombres.add(artistObject.getString("name"))
+                        }
+
+                        idsArtistas = ids
+                        nombresArtistas = nombres
+                    }
+                }
+            }
+
             Column(
                 modifier = Modifier
                     .weight(1f)
@@ -440,7 +454,7 @@ fun SongItem(
                     color = if (isCurrentlyPlaying){ VibraBlue } else Color.White
                 )
                 Text(
-                    text = "Anuel AA",
+                    text = nombresArtistas.joinToString(", "),
                     fontSize = 12.sp,
                     color = Color.White
                 )

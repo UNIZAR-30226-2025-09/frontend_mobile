@@ -256,12 +256,44 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
         }
 
     }
+//______________________________________________________________________________________
+
+    // Mapa para almacenar el nombre del artista por canción
+    var songArtistMap by remember { mutableStateOf<Map<Song, String>>(emptyMap()) }
+
+    // Función para obtener el nombre del artista de una canción
+    suspend fun getArtistName(songId: Int): String {
+        return withContext(Dispatchers.IO) {
+            val response = get("player/details/$songId")
+            response?.let {
+                val jsonObject = JSONObject(it)
+                val artistsArray = jsonObject.getJSONArray("artists")
+                if (artistsArray.length() > 0) {
+                    artistsArray.getJSONObject(0).getString("name")
+                } else {
+                    "Artista Desconocido"
+                }
+            } ?: "Artista Desconocido"
+        }
+    }
+
+    // Obtener los nombres de los artistas para cada canción
+    LaunchedEffect(songs) {
+        val artistNames = mutableMapOf<Song, String>()
+        songs.forEach { song ->
+            val artistName = getArtistName(song.id)
+            artistNames[song] = artistName
+        }
+        songArtistMap = artistNames
+    }
+//______________________________________________________________________________________
 
     val sortedSongs = remember(songs, sortOption) {
         when (sortOption) {
             SortOption.TITULO -> songs.sortedBy { it.name } // Ordenar por título
             SortOption.DURACION -> songs.sortedBy { it.duration } // Ordenar por duración
-            SortOption.ARTISTA -> songs.sortedBy { it.name } // FALTA DE IMPLEMENTAR
+            SortOption.ARTISTA -> songs.sortedBy { song ->
+                songArtistMap[song] ?: "Artista Desconocido" } // Ordenar por artista
         }
     }
 
@@ -281,7 +313,8 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
         when (sortOption) {
             SortOption.TITULO -> filteredSongs.sortedBy { it.name }
             SortOption.DURACION -> filteredSongs.sortedBy { it.duration }
-            SortOption.ARTISTA -> filteredSongs.sortedBy { it.name } // FALTA DE IMPLEMENTAR
+            SortOption.ARTISTA -> songs.sortedBy { song ->
+                songArtistMap[song] ?: "Artista Desconocido" } // Ordenar por artista
         }
     }
 
