@@ -256,7 +256,6 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
         }
 
     }
-//______________________________________________________________________________________
 
     // Mapa para almacenar el nombre del artista por canción
     var songArtistMap by remember { mutableStateOf<Map<Song, String>>(emptyMap()) }
@@ -286,7 +285,7 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
         }
         songArtistMap = artistNames
     }
-//______________________________________________________________________________________
+
 
     val sortedSongs = remember(songs, sortOption) {
         when (sortOption) {
