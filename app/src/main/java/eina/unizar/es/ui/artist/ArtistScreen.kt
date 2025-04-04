@@ -51,10 +51,12 @@ import kotlinx.coroutines.launch
 import coil.compose.AsyncImage
 import eina.unizar.es.data.model.network.ApiClient
 import eina.unizar.es.data.model.network.ApiClient.getImageUrl
+import eina.unizar.es.data.model.network.ApiClient.likeUnlikeSong
 import eina.unizar.es.ui.navbar.BottomNavigationBar
 import eina.unizar.es.ui.player.FloatingMusicPlayer
 import eina.unizar.es.ui.player.MusicPlayerViewModel
 import eina.unizar.es.ui.playlist.Playlist
+import eina.unizar.es.ui.search.ADSongs
 import eina.unizar.es.ui.search.SongItem
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
@@ -72,12 +74,6 @@ fun ArtistScreen(navController: NavController, playerViewModel: MusicPlayerViewM
     // Colores básicos
     val backgroundColor = Color(0xFF000000) // Negro
     val textColor = Color(0xFFFFFFFF) // Blanco
-    val cardBackgroundColor = Color(0xFF121212) // Negro un poco más claro
-    val buttonColor = Color(0xFF0D47A1) // Azul oscuro
-
-
-    val playlistAuthor = "Autor: John Doe"
-
 
     // Estado del LazyColumn para detectar scroll y aplicar efecto en el header
 
@@ -90,15 +86,6 @@ fun ArtistScreen(navController: NavController, playerViewModel: MusicPlayerViewM
     // Ajustamos solo la opacidad (sin escala) con Modifier.alpha
 
     val imageAlpha = 1f - collapseFraction
-
-    // Estado para controlar la visibilidad del BottomSheet
-    var showBottomSheet by remember { mutableStateOf(false) }
-    val sheetState = rememberModalBottomSheetState()
-
-    // Reproducir la musica
-    val context = LocalContext.current
-    var exoPlayer: ExoPlayer? by remember { mutableStateOf(null) }
-    //val audioUrl = "URL_DEL_ARCHIVO_DE_AUDIO" // Reemplaza con la URL de tu archivo de audio
 
 
     // Alpha para el título en el TopAppBar: aparece gradualmente conforme se hace scroll
@@ -117,6 +104,9 @@ fun ArtistScreen(navController: NavController, playerViewModel: MusicPlayerViewM
 
     // Usamos un Map para manejar el estado de "me gusta" por canción usando el índice o algún identificador único
     val songLikes = remember { mutableStateOf(songsList.associateWith { false }) }
+
+    // Observa la lista de canciones con like desde el ViewModel
+    val likedSongs by playerViewModel.likedSongs.collectAsState()
 
     // Función para cambiar el estado de "me gusta" de una canción
     fun toggleLike(song: Song) {
@@ -315,17 +305,25 @@ fun ArtistScreen(navController: NavController, playerViewModel: MusicPlayerViewM
 
             // Lista de canciones populares
             items(songsList) { song ->
-                //val artist = songArtistMap[song] ?: "Artista Desconocido"
+                var songIsLiked = song.id.toString() in likedSongs
                 var showSongOptionsBottomSheet by remember { mutableStateOf(false) } // Estado para mostrar el BottomSheet de opciones de la canción
+
                 SongItem(
                     song = song,
                     showHeartIcon = true,
                     showMoreVertIcon = true,
-                    isLiked = true,//songLikes[song.id] ?: false,
-                   /* onLikeToggle = {
-                        // Lógica para manejar el like
-                        //toggleSongLike(song.id, userId)
-                    },*/
+                    isLiked = songIsLiked,
+                    onLikeToggle = {
+                        coroutineScope.launch {
+                            try {
+                                likeUnlikeSong(song.id.toString(), playerViewModel.getUserId(), !songIsLiked)
+                                songIsLiked = !songIsLiked
+                                playerViewModel.loadLikedStatus(song.id.toString())
+                            } catch (e: Exception) {
+                                Log.e("SearchScreen", "Error al cambiar like: ${e.message}")
+                            }
+                        }
+                    },
                     onMoreVertClick = {
                         // Mostrar opciones de la canción
                         showSongOptionsBottomSheet = true
@@ -514,7 +512,18 @@ fun SongOptionsBottomSheetContent(
     artistName: String
 ) {
     val textColor = Color.White
+    var showAddToPlaylistDialog by remember { mutableStateOf(false) }
 
+    // Si el diálogo está visible, muéstralo
+    if (showAddToPlaylistDialog) {
+        ADSongs(
+            onDismiss = {
+                showAddToPlaylistDialog = false
+                // No cerramos el bottom sheet principal aquí para permitir
+                // que el usuario pueda volver a él después de cerrar el diálogo
+            }
+        )
+    }
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -540,13 +549,9 @@ fun SongOptionsBottomSheetContent(
             modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            SongOptionItem("Añadir a lista", onDismiss)
-            Spacer(modifier = Modifier.height(8.dp))
-            SongOptionItem("Añadir a la biblioteca", onDismiss)
+            SongOptionItem("Añadir a lista", onClick = { showAddToPlaylistDialog = true })
             Spacer(modifier = Modifier.height(8.dp))
             SongOptionItem("Añadir a la cola", onDismiss)
-            Spacer(modifier = Modifier.height(8.dp))
-            SongOptionItem("Eliminar de la lista", onDismiss)
             Spacer(modifier = Modifier.height(8.dp))
             SongOptionItem("Compartir", onDismiss)
         }

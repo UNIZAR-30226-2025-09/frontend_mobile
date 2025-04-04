@@ -43,8 +43,10 @@ import eina.unizar.es.ui.navbar.BottomNavigationBar
 import eina.unizar.es.ui.player.CurrentSong
 import eina.unizar.es.ui.player.FloatingMusicPlayer
 import eina.unizar.es.ui.player.MusicPlayerViewModel
+import eina.unizar.es.ui.playlist.BottomSheetContent
 import eina.unizar.es.ui.playlist.Playlist
 import eina.unizar.es.ui.playlist.PlaylistScreen
+import eina.unizar.es.ui.playlist.SongOptionsBottomSheetContent
 import eina.unizar.es.ui.song.Song
 import eina.unizar.es.ui.user.UserProfileMenu
 import kotlinx.coroutines.Dispatchers
@@ -210,6 +212,7 @@ fun SearchScreen(navController: NavController, playerViewModel: MusicPlayerViewM
                     }
                     items(filteredSongs) { song ->
                         var songIsLiked = song.id.toString() in likedSongs
+                        var showSongOptionsBottomSheet by remember { mutableStateOf(false) } // Estado para mostrar el BottomSheet de opciones de la canción
 
                         SongItem(
                             song = song,
@@ -227,10 +230,28 @@ fun SearchScreen(navController: NavController, playerViewModel: MusicPlayerViewM
                                     }
                                 }
                             },
-                            onMoreVertClick = {},
+                            onMoreVertClick = {
+                                showSongOptionsBottomSheet = true
+                            },
                             viewModel = playerViewModel,
                             isPlaylist = false
                         )
+
+                        // BottomSheet para opciones de la canción (dentro del items)
+                        if (showSongOptionsBottomSheet) {
+                            ModalBottomSheet(
+                                onDismissRequest = { showSongOptionsBottomSheet = false },
+                                sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+                            ) {
+                                eina.unizar.es.ui.artist.SongOptionsBottomSheetContent(
+                                    onDismiss = { showSongOptionsBottomSheet = false },
+                                    songTitle = song.name, // Pasa el título de la canción
+                                    artistName = /*artist*/ "Artista de prueba" // Pasa el nombre del artista
+                                )
+                            }
+                        }
+
+
                     }
 
                 }

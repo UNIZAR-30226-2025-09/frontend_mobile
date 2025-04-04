@@ -1,6 +1,8 @@
 package eina.unizar.es.ui.player
 
 import android.content.Context
+import android.util.Log
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -58,9 +60,32 @@ class MusicPlayerViewModel : ViewModel() {
         song?.id?.let { id -> id in liked } ?: false
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), false)
 
-    // Add this property
+    // User ID
     private var _userId: String = ""
 
+    // Estado premium del usuario
+    private val _isPremium = mutableStateOf(false)
+
+    // PARA ACTUALIZAR EL VIBRABANNER HABRIA QUE HACER ALGO ASI PARA ACTUALIZAR EL ESTADO DE ISPREMIUM
+    /*
+    val isPremium: State<Boolean> = _isPremium
+
+    // Función para actualizar el estado premium
+    fun updatePremiumStatus(isPremium: Boolean) {
+        _isPremium.value = isPremium
+    }
+
+    // Función para cargar el estado premium desde SharedPreferences
+    fun loadPremiumStatus(context: Context) {
+        viewModelScope.launch {
+            val userData = getUserData(context)
+            if (userData != null) {
+                _isPremium.value = userData["is_premium"] as Boolean
+                Log.d("Premium", "Estado premium cargado: ${_isPremium.value}")
+            }
+        }
+    }
+     */
 
     // Function to get the liked songs
     fun getLikedSongs(): Set<String> {

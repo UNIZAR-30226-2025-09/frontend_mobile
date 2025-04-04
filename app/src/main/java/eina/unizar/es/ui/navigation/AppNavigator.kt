@@ -38,6 +38,7 @@ import eina.unizar.es.ui.user.EditProfileScreen
 import eina.unizar.es.ui.user.UserSettings
 import eina.unizar.es.ui.chat.ChatScreen
 import eina.unizar.es.ui.friends.FriendsScreen
+import eina.unizar.es.ui.search.ADSongs
 
 @SuppressLint("UnrememberedGetBackStackEntry")
 @Composable
@@ -98,7 +99,7 @@ fun AppNavigator(navController: NavHostController, paymentSheet: PaymentSheet, i
                 composable("settings") { UserSettings(navController, isPremium) }
                 composable("plans") { PlansScreen(paymentSheet,navController,isPremium, playerViewModel) }       
                 composable("friends") { FriendsScreen(navController, playerViewModel) }
-
+                composable("ADSongs") { ADSongs() }
                 composable(
                     "chat/{friendId}",
                     arguments = listOf(navArgument("friendId") { type = NavType.StringType } )
