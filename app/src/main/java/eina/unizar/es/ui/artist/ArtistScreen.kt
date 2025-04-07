@@ -124,6 +124,7 @@ fun ArtistScreen(navController: NavController, playerViewModel: MusicPlayerViewM
     var userId by remember { mutableStateOf("") }  // Estado inicial
 
     var playlists by remember { mutableStateOf<List<Playlist>>(emptyList()) }
+    val context = LocalContext.current // Contexto de la actividad
 
     LaunchedEffect(Unit) {
         val responseS = get("artist/${artistId}")
@@ -220,6 +221,9 @@ fun ArtistScreen(navController: NavController, playerViewModel: MusicPlayerViewM
                 Log.e("PARSE_ERROR", "Error al parsear JSON: ${e.message}")
             }
         }
+        // Cargar explícitamente el estado de "me gusta"
+        // ya que si el ViewModel no se inicializa, no se saben las likedSongs
+        playerViewModel.initializeLikedSongs(playerViewModel.getUserId(), context)
     }
     
 

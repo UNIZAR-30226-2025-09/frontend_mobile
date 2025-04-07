@@ -39,7 +39,7 @@ import kotlinx.coroutines.launch
 @SuppressLint("StateFlowValueCalledInComposition")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SongScreen(navController: NavController, songId: String?, playerViewModel: MusicPlayerViewModel) {
+fun SongScreen(navController: NavController, playerViewModel: MusicPlayerViewModel) {
     val context = LocalContext.current
 
     val currentSong by playerViewModel.currentSong.collectAsState()
@@ -50,9 +50,9 @@ fun SongScreen(navController: NavController, songId: String?, playerViewModel: M
 
     var artista by remember { mutableStateOf<String?>(null) }
 
-    LaunchedEffect(Unit){
-        if (songId != null) {
-            artista = getArtistName(songId.toInt())
+    LaunchedEffect(currentSong?.id){
+        if (currentSong?.id != null) {
+            artista = getArtistName(currentSong?.id!!.toInt())
             Log.d("Nombre", "Nombre : " + artista)
         }
     }
