@@ -256,9 +256,9 @@ suspend fun loginUser(context: Context, email: String, password: String): Boolea
 
                         Log.d("Login", "Token guardado correctamente: $token")
 
-                        withContext(Dispatchers.Main) {
+                        /*withContext(Dispatchers.Main) {
                             Toast.makeText(context, "Inicio de Sesión Exitoso", Toast.LENGTH_LONG).show()
-                        }
+                        }*/
 
                         return@withContext true
                     } else {

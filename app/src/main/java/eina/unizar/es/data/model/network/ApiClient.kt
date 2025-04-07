@@ -95,6 +95,44 @@ object ApiClient {
             }
         }
 
+    /**
+     * Método para realizar una petición POST en segundo plano.
+     * @param endpoint Ruta del recurso (ejemplo: "create-payment-intent").
+     * @param jsonBody Cuerpo de la solicitud en formato JSON.
+     * @return Respuesta en formato JSON o `null` si hay error y código.
+     */
+    suspend fun postWithCode(endpoint: String, jsonBody: JSONObject): Pair<Int, String?> =
+        withContext(Dispatchers.IO) {
+            try {
+                val url = URL("$BASE_URL/$endpoint")
+                val connection = url.openConnection() as HttpURLConnection
+                connection.requestMethod = "POST"
+                connection.setRequestProperty("Content-Type", "application/json")
+                connection.doOutput = true
+
+                // Escribir el cuerpo de la petición
+                connection.outputStream.use { os ->
+                    os.write(jsonBody.toString().toByteArray())
+                    os.flush()
+                }
+
+                val responseCode = connection.responseCode
+                Log.d("ApiClient", "Código de respuesta: $responseCode")
+
+                val responseBody = if (responseCode in 200..299) {
+                    connection.inputStream.bufferedReader().use { it.readText() }
+                } else {
+                    Log.e("ApiClient", "Error en la respuesta del servidor: código $responseCode")
+                    connection.errorStream?.bufferedReader()?.use { it.readText() }
+                }
+
+                Pair(responseCode, responseBody)
+            } catch (e: Exception) {
+                e.printStackTrace()
+                Log.e("ApiClient", "Error de conexión con el backend: ${e.message}")
+                Pair(500, null) // Devuelve código 500 para errores de conexión
+            }
+        }
 
     /*
      * Función para realizar una solicitud HTTP POST con encabezados personalizados.
