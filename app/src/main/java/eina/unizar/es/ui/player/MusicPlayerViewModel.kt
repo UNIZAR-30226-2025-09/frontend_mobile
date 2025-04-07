@@ -370,8 +370,8 @@ class MusicPlayerViewModel : ViewModel() {
     }
 
     // Function to initialize liked songs
-    fun initializeLikedSongs(userId: String) {
-        if (userId.isEmpty()) return
+    fun initializeLikedSongs(userId: String, context: Context) {
+        if (userId.isEmpty()) setUserId(context) // Set userId if needed
 
         viewModelScope.launch {
             try {
