@@ -31,6 +31,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -54,6 +55,7 @@ import coil.compose.AsyncImage
 import eina.unizar.es.data.model.network.ApiClient
 import eina.unizar.es.data.model.network.ApiClient.getImageUrl
 import eina.unizar.es.data.model.network.ApiClient.likeUnlikeSong
+import eina.unizar.es.ui.main.Rubik
 import eina.unizar.es.ui.navbar.BottomNavigationBar
 import eina.unizar.es.ui.player.FloatingMusicPlayer
 import eina.unizar.es.ui.player.MusicPlayerViewModel
@@ -292,8 +294,38 @@ fun ArtistScreen(navController: NavController, playerViewModel: MusicPlayerViewM
                             color = textColor,
                             style = TextStyle(fontSize = 20.sp)
                         )
-                    }
 
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = Color(0xFF1E1E1E)
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(16.dp)
+                        ) {
+                            Text(
+                                text = "Biografía",
+                                color = Color(0xFF79E2FF),
+                                fontFamily = Rubik,
+                                fontWeight = FontWeight.Medium,
+                                fontSize = 16.sp,
+                                modifier = Modifier.padding(bottom = 8.dp)
+                            )
+
+                            Text(
+                                text = artistInfo!!.biography.ifEmpty { "No hay biografía disponible" },
+                                color = Color.White.copy(alpha = 0.8f),
+                                fontSize = 14.sp,
+                                lineHeight = 20.sp
+                            )
+                        }
+                    }
+                    }
                 }
             }
 
@@ -460,18 +492,18 @@ fun ArtistScreen(navController: NavController, playerViewModel: MusicPlayerViewM
                     modifier = Modifier.padding(start = 12.dp)
                 ) {
                     LazyRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        contentPadding = PaddingValues(end = 20.dp)  // Padding al final para mejor scroll
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        contentPadding = PaddingValues(end = 8.dp)  // Padding al final para mejor scroll
                     ) {
                         items(songsList) { single ->
                             Column(
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 modifier = Modifier
-                                    .width(140.dp)  // Ancho fijo para toda la columna (imagen + texto)
+                                    .width(120.dp)  // Ancho fijo para toda la columna (imagen + texto)
                             ) {
                                 Card(
                                     modifier = Modifier
-                                        .size(120.dp)
+                                        .size(100.dp)
                                         .clickable {
                                             Log.d("Error", "Id del sencillo: " + single.id)
                                             navController.navigate("single/${single.id}")
@@ -492,7 +524,7 @@ fun ArtistScreen(navController: NavController, playerViewModel: MusicPlayerViewM
                                     }
                                 }
 
-                                Spacer(modifier = Modifier.height(4.dp))
+                                //Spacer(modifier = Modifier.height(4.dp))
 
                                 Text(
                                     text = single.name,
