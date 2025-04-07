@@ -99,7 +99,7 @@ fun AppNavigator(navController: NavHostController, paymentSheet: PaymentSheet, i
                 composable("settings") { UserSettings(navController, isPremium) }
                 composable("plans") { PlansScreen(paymentSheet,navController,isPremium, playerViewModel) }       
                 composable("friends") { FriendsScreen(navController, playerViewModel) }
-                composable("ADSongs") { ADSongs() }
+                composable("ADSongs") { ADSongs(navController, playerViewModel) }
                 composable(
                     "chat/{friendId}",
                     arguments = listOf(navArgument("friendId") { type = NavType.StringType } )
@@ -149,8 +149,7 @@ fun AppNavigator(navController: NavHostController, paymentSheet: PaymentSheet, i
                     "song/{songId}",
                     arguments = listOf(navArgument("songId") { type = NavType.StringType } )
                 ) { backStackEntry ->
-                    val songId = backStackEntry.arguments?.getString("songId")
-                    SongScreen(navController, songId, playerViewModel)
+                    SongScreen(navController, playerViewModel)
                 }
             }
         }
