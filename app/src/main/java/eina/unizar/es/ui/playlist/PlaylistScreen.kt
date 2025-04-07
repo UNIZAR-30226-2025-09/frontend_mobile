@@ -80,7 +80,8 @@ enum class SortOption {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PlaylistScreen(navController: NavController, playlistId: String?, playerViewModel: MusicPlayerViewModel) {
+fun PlaylistScreen(navController: NavController, playlistId: String?, playerViewModel: MusicPlayerViewModel,
+                   isSencillo: Boolean = false, singleId: String?) {
 
     // Colores básicos
     val backgroundColor = MaterialTheme.colorScheme.background // Negro
@@ -185,72 +186,107 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
     // Id del usuario a guardar al darle like
     var userId by remember { mutableStateOf("") }  // Estado inicial
 
-    // Llamar a la API para obtener los datos de la playlist seleccionada
-    LaunchedEffect(playlistId) {
-        playlistId?.let { id ->
-            val response = withContext(Dispatchers.IO) { get("playlists/$id") }
+
+    //Logica si es un sencillo
+    if(isSencillo){
+        LaunchedEffect(Unit) {
+            val response = withContext(Dispatchers.IO) { get("player/details/$singleId") }
             response?.let {
-                val jsonObject = JSONObject(it)
+                val songObject = JSONObject(it)
+                //val songObject = jsonObject.getJSONObject("song")
+
+                // Crear un objeto Playlist que simula ser un sencillo
                 playlistInfo = Playlist(
-                    id = jsonObject.getString("id"),
-                    title = jsonObject.getString("name"),
-                    imageUrl = jsonObject.getString("front_page"),
-                    idAutor = jsonObject.getString("user_id"),
-                    idArtista = jsonObject.getString("artist_id"),
-                    description = jsonObject.getString("description"),
-                    esPublica = jsonObject.getString("type"),
-                    esAlbum = jsonObject.getString("typeP"),
+                    id = songObject.getString("id"),
+                    title = songObject.getString("name"),
+                    imageUrl = songObject.getString("photo_video"),
+                    idAutor = "",//jsonObject.getJSONArray("artists").getJSONObject(0).getString("id"),
+                    idArtista = "",//jsonObject.getJSONArray("artists").getJSONObject(0).getString("id"),
+                    description = "Sencillo",
+                    esPublica = "public",
+                    esAlbum = "single"
                 )
 
-                // Extraer las canciones del array "songs"
-                val songsArray = jsonObject.getJSONArray("songs")
-                val fetchedSongs = mutableListOf<Song>()
-                for (i in 0 until songsArray.length()) {
-                    val songObject = songsArray.getJSONObject(i)
-                    fetchedSongs.add(
-                        Song(
-                            id = songObject.getInt("id"),
-                            name = songObject.getString("name"),
-                            duration = songObject.getInt("duration"),
-                            letra = songObject.getString("lyrics"),
-                            photo_video = songObject.getString("photo_video"),
-                            url_mp3 = songObject.getString("url_mp3")
-                        )
+                // Crear lista con una sola canción
+                songs = mutableListOf(
+                    Song(
+                        id = songObject.getInt("id"),
+                        name = songObject.getString("name"),
+                        duration = songObject.getInt("duration"),
+                        letra = songObject.getString("lyrics"),
+                        photo_video = songObject.getString("photo_video"),
+                        url_mp3 = songObject.getString("url_mp3")
                     )
-                }
-                songs = fetchedSongs
+                )
             }
+            Log.d("Sencillo", "Datos del backend: ${songs.first().name}")
+        }
+    } else { //Logica si es una playlist
+        // Llamar a la API para obtener los datos de la playlist seleccionada
+        LaunchedEffect(playlistId) {
+            playlistId?.let { id ->
+                val response = withContext(Dispatchers.IO) { get("playlists/$id") }
+                response?.let {
+                    val jsonObject = JSONObject(it)
+                    playlistInfo = Playlist(
+                        id = jsonObject.getString("id"),
+                        title = jsonObject.getString("name"),
+                        imageUrl = jsonObject.getString("front_page"),
+                        idAutor = jsonObject.getString("user_id"),
+                        idArtista = jsonObject.getString("artist_id"),
+                        description = jsonObject.getString("description"),
+                        esPublica = jsonObject.getString("type"),
+                        esAlbum = jsonObject.getString("typeP"),
+                    )
+
+                    // Extraer las canciones del array "songs"
+                    val songsArray = jsonObject.getJSONArray("songs")
+                    val fetchedSongs = mutableListOf<Song>()
+                    for (i in 0 until songsArray.length()) {
+                        val songObject = songsArray.getJSONObject(i)
+                        fetchedSongs.add(
+                            Song(
+                                id = songObject.getInt("id"),
+                                name = songObject.getString("name"),
+                                duration = songObject.getInt("duration"),
+                                letra = songObject.getString("lyrics"),
+                                photo_video = songObject.getString("photo_video"),
+                                url_mp3 = songObject.getString("url_mp3")
+                            )
+                        )
+                    }
+                    songs = fetchedSongs
+                }
+            }
+        }
+    }
+
+    LaunchedEffect(Unit){
+        val userData = getUserData(context)
+        if (userData != null) {
+            userId =
+                (userData["id"]
+                    ?: "Id").toString()  // Si no hay nickname, usa "Usuario"
+        }
+        // Consultar si el usuario ya le ha dado like a esta playlist (para poder guardar el like)
+        val likedPlaylistsResponse = getLikedPlaylists(userId)
+        likedPlaylistsResponse?.let { playlists ->
+            // Verificamos si la playlist actual está en la lista de "liked" del usuario
+            isLikedPlaylist = playlists.any { it.id == playlistId }
         }
 
 
-        coroutineScope.launch {
-            val userData = getUserData(context)
-            if (userData != null) {
-                userId =
-                    (userData["id"]
-                        ?: "Id").toString()  // Si no hay nickname, usa "Usuario"
-            }
-            // Consultar si el usuario ya le ha dado like a esta playlist (para poder guardar el like)
-            val likedPlaylistsResponse = getLikedPlaylists(userId)
-            likedPlaylistsResponse?.let { playlists ->
-                // Verificamos si la playlist actual está en la lista de "liked" del usuario
-                isLikedPlaylist = playlists.any { it.id == playlistId }
-            }
+        // Consultar si el usuario ya le ha dado like a alguna cancion (para poder guardar el like)
+        val likedSongsResponse = getLikedSongsPlaylist(userId)
+        likedSongsResponse?.let { likedSongs ->
+            // Create a map of song IDs to their liked status
+            val likedSongIds = likedSongs.map { it.id }.toSet()
 
-            // Consultar si el usuario ya le ha dado like a alguna cancion (para poder guardar el like)
-            val likedSongsResponse = getLikedSongsPlaylist(userId)
-            likedSongsResponse?.let { likedSongs ->
-                // Create a map of song IDs to their liked status
-                val likedSongIds = likedSongs.map { it.id }.toSet()
-
-                // Update song likes based on the fetched liked songs
-                songLikes = songs.associate { song ->
-                    song.id to likedSongIds.contains(song.id)
-                }
+            // Update song likes based on the fetched liked songs
+            songLikes = songs.associate { song ->
+                song.id to likedSongIds.contains(song.id)
             }
-
         }
-
     }
 
     val playlistAuthor = playlistInfo?.let { getPlaylistAuthor(it) };
@@ -417,11 +453,13 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                             if (isPlaying && currentIdPlaylist == playlistId) {
                                 playerViewModel.togglePlayPause()
                             } else {
-                                if (playlistId != null) {
-                                    playerViewModel.loadSongsFromPlaylist(
-                                        convertSongsToCurrentSongs(sortedAndFilteredSongs, 1),
-                                        sortedAndFilteredSongs.first().id.toString(), context,
-                                        playlistId)
+                                if (isSencillo) {
+                                    if (playlistId != null) {
+                                        playerViewModel.loadSongsFromPlaylist(
+                                            convertSongsToCurrentSongs(sortedAndFilteredSongs, 1),
+                                            sortedAndFilteredSongs.first().id.toString(), context,
+                                            playlistId)
+                                    }
                                 }
                             }
                         },
@@ -514,11 +552,13 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                             },
                             modifier = Modifier.size(48.dp)
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Favorite, // Usamos el ícono de "me gusta"
-                                contentDescription = "Me gusta",
-                                tint = if (isLikedPlaylist) Color.Red else Color.Gray // Si está seleccionado, se colorea rojo, si no es gris
-                            )
+                            if (!isSencillo){
+                                Icon(
+                                    imageVector = Icons.Default.Favorite, // Usamos el ícono de "me gusta"
+                                    contentDescription = "Me gusta",
+                                    tint = if (isLikedPlaylist) Color.Red else Color.Gray // Si está seleccionado, se colorea rojo, si no es gris
+                                )
+                            }
                         }
                         Spacer(modifier = Modifier.width(2.dp)) // Espacio entre iconos
                     }
@@ -575,6 +615,26 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                     //val artist = songArtistMap[song] ?: "Artista Desconocido"
                     var showSongOptionsBottomSheet by remember { mutableStateOf(false) } // Estado para mostrar el BottomSheet de opciones de la canción
                     if (playlistId != null) {
+                            SongItem(
+                                song = song,
+                                showHeartIcon = true,
+                                showMoreVertIcon = true,
+                                isLiked = songLikes[song.id] ?: false,
+                                onLikeToggle = {
+                                    // Lógica para manejar el like
+                                    toggleSongLike(song.id, userId)
+                                },
+                                onMoreVertClick = {
+                                    // Mostrar opciones de la canción
+                                    showSongOptionsBottomSheet = true
+                                },
+                                viewModel = playerViewModel,
+                                isPlaylist = true,
+                                playlistSongs = sortedSongs,
+                                idPlaylist = playlistId
+                            )
+                            Log.d("Sencillo", "Canción cargada: ${song.name}")
+                    } else {
                         SongItem(
                             song = song,
                             showHeartIcon = true,
@@ -591,8 +651,9 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                             viewModel = playerViewModel,
                             isPlaylist = true,
                             playlistSongs = sortedSongs,
-                            idPlaylist = playlistId
+                            idPlaylist = "1"
                         )
+                        Log.d("Sencillo", "Canción cargada: ${song.name}")
                     }
                     // BottomSheet para opciones de la canción (dentro del items)
                     if (showSongOptionsBottomSheet) {

@@ -448,7 +448,7 @@ fun ArtistScreen(navController: NavController, playerViewModel: MusicPlayerViewM
             item {
                 Text(
                     text = "Sencillos",
-                    fontSize = 24.sp, // Cambia el tamaño aquí
+                    fontSize = 24.sp,
                     textAlign = TextAlign.Start,
                     modifier = Modifier
                         .padding(start = 20.dp)
@@ -473,7 +473,8 @@ fun ArtistScreen(navController: NavController, playerViewModel: MusicPlayerViewM
                                     modifier = Modifier
                                         .size(120.dp)
                                         .clickable {
-                                            navController.navigate("playlist/${single.id}")
+                                            Log.d("Error", "Id del sencillo: " + single.id)
+                                            navController.navigate("single/${single.id}")
                                         },
                                     colors = CardDefaults.cardColors(containerColor = Color.Transparent)
                                 ) {

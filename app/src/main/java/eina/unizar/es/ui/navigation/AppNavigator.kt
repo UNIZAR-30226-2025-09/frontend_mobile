@@ -116,12 +116,34 @@ fun AppNavigator(navController: NavHostController, paymentSheet: PaymentSheet, i
                     ArtistScreen(navController, playerViewModel, artistId)
                 }
 
+                // Para playlists normales
                 composable(
                     "playlist/{playlistId}",
-                    arguments = listOf(navArgument("playlistId") { type = NavType.StringType } )
+                    arguments = listOf(navArgument("playlistId") { type = NavType.StringType })
                 ) { backStackEntry ->
                     val playlistId = backStackEntry.arguments?.getString("playlistId")
-                    PlaylistScreen(navController, playlistId, playerViewModel)
+                    PlaylistScreen(
+                        navController = navController,
+                        playlistId = playlistId,
+                        playerViewModel = playerViewModel,
+                        isSencillo = false,
+                        singleId = null
+                    )
+                }
+
+                // Para sencillos
+                composable(
+                    "single/{songId}",
+                    arguments = listOf(navArgument("songId") { type = NavType.StringType })
+                ) { backStackEntry ->
+                    val songId = backStackEntry.arguments?.getString("songId")
+                    PlaylistScreen(
+                        navController = navController,
+                        playlistId = null,
+                        playerViewModel = playerViewModel,
+                        isSencillo = true,
+                        singleId = songId
+                    )
                 }
                 composable(
                     "song/{songId}",
