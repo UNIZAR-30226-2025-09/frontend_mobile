@@ -103,30 +103,28 @@ fun ArtistScreen(navController: NavController, playerViewModel: MusicPlayerViewM
     var albums by remember { mutableStateOf<List<Playlist>>(emptyList()) }
     var sencillos by remember { mutableStateOf<List<Song>>(emptyList()) }
 
-
-    // Usamos un Map para manejar el estado de "me gusta" por canción usando el índice o algún identificador único
-    val songLikes = remember { mutableStateOf(songsList.associateWith { false }) }
-
     // Observa la lista de canciones con like desde el ViewModel
     val likedSongs by playerViewModel.likedSongs.collectAsState()
-
-    // Función para cambiar el estado de "me gusta" de una canción
-    fun toggleLike(song: Song) {
-        songLikes.value = songLikes.value.toMutableMap().apply {
-            this[song] = !(this[song] ?: false) // Cambiar el estado de "me gusta" de esta canción
-        }
-    }
 
     // Para poder realizar el post del like/unlike
     val coroutineScope = rememberCoroutineScope()
 
-    // Id del usuario a guardar al darle like
-    var userId by remember { mutableStateOf("") }  // Estado inicial
-
-    var playlists by remember { mutableStateOf<List<Playlist>>(emptyList()) }
+    // Para obtener el contexto de la actividad
     val context = LocalContext.current // Contexto de la actividad
 
     LaunchedEffect(Unit) {
+
+        coroutineScope {
+            // Inicializar el ViewModel con el ID de usuario
+            if (playerViewModel.getUserId().isEmpty()) {
+                playerViewModel.setUserId(context)
+            }
+
+            // Cargar explícitamente el estado de "me gusta"
+            // ya que si el ViewModel no se inicializa, no se saben las likedSongs
+            playerViewModel.initializeLikedSongs(playerViewModel.getUserId())
+        }
+
         val responseS = get("artist/${artistId}")
         responseS?.let { jsonResponse ->
             try {
@@ -159,9 +157,6 @@ fun ArtistScreen(navController: NavController, playerViewModel: MusicPlayerViewM
                             //type = songJson.optString("type"),
                             url_mp3 = songJson.optString("url_mp3", ""),
                             letra = ""
-                            //songId = songJson.optInt("artists.song_artist.song_id", 0),
-                            //artistId = songJson.optInt("artists.song_artist.artist_id", 0),
-                            //likes = songJson.optInt("likes", 0)
                         )
                         fetchedSongs.add(song)
                         Log.d("PARSING", "Canción ${i + 1}: $song")
@@ -221,11 +216,7 @@ fun ArtistScreen(navController: NavController, playerViewModel: MusicPlayerViewM
                 Log.e("PARSE_ERROR", "Error al parsear JSON: ${e.message}")
             }
         }
-        // Cargar explícitamente el estado de "me gusta"
-        // ya que si el ViewModel no se inicializa, no se saben las likedSongs
-        playerViewModel.initializeLikedSongs(playerViewModel.getUserId(), context)
     }
-    
 
     Scaffold(
         topBar = {

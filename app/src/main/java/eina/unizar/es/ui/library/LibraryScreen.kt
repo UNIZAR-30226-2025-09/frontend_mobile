@@ -212,7 +212,7 @@ fun LibraryScreen(navController: NavController, playerViewModel: MusicPlayerView
                 ),
                 navigationIcon = {
                     Box(modifier = Modifier.padding(start = 4.dp)) {
-                        UserProfileMenu(navController)
+                        UserProfileMenu(navController, playerViewModel)
                     }
                 }
             )

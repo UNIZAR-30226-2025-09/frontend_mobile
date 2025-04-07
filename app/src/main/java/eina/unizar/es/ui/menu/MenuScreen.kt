@@ -83,6 +83,17 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
 
     // Cargar playlists desde el backend
     LaunchedEffect(Unit) {
+        coroutineScope.launch {
+            // Inicializar el ViewModel con el ID de usuario
+            if (playerViewModel.getUserId().isEmpty()) {
+                playerViewModel.setUserId(context)
+            }
+
+            // Cargar explícitamente el estado de "me gusta"
+            // ya que si el ViewModel no se inicializa, no se saben las likedSongs
+            playerViewModel.initializeLikedSongs(playerViewModel.getUserId())
+        }
+
         val response = get("playlists") // Llamada a la API
         response?.let {
             val jsonArray = JSONArray(it)
@@ -209,7 +220,7 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
                 ),
                 navigationIcon = {
                     Box(modifier = Modifier.padding(start = 4.dp)) {
-                        UserProfileMenu(navController)
+                        UserProfileMenu(navController, playerViewModel)
                     }
                 }
             )
