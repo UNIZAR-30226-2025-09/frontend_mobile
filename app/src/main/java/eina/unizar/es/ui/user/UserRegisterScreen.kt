@@ -233,11 +233,6 @@ fun UserRegisterScreen(navController: NavController) {
                                     Toast.makeText(context,
                                     "Cuenta creada correctamente",
                                     Toast.LENGTH_LONG).show()
-                                } else {
-                                    Toast.makeText(
-                                    context,
-                                    "Error al registrarse",
-                                    Toast.LENGTH_LONG).show()
                                 }
                             }
                         }
@@ -310,7 +305,7 @@ fun UserRegisterScreen(navController: NavController) {
  * Retorna `false` si hay un error o si las contraseñas no coinciden.
  */
 suspend fun registerUser(username: String, email: String, password: String, confirmPassword: String,
-                        context: Context): Boolean {
+                         context: Context): Boolean {
     if (password != confirmPassword) {
         Toast.makeText(context, "Las contraseñas no coinciden", Toast.LENGTH_LONG).show()
         return false
@@ -320,33 +315,47 @@ suspend fun registerUser(username: String, email: String, password: String, conf
         put("nickname", username)
         put("mail", email)
         put("password", password)
-        put("style_fav", "rock") // Ajusta según la lógica de la app
+        put("style_fav", "rock")
     }
 
     Log.d("RegisterRequest", "JSON enviado: $jsonBody")
 
     return try {
-        val response = ApiClient.post("user/register", jsonBody)
-        if (response != null) {
-            val jsonResponse = JSONObject(response)
-            val message = jsonResponse.optString("message", "")
+        val (statusCode, response) = ApiClient.postWithCode("user/register", jsonBody)
 
-            if (message.contains("registrado con éxito", ignoreCase = true)) {
+        when (statusCode) {
+            201 -> {
                 Log.d("RegisterSuccess", "Registro exitoso")
-                return true
-            } else {
-                Log.e("RegisterError", "Error en el registro: $message")
-                Toast.makeText(context, "Ya existe un usuario con ese correo", Toast.LENGTH_LONG).show()
-                return false
+                Toast.makeText(context, "Registro exitoso", Toast.LENGTH_SHORT).show()
+                true
             }
-        } else {
-            Log.e("RegisterError", "El servidor respondió con null")
-            return false
+            400 -> {
+                Log.e("RegisterError", "El correo ya está en uso")
+                Toast.makeText(context, "El correo electrónico ya está en uso", Toast.LENGTH_LONG).show()
+                false
+            }
+            409 -> {
+                Log.e("RegisterError", "El nombre de usuario ya está en uso")
+                Toast.makeText(context, "El nombre de usuario ya está en uso", Toast.LENGTH_LONG).show()
+                false
+            }
+            in 500..599 -> {
+                val errorMessage = response ?: "Error del servidor"
+                Log.e("RegisterError", "Error del servidor ($statusCode): $errorMessage")
+                Toast.makeText(context, "Error del servidor: $errorMessage", Toast.LENGTH_LONG).show()
+                false
+            }
+            else -> {
+                val errorMessage = response ?: "Error desconocido"
+                Log.e("RegisterError", "Error inesperado ($statusCode): $errorMessage")
+                Toast.makeText(context, "Error inesperado: $errorMessage", Toast.LENGTH_LONG).show()
+                false
+            }
         }
     } catch (e: Exception) {
         e.printStackTrace()
         Log.e("RegisterError", "Error de conexión: ${e.message}")
-        Toast.makeText(context, "Error de conexión", Toast.LENGTH_LONG).show()
-        return false
+        Toast.makeText(context, "Error de conexión: ${e.message}", Toast.LENGTH_LONG).show()
+        false
     }
 }
