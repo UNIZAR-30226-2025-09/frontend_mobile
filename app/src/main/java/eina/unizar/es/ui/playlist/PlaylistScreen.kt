@@ -186,6 +186,7 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
     // Id del usuario a guardar al darle like
     var userId by remember { mutableStateOf("") }  // Estado inicial
 
+
     //Logica si es un sencillo
     if(isSencillo){
         LaunchedEffect(Unit) {
@@ -257,37 +258,34 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                     songs = fetchedSongs
                 }
             }
+        }
+    }
+
+    LaunchedEffect(Unit){
+        val userData = getUserData(context)
+        if (userData != null) {
+            userId =
+                (userData["id"]
+                    ?: "Id").toString()  // Si no hay nickname, usa "Usuario"
+        }
+        // Consultar si el usuario ya le ha dado like a esta playlist (para poder guardar el like)
+        val likedPlaylistsResponse = getLikedPlaylists(userId)
+        likedPlaylistsResponse?.let { playlists ->
+            // Verificamos si la playlist actual está en la lista de "liked" del usuario
+            isLikedPlaylist = playlists.any { it.id == playlistId }
+        }
 
 
-            coroutineScope.launch {
-                val userData = getUserData(context)
-                if (userData != null) {
-                    userId =
-                        (userData["id"]
-                            ?: "Id").toString()  // Si no hay nickname, usa "Usuario"
-                }
-                // Consultar si el usuario ya le ha dado like a esta playlist (para poder guardar el like)
-                val likedPlaylistsResponse = getLikedPlaylists(userId)
-                likedPlaylistsResponse?.let { playlists ->
-                    // Verificamos si la playlist actual está en la lista de "liked" del usuario
-                    isLikedPlaylist = playlists.any { it.id == playlistId }
-                }
+        // Consultar si el usuario ya le ha dado like a alguna cancion (para poder guardar el like)
+        val likedSongsResponse = getLikedSongsPlaylist(userId)
+        likedSongsResponse?.let { likedSongs ->
+            // Create a map of song IDs to their liked status
+            val likedSongIds = likedSongs.map { it.id }.toSet()
 
-
-                // Consultar si el usuario ya le ha dado like a alguna cancion (para poder guardar el like)
-                val likedSongsResponse = getLikedSongsPlaylist(userId)
-                likedSongsResponse?.let { likedSongs ->
-                    // Create a map of song IDs to their liked status
-                    val likedSongIds = likedSongs.map { it.id }.toSet()
-
-                    // Update song likes based on the fetched liked songs
-                    songLikes = songs.associate { song ->
-                        song.id to likedSongIds.contains(song.id)
-                    }
-                }
-
+            // Update song likes based on the fetched liked songs
+            songLikes = songs.associate { song ->
+                song.id to likedSongIds.contains(song.id)
             }
-
         }
     }
 
@@ -554,11 +552,13 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                             },
                             modifier = Modifier.size(48.dp)
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Favorite, // Usamos el ícono de "me gusta"
-                                contentDescription = "Me gusta",
-                                tint = if (isLikedPlaylist) Color.Red else Color.Gray // Si está seleccionado, se colorea rojo, si no es gris
-                            )
+                            if (!isSencillo){
+                                Icon(
+                                    imageVector = Icons.Default.Favorite, // Usamos el ícono de "me gusta"
+                                    contentDescription = "Me gusta",
+                                    tint = if (isLikedPlaylist) Color.Red else Color.Gray // Si está seleccionado, se colorea rojo, si no es gris
+                                )
+                            }
                         }
                         Spacer(modifier = Modifier.width(2.dp)) // Espacio entre iconos
                     }
