@@ -29,6 +29,7 @@ import eina.unizar.es.ui.player.MusicPlayerViewModel
 import androidx.compose.animation.*
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.example.musicapp.ui.theme.VibraBlue
 import eina.unizar.es.data.model.network.ApiClient.getImageUrl
 import eina.unizar.es.ui.navbar.BottomNavigationBar
 import eina.unizar.es.ui.playlist.getArtistName
@@ -45,7 +46,7 @@ fun SongScreen(navController: NavController, playerViewModel: MusicPlayerViewMod
     val currentSong by playerViewModel.currentSong.collectAsState()
     val isPlaying = currentSong?.isPlaying ?: false
     val scaffoldState = rememberBottomSheetScaffoldState()
-
+    val isLooping by playerViewModel.isLooping.collectAsState()
     val scrollState = rememberScrollState()
 
     var artista by remember { mutableStateOf<String?>(null) }
@@ -168,6 +169,14 @@ fun SongScreen(navController: NavController, playerViewModel: MusicPlayerViewMod
 
                     IconButton(onClick = { playerViewModel.nextSong(context) }) {
                         Icon(Icons.Default.FastForward, contentDescription = "Siguiente")
+                    }
+
+                    IconButton(onClick = { playerViewModel.loopSong() }) {
+                        Icon(
+                            imageVector = if (isLooping) Icons.Filled.RepeatOne else Icons.Filled.Repeat,
+                            contentDescription = if (isLooping) "Desactivar repetición" else "Activar repetición",
+                            tint = if (isLooping) VibraBlue else MaterialTheme.colorScheme.onBackground
+                        )
                     }
                 }
             }

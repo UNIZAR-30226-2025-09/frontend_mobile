@@ -96,7 +96,7 @@ fun AppNavigator(navController: NavHostController, paymentSheet: PaymentSheet, i
                 composable("login") { UserLoginScreen(navController) }
                 composable("register") { UserRegisterScreen(navController) }
                 composable("perfilEdit") { EditProfileScreen(navController) }
-                composable("settings") { UserSettings(navController, isPremium) }
+                composable("settings") { UserSettings(navController, isPremium, playerViewModel) }
                 composable("plans") { PlansScreen(paymentSheet,navController,isPremium, playerViewModel) }       
                 composable("friends") { FriendsScreen(navController, playerViewModel) }
                 composable("ADSongs") { ADSongs(navController, playerViewModel) }

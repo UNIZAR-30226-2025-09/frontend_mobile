@@ -790,21 +790,6 @@ fun BottomSheetContent(
     }
 }
 
-/**
- * Item de la lista de opciones en el Bottom Sheet.
- */
-@Composable
-fun PlaylistOptionItem(text: String, onClick: () -> Unit) {
-    Text(
-        text = text,
-        color = Color.White,
-        fontSize = 16.sp,
-        modifier = Modifier
-            .padding(vertical = 8.dp)
-            .clickable { onClick() }
-    )
-}
-
 // Desplegable para las canciones
 @Composable
 fun SongOptionsBottomSheetContent(

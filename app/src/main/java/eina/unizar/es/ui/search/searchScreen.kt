@@ -111,7 +111,8 @@ fun SearchScreen(navController: NavController, playerViewModel: MusicPlayerViewM
 
             // Cargar explícitamente el estado de "me gusta"
             // ya que si el ViewModel no se inicializa, no se saben las likedSongs
-            playerViewModel.initializeLikedSongs(playerViewModel.getUserId(), context)
+            playerViewModel.initializeLikedSongs(playerViewModel.getUserId())
+
         }
     }
 
@@ -150,7 +151,7 @@ fun SearchScreen(navController: NavController, playerViewModel: MusicPlayerViewM
                 ),
                 navigationIcon = {
                     Box(modifier = Modifier.padding(start = 4.dp)) {
-                        UserProfileMenu(navController)
+                        UserProfileMenu(navController, playerViewModel)
                     }
                 }
             )

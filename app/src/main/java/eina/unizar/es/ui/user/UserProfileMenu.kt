@@ -31,6 +31,7 @@ import kotlinx.coroutines.launch
 import eina.unizar.es.data.model.network.ApiClient
 import eina.unizar.es.data.model.network.ApiClient.getLikedPlaylists
 import eina.unizar.es.data.model.network.ApiClient.getUserData
+import eina.unizar.es.ui.player.MusicPlayerViewModel
 import kotlin.random.Random
 
 // Función que obtiene la inicial del nickname
@@ -40,7 +41,7 @@ fun getInitial(nickname: String?): String {
 
 // In your composable, you would use it like this:
 @Composable
-fun UserProfileMenu(navController: NavController, modifier: Modifier = Modifier) {
+fun UserProfileMenu(navController: NavController, viewModel: MusicPlayerViewModel, modifier: Modifier = Modifier) {
     var expanded by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -149,6 +150,7 @@ fun UserProfileMenu(navController: NavController, modifier: Modifier = Modifier)
                 onClick = {
                     expanded = false
                     coroutineScope.launch {
+                        viewModel.cleanupOnLogout()  // Reinicia el reproductor
                         ApiClient.logoutUser(context, navController)
                     }
                 },
