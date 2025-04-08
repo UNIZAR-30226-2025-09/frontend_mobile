@@ -57,6 +57,7 @@ import eina.unizar.es.data.model.network.ApiClient.checkIfSongIsLiked
 import eina.unizar.es.data.model.network.ApiClient.getImageUrl
 import eina.unizar.es.data.model.network.ApiClient.getLikedPlaylists
 import eina.unizar.es.data.model.network.ApiClient.getLikedSongsPlaylist
+import eina.unizar.es.data.model.network.ApiClient.getSongDetails
 import eina.unizar.es.data.model.network.ApiClient.getUserData
 import eina.unizar.es.data.model.network.ApiClient.likeUnlikePlaylist
 import eina.unizar.es.data.model.network.ApiClient.likeUnlikeSong
@@ -70,6 +71,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.nio.file.Files.delete
+import eina.unizar.es.ui.artist.SongOptionsBottomSheetContent
 
 
 
@@ -614,6 +616,16 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                 items(sortedAndFilteredSongs) { song ->
                     //val artist = songArtistMap[song] ?: "Artista Desconocido"
                     var showSongOptionsBottomSheet by remember { mutableStateOf(false) } // Estado para mostrar el BottomSheet de opciones de la canción
+                    var songArtists by remember { mutableStateOf<List<Map<String, String>>>(emptyList()) }
+
+                    LaunchedEffect(song.id) {
+                        val songDetails = getSongDetails(song.id.toString())
+                        songDetails?.let { details ->
+                            @Suppress("UNCHECKED_CAST")
+                            songArtists = details["artists"] as? List<Map<String, String>> ?: emptyList()
+                        }
+                    }
+
                     if (playlistId != null) {
                             SongItem(
                                 song = song,
@@ -657,14 +669,20 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                     }
                     // BottomSheet para opciones de la canción (dentro del items)
                     if (showSongOptionsBottomSheet) {
+                        val artistName = if (songArtists.isNotEmpty()) {
+                            songArtists.joinToString(", ") { it["name"] ?: "" }
+                        } else {
+                            "Artista desconocido"
+                        }
                         ModalBottomSheet(
                             onDismissRequest = { showSongOptionsBottomSheet = false },
                             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
                         ) {
                             SongOptionsBottomSheetContent(
-                                onDismiss = { showSongOptionsBottomSheet = false },
+                                navController = navController,
+                                viewModel = playerViewModel,
                                 songTitle = song.name, // Pasa el título de la canción
-                                artistName = /*artist*/ "Artista de prueba" // Pasa el nombre del artista
+                                artistName = artistName // Pasa el nombre del artista
                             )
                         }
                     }

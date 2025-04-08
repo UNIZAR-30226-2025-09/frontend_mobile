@@ -99,7 +99,7 @@ fun AppNavigator(navController: NavHostController, paymentSheet: PaymentSheet, i
                 composable("settings") { UserSettings(navController, isPremium, playerViewModel) }
                 composable("plans") { PlansScreen(paymentSheet,navController,isPremium, playerViewModel) }       
                 composable("friends") { FriendsScreen(navController, playerViewModel) }
-                composable("ADSongs") { ADSongs(navController, playerViewModel) }
+                composable("ADSongs") { ADSongs(playerViewModel) }
                 composable(
                     "chat/{friendId}",
                     arguments = listOf(navArgument("friendId") { type = NavType.StringType } )

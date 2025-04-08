@@ -1,5 +1,6 @@
 package eina.unizar.es.ui.search
 
+import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -14,9 +15,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -24,23 +27,18 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.lifecycle.viewModelScope
 import androidx.navigation.NavController
+import coil.compose.AsyncImage
 import com.example.musicapp.ui.theme.VibraBlue
-import eina.unizar.es.R
+import eina.unizar.es.data.model.network.ApiClient.getImageUrl
+import eina.unizar.es.data.model.network.ApiClient.getUserPlaylists
 import eina.unizar.es.ui.player.MusicPlayerViewModel
-
-data class PlaylistItem(
-    val id: String,
-    val name: String,
-    val songCount: Int,
-    val imageResId: Int,
-    val isSelected: Boolean = false
-)
+import eina.unizar.es.ui.playlist.Playlist
 
 @Composable
 fun ADSongs(
-    navController: NavController? = null,
-    viewModel: MusicPlayerViewModel? = null,
+    viewModel: MusicPlayerViewModel,
     onDismiss: () -> Unit = {}
 ) {
     var searchText by remember { mutableStateOf("") }
@@ -49,24 +47,66 @@ fun ADSongs(
     val textColor = Color.White
     val subtitleColor = Color.Gray
 
-    // Sample playlists data
-    val playlists = remember {
-        listOf(
-            PlaylistItem("1", "Canciones que te gustan", 212, R.drawable.kanyeperfil, true),
-            PlaylistItem("2", "Ejemplo1", 21, R.drawable.kanyeperfil),
-            PlaylistItem("3", "Ejemplo2", 79, R.drawable.kanyeperfil),
-            PlaylistItem("4", "Ejemplo3", 0, R.drawable.kanyeperfil)
-        )
-    }
+    // Para obtener el contexto de la actividad
+    val context = LocalContext.current // Contexto de la actividad
+
+    // Estado para mostrar un indicador de carga
+    var isLoading by remember { mutableStateOf(true) }
+
+    // User ID from the ViewModel
+    var userId = viewModel.getUserId()
+
+    // Estado para almacenar las playlists del usuario
+    var playlists by remember { mutableStateOf<List<Playlist>>(emptyList()) }
 
     // Estado para manejar la selección de playlists
-    var selectedPlaylistIds by remember { mutableStateOf(playlists.filter { it.isSelected }.map { it.id }.toSet()) }
+    var selectedPlaylistIds by remember { mutableStateOf(setOf<String>()) }
 
     val filteredPlaylists = remember(searchText, playlists) {
         if (searchText.isEmpty()) {
             playlists
         } else {
-            playlists.filter { it.name.contains(searchText, ignoreCase = true) }
+            playlists.filter { it.title.contains(searchText, ignoreCase = true) }
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        if (viewModel.getUserId().isEmpty()) {
+            viewModel.setUserId(context)
+        }
+        if (userId.isNotEmpty()) {
+            try {
+                Log.d("User ID", "User ID: $userId")
+                val userPlaylists = getUserPlaylists(userId)
+
+                if (userPlaylists != null) {
+                    // Convertir las playlists y ordenarlas para que Vibra_likedSong aparezca primero
+                    playlists = userPlaylists.sortedWith(compareBy {
+                        // Si el tipo es Vibra_likedSong, va primero (valor -1)
+                        // El resto mantiene su orden original
+                        if (it.esAlbum == "Vibra_likedSong") -1 else 0
+                    }).map { playlist ->
+                        Playlist(
+                            id = playlist.id,
+                            title = playlist.title,
+                            imageUrl = playlist.imageUrl,
+                            idAutor = playlist.idAutor,
+                            idArtista = playlist.idArtista,
+                            description = playlist.description,
+                            esPublica = playlist.esPublica,
+                            esAlbum = playlist.esAlbum
+                        )
+                    }
+                } else {
+                    Log.e("Error", "No se pudieron cargar las playlists")
+                }
+            } catch (e: Exception) {
+                Log.d("Error", "Error: ${e.message}")
+            } finally {
+                isLoading = false
+            }
+        } else {
+            isLoading = false
         }
     }
 
@@ -74,7 +114,8 @@ fun ADSongs(
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .wrapContentHeight(),
+                .wrapContentHeight()
+                .padding(vertical = 32.dp),
             shape = RoundedCornerShape(8.dp),
             color = darkBackground
         ) {
@@ -122,33 +163,53 @@ fun ADSongs(
                 )
 
                 // Playlists
-                LazyColumn(
+                Box(
                     modifier = Modifier
-                        .weight(1f, fill = false)
                         .fillMaxWidth()
+                        .height(225.dp) // Altura fija para el contenedor de listas
                 ) {
-                    item {
+                    if (isLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.align(Alignment.Center),
+                            color = VibraBlue
+                        )
+                    } else if (filteredPlaylists.isEmpty()) {
                         Text(
-                            text = "Tus playlists",
+                            text = "No se encontraron playlists",
                             color = subtitleColor,
                             fontSize = 14.sp,
-                            modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)
+                            modifier = Modifier.align(Alignment.Center)
                         )
-                    }
+                    } else {
+                        Column(modifier = Modifier.fillMaxSize()) {
+                            Text(
+                                text = "Tus playlists",
+                                color = subtitleColor,
+                                fontSize = 14.sp,
+                                modifier = Modifier.padding(top = 8.dp, bottom = 8.dp)
+                            )
 
-                    items(filteredPlaylists) { playlist ->
-                        PlaylistRowWithCheckbox(
-                            playlist = playlist,
-                            isSelected = selectedPlaylistIds.contains(playlist.id),
-                            onClick = {
-                                // Toggle selection
-                                selectedPlaylistIds = if (selectedPlaylistIds.contains(playlist.id)) {
-                                    selectedPlaylistIds - playlist.id
-                                } else {
-                                    selectedPlaylistIds + playlist.id
+                            // LazyColumn con scroll dentro del contenedor de altura fija
+                            LazyColumn(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .weight(1f)
+                            ) {
+                                items(filteredPlaylists) { playlist ->
+                                    PlaylistRowWithCheckbox(
+                                        playlist = playlist,
+                                        isSelected = selectedPlaylistIds.contains(playlist.id),
+                                        onClick = {
+                                            selectedPlaylistIds = if (selectedPlaylistIds.contains(playlist.id)) {
+                                                selectedPlaylistIds - playlist.id
+                                            } else {
+                                                selectedPlaylistIds + playlist.id
+                                            }
+                                        }
+                                    )
                                 }
                             }
-                        )
+                        }
                     }
                 }
 
@@ -163,7 +224,7 @@ fun ADSongs(
                         onClick = onDismiss
                     ) {
                         Text(
-                            text = "Cancelar",
+                            text = "Volver",
                             color = textColor
                         )
                     }
@@ -175,7 +236,7 @@ fun ADSongs(
 
 @Composable
 fun PlaylistRowWithCheckbox(
-    playlist: PlaylistItem,
+    playlist: Playlist,
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
@@ -187,8 +248,9 @@ fun PlaylistRowWithCheckbox(
         verticalAlignment = Alignment.CenterVertically
     ) {
         // Playlist cover image
-        Image(
-            painter = painterResource(id = playlist.imageResId),
+        val playlistImage = getImageUrl(playlist.imageUrl, "/default-playlist.jpg")
+        AsyncImage(
+            model = playlistImage,
             contentDescription = "Playlist cover",
             modifier = Modifier
                 .size(40.dp)
@@ -203,14 +265,9 @@ fun PlaylistRowWithCheckbox(
                 .padding(start = 12.dp)
         ) {
             Text(
-                text = playlist.name,
+                text = playlist.title,
                 color = Color.White,
                 fontSize = 16.sp
-            )
-            Text(
-                text = "${playlist.songCount} canciones",
-                color = Color.Gray,
-                fontSize = 14.sp
             )
         }
 
@@ -249,18 +306,5 @@ fun CustomRadioButton(
                     .background(selectedColor)
             )
         }
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun ADSongsPreview() {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.DarkGray),
-        contentAlignment = Alignment.Center
-    ) {
-        ADSongs()
     }
 }

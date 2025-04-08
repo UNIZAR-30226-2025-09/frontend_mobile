@@ -54,6 +54,7 @@ import kotlinx.coroutines.launch
 import coil.compose.AsyncImage
 import eina.unizar.es.data.model.network.ApiClient
 import eina.unizar.es.data.model.network.ApiClient.getImageUrl
+import eina.unizar.es.data.model.network.ApiClient.getSongDetails
 import eina.unizar.es.data.model.network.ApiClient.likeUnlikeSong
 import eina.unizar.es.ui.main.Rubik
 import eina.unizar.es.ui.navbar.BottomNavigationBar
@@ -336,7 +337,15 @@ fun ArtistScreen(navController: NavController, playerViewModel: MusicPlayerViewM
             items(songsList) { song ->
                 var songIsLiked = song.id.toString() in likedSongs
                 var showSongOptionsBottomSheet by remember { mutableStateOf(false) } // Estado para mostrar el BottomSheet de opciones de la canción
+                var songArtists by remember { mutableStateOf<List<Map<String, String>>>(emptyList()) }
 
+                LaunchedEffect(song.id) {
+                    val songDetails = getSongDetails(song.id.toString())
+                    songDetails?.let { details ->
+                        @Suppress("UNCHECKED_CAST")
+                        songArtists = details["artists"] as? List<Map<String, String>> ?: emptyList()
+                    }
+                }
                 SongItem(
                     song = song,
                     showHeartIcon = true,
@@ -364,14 +373,21 @@ fun ArtistScreen(navController: NavController, playerViewModel: MusicPlayerViewM
 
                 // BottomSheet para opciones de la canción (dentro del items)
                 if (showSongOptionsBottomSheet) {
+                    val artistName = if (songArtists.isNotEmpty()) {
+                        songArtists.joinToString(", ") { it["name"] ?: "" }
+                    } else {
+                        artistInfo?.name ?: "Artista desconocido"
+                    }
+
                     ModalBottomSheet(
                         onDismissRequest = { showSongOptionsBottomSheet = false },
                         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
                     ) {
                         SongOptionsBottomSheetContent(
-                            onDismiss = { showSongOptionsBottomSheet = false },
+                            navController = navController,
+                            viewModel = playerViewModel,
                             songTitle = song.name, // Pasa el título de la canción
-                            artistName = /*artist*/ "Artista de prueba" // Pasa el nombre del artista
+                            artistName = artistName // Pasa el nombre del artista
                         )
                     }
                 }
@@ -560,7 +576,8 @@ fun ArtistScreen(navController: NavController, playerViewModel: MusicPlayerViewM
 // Desplegable para las canciones
 @Composable
 fun SongOptionsBottomSheetContent(
-    onDismiss: () -> Unit,
+    viewModel: MusicPlayerViewModel,
+    navController: NavController,
     songTitle: String,
     artistName: String
 ) {
@@ -570,11 +587,8 @@ fun SongOptionsBottomSheetContent(
     // Si el diálogo está visible, muéstralo
     if (showAddToPlaylistDialog) {
         ADSongs(
-            onDismiss = {
-                showAddToPlaylistDialog = false
-                // No cerramos el bottom sheet principal aquí para permitir
-                // que el usuario pueda volver a él después de cerrar el diálogo
-            }
+            viewModel = viewModel,
+            onDismiss = { showAddToPlaylistDialog = false }
         )
     }
     Column(
@@ -604,9 +618,9 @@ fun SongOptionsBottomSheetContent(
         ) {
             SongOptionItem("Añadir a lista", onClick = { showAddToPlaylistDialog = true })
             Spacer(modifier = Modifier.height(8.dp))
-            SongOptionItem("Añadir a la cola", onDismiss)
+            SongOptionItem("Añadir a la cola", onClick = { /* Acción de añadir a la cola */ })
             Spacer(modifier = Modifier.height(8.dp))
-            SongOptionItem("Compartir", onDismiss)
+            SongOptionItem("Compartir", onClick = { /* Acción de compartir */ })
         }
         Spacer(modifier = Modifier.height(16.dp))
     }
@@ -615,24 +629,27 @@ fun SongOptionsBottomSheetContent(
 @Composable
 fun SongOptionItem(
     text: String,
-    onClick: () -> Unit,  // Hacer onClick como una función normal y no @Composable
+    onClick: () -> Unit,
     textColor: Color = Color.White,
     background: Color = Color.Transparent,
     roundedCornerShape: RoundedCornerShape = RoundedCornerShape(0.dp),
-    textAlign: TextAlign = TextAlign.Start, // Alineación del texto
-    modifier: Modifier = Modifier.fillMaxWidth() // Modificador por defecto
+    textAlign: TextAlign = TextAlign.Start,
+    modifier: Modifier = Modifier.fillMaxWidth()
 ) {
-    Box(modifier = modifier) {
+    Box(
+        modifier = modifier
+            .clip(roundedCornerShape)
+            .background(background)
+            .clickable { onClick() } // Clickable en todo el Box
+    ) {
         Text(
             text = text,
             color = textColor,
             fontSize = 16.sp,
             textAlign = textAlign,
             modifier = Modifier
-                .clip(roundedCornerShape)
-                .background(background)
+                .fillMaxWidth()
                 .padding(8.dp)
-                .clickable { onClick() }  // Ejecutar la función onClick cuando se haga clic
         )
     }
 }

@@ -134,7 +134,7 @@ object ApiClient {
             }
         }
 
-    /*
+    /**
      * Función para realizar una solicitud HTTP POST con encabezados personalizados.
      *
      * @param endpoint Ruta del recurso en la API (ejemplo: "user/login").
@@ -193,7 +193,19 @@ object ApiClient {
 
 
     /**
-     * Función para cerrar sesión eliminando el token almacenado.
+     * Performs a user logout by making an API request to invalidate the session token.
+     *
+     * This function:
+     * 1. Retrieves the authentication token from SharedPreferences
+     * 2. Makes a POST request to the logout endpoint with the token
+     * 3. Clears the stored token upon successful logout
+     * 4. Navigates back to the login screen
+     * 5. Displays appropriate Toast messages for success or failure
+     *
+     * @param context The application context used to access SharedPreferences and display Toast messages
+     * @param navController The NavController used to navigate to the login screen after logout
+     *
+     * @throws Exception If there's an error during the network request or token processing
      */
     suspend fun logoutUser(context: Context, navController: NavController) {
         withContext(Dispatchers.IO) {
@@ -244,12 +256,26 @@ object ApiClient {
     }
 
 
-/*
- * Función para obtener datos del usuario
- */
-suspend fun getUserData(context: Context): Map<String, Any>? {
-    return withContext(Dispatchers.IO) {
-        try {
+    /**
+     * Retrieves the current user's profile data from the server.
+     *
+     * This function makes an authenticated GET request to fetch the user profile data,
+     * including user ID, nickname, email, premium status, and profile picture.
+     *
+     * @param context The application context used to access SharedPreferences and make API requests
+     * @return A Map containing user profile data with the following keys:
+     *         - "id": The user's ID (Int)
+     *         - "nickname": The user's display name (String)
+     *         - "mail": The user's email address (String)
+     *         - "is_premium": Whether the user has premium status (Boolean)
+     *         - "user_picture": URL to the user's profile picture (String)
+     *         Returns null if the request fails or the user is not authenticated
+     *
+     * @throws Exception If there's an error during the network request or data processing
+     */
+    suspend fun getUserData(context: Context): Map<String, Any>? {
+        return withContext(Dispatchers.IO) {
+            try {
             val sharedPreferences = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
             val token = sharedPreferences.getString("auth_token", null) ?: return@withContext null
 
@@ -276,36 +302,36 @@ suspend fun getUserData(context: Context): Map<String, Any>? {
         }
     }
 
-/**
- * Realiza una petición GET con encabezados personalizados (ej. `Authorization: Bearer <TOKEN>`).
- *
- * @param endpoint Ruta del recurso en la API (ejemplo: "user/profile").
- * @param context Contexto para acceder a SharedPreferences.
- * @param headers Mapa con las cabeceras HTTP a incluir en la petición.
- * @return La respuesta en formato String o `null` si hay error.
- */
-suspend fun getWithHeaders(endpoint: String, context: Context, headers: Map<String, String>): String? {
-    return withContext(Dispatchers.IO) {
-        try {
-            val client = OkHttpClient()
-            val requestBuilder = Request.Builder()
-                .url("$BASE_URL/$endpoint")
-                .get()
+    /**
+     * Realiza una petición GET con encabezados personalizados (ej. `Authorization: Bearer <TOKEN>`).
+     *
+     * @param endpoint Ruta del recurso en la API (ejemplo: "user/profile").
+     * @param context Contexto para acceder a SharedPreferences.
+     * @param headers Mapa con las cabeceras HTTP a incluir en la petición.
+     * @return La respuesta en formato String o `null` si hay error.
+     */
+    suspend fun getWithHeaders(endpoint: String, context: Context, headers: Map<String, String>): String? {
+        return withContext(Dispatchers.IO) {
+            try {
+                val client = OkHttpClient()
+                val requestBuilder = Request.Builder()
+                    .url("$BASE_URL/$endpoint")
+                    .get()
 
-                // Agregar cabeceras
-                headers.forEach { (key, value) ->
-                    requestBuilder.addHeader(key, value)
-                }
+                    // Agregar cabeceras
+                    headers.forEach { (key, value) ->
+                        requestBuilder.addHeader(key, value)
+                    }
 
-                val request = requestBuilder.build()
-                val response = client.newCall(request).execute()
+                    val request = requestBuilder.build()
+                    val response = client.newCall(request).execute()
 
-                if (!response.isSuccessful) {
-                    Log.e("API", "Error en GET $endpoint: código ${response.code}")
-                    return@withContext null
-                }
+                    if (!response.isSuccessful) {
+                        Log.e("API", "Error en GET $endpoint: código ${response.code}")
+                        return@withContext null
+                    }
+                    response.body?.string()
 
-                response.body?.string()
             } catch (e: IOException) {
                 Log.e("API", "Error en la petición GET: ${e.message}", e)
                 null
@@ -354,65 +380,79 @@ suspend fun getWithHeaders(endpoint: String, context: Context, headers: Map<Stri
         }
     }
 
-/**
- * Realiza una petición HTTP POST al servidor para actualizar el estado de `is_premium` del usuario autenticado.
- *
- * **Función**: Envía una solicitud al endpoint `user/premium` para cambiar el estado de suscripción del usuario.
- * **Autenticación**: Se obtiene el **token JWT** desde `SharedPreferences` y se envía en la cabecera `Authorization`.
- * **Manejo de errores**:
- *   - Si no hay token disponible, se muestra un error en el log y la función devuelve `null`.
- *   - Si la petición falla, se captura el error y se muestra en el log.
- *   - Si la respuesta es inválida (`401 Unauthorized` o similar), devuelve `null`.
- *
- * @param endpoint Endpoint de la API (ejemplo: `"user/premium"`).
- * @param jsonBody Cuerpo de la solicitud en formato JSON.
- * @param context Contexto para obtener SharedPreferences.
- * @return Respuesta del servidor en formato `String`, o `null` en caso de error.
- */
-suspend fun postTokenPremium(
-    endpoint: String,
-    jsonBody: JSONObject,
-    context: Context
-): String? = withContext(Dispatchers.IO) {
-    try {
-        // Obtener el token desde SharedPreferences
-        val sharedPreferences: SharedPreferences = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
-            val token = sharedPreferences.getString("auth_token", null)
+    /**
+     * Realiza una petición HTTP POST al servidor para actualizar el estado de `is_premium` del usuario autenticado.
+     *
+     * **Función**: Envía una solicitud al endpoint `user/premium` para cambiar el estado de suscripción del usuario.
+     * **Autenticación**: Se obtiene el **token JWT** desde `SharedPreferences` y se envía en la cabecera `Authorization`.
+     * **Manejo de errores**:
+     *   - Si no hay token disponible, se muestra un error en el log y la función devuelve `null`.
+     *   - Si la petición falla, se captura el error y se muestra en el log.
+     *   - Si la respuesta es inválida (`401 Unauthorized` o similar), devuelve `null`.
+     *
+     * @param endpoint Endpoint de la API (ejemplo: `"user/premium"`).
+     * @param jsonBody Cuerpo de la solicitud en formato JSON.
+     * @param context Contexto para obtener SharedPreferences.
+     * @return Respuesta del servidor en formato `String`, o `null` en caso de error.
+     */
+    suspend fun postTokenPremium(
+        endpoint: String,
+        jsonBody: JSONObject,
+        context: Context
+    ): String? = withContext(Dispatchers.IO) {
+        try {
+            // Obtener el token desde SharedPreferences
+            val sharedPreferences: SharedPreferences = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+                val token = sharedPreferences.getString("auth_token", null)
 
-            if (token.isNullOrEmpty()) {
-                Log.e("API", "Token no disponible")
-                return@withContext null
-            }
-
-            val client = OkHttpClient()
-            val mediaType = "application/json; charset=utf-8".toMediaTypeOrNull()
-            val body = jsonBody.toString().toRequestBody(mediaType)
-
-            val request = Request.Builder()
-                .url("$BASE_URL/$endpoint") // Construcción de la URL
-                .post(body) // Método POST
-                .addHeader("Content-Type", "application/json")
-                .addHeader("Authorization", "Bearer $token") // Se envía el token aquí
-                .build()
-
-            client.newCall(request).execute().use { response ->
-                val responseBody = response.body?.string()
-
-                if (!response.isSuccessful) {
-                    Log.e("API", "Error en la respuesta: código ${response.code}, mensaje: ${responseBody}")
+                if (token.isNullOrEmpty()) {
+                    Log.e("API", "Token no disponible")
                     return@withContext null
-                } else {
-                    Log.d("API", "Respuesta exitosa: $responseBody")
-                    return@withContext responseBody
                 }
-            }
+
+                val client = OkHttpClient()
+                val mediaType = "application/json; charset=utf-8".toMediaTypeOrNull()
+                val body = jsonBody.toString().toRequestBody(mediaType)
+
+                val request = Request.Builder()
+                    .url("$BASE_URL/$endpoint") // Construcción de la URL
+                    .post(body) // Método POST
+                    .addHeader("Content-Type", "application/json")
+                    .addHeader("Authorization", "Bearer $token") // Se envía el token aquí
+                    .build()
+
+                client.newCall(request).execute().use { response ->
+                    val responseBody = response.body?.string()
+
+                    if (!response.isSuccessful) {
+                        Log.e("API", "Error en la respuesta: código ${response.code}, mensaje: ${responseBody}")
+                        return@withContext null
+                    } else {
+                        Log.d("API", "Respuesta exitosa: $responseBody")
+                        return@withContext responseBody
+                    }
+                }
         } catch (e: IOException) {
             Log.e("API", "Error en la petición: ${e.message}", e)
             return@withContext null
         }
     }
 
-
+    /**
+     * Toggles the like status of a playlist for a specific user.
+     *
+     * This function sends a POST request to the server to like or unlike a playlist.
+     * The actual toggle behavior (like/unlike) is handled by the server based on the
+     * current state of the playlist-user relationship.
+     *
+     * @param playlistId The ID of the playlist to like or unlike
+     * @param userId The ID of the user performing the action
+     * @param isLiked Boolean indicating the desired like state (true for like, false for unlike)
+     *                Note: This parameter is currently unused in the implementation but kept for API consistency
+     * @return The server response message if successful, null otherwise
+     *
+     * @throws Exception If there's an error during the network request or response processing
+     */
     suspend fun likeUnlikePlaylist(playlistId: String, userId : String, isLiked: Boolean): String? {
         return withContext(Dispatchers.IO) {
             try {
@@ -454,6 +494,18 @@ suspend fun postTokenPremium(
         }
     }
 
+    /**
+     * Retrieves a list of playlists that the user has liked.
+     *
+     * This function makes a GET request to the server to fetch all playlists that
+     * have been liked by the specified user.
+     *
+     * @param userId The ID of the user whose liked playlists are being retrieved
+     * @return A List of Playlist objects representing the user's liked playlists,
+     *         or null if the request fails or the user ID is invalid
+     *
+     * @throws Exception If there's an error during the network request or when parsing the response
+     */
     suspend fun getLikedPlaylists(userId: String): List<Playlist>? {
         return withContext(Dispatchers.IO) {
             try {
@@ -504,6 +556,21 @@ suspend fun postTokenPremium(
         }
     }
 
+    /**
+     * Toggles the like status of a song for a specific user.
+     *
+     * This function sends a POST request to the server to like or unlike a song.
+     * The actual toggle behavior (like/unlike) is handled by the server based on the
+     * current state of the song-user relationship.
+     *
+     * @param songId The ID of the song to like or unlike
+     * @param userId The ID of the user performing the action
+     * @param isLiked Boolean indicating the desired like state (true for like, false for unlike)
+     *                Note: This parameter is currently unused in the implementation but kept for consistency
+     * @return The server response message if successful, null otherwise
+     *
+     * @throws Exception If there's an error during the network request or response processing
+     */
     suspend fun likeUnlikeSong(songId: String, userId: String, isLiked: Boolean): String? {
         return withContext(Dispatchers.IO) {
             try {
@@ -546,6 +613,19 @@ suspend fun postTokenPremium(
         }
     }
 
+    /**
+     * Retrieves the list of songs that a user has marked as favorites.
+     *
+     * This function makes a GET request to the server to obtain all songs
+     * that the specified user has liked. The response includes
+     * complete data for each song.
+     *
+     * @param userId The ID of the user whose favorite songs are to be retrieved
+     * @return A list of Song objects representing the user's favorite songs,
+     *         or null if the request fails or the user ID is invalid
+     *
+     * @throws Exception If an error occurs during the network request or when processing the response
+     */
     suspend fun getLikedSongsPlaylist(userId: String): List<Song>? {
         return withContext(Dispatchers.IO) {
             try {
@@ -597,6 +677,19 @@ suspend fun postTokenPremium(
         }
     }
 
+    /**
+     * Checks if a song has been liked by a specific user.
+     *
+     * This function makes a GET request to the server to determine whether
+     * the specified user has liked the given song.
+     *
+     * @param songId The ID of the song to check
+     * @param userId The ID of the user whose like status is being checked
+     * @return A boolean value: true if the user has liked the song, false otherwise
+     *         Returns false if the request fails or if either ID is invalid
+     *
+     * @throws Exception If an error occurs during the network request or when processing the response
+     */
     suspend fun checkIfSongIsLiked(songId: String?, userId: String): Boolean {
         return withContext(Dispatchers.IO) {
             try {
@@ -688,4 +781,152 @@ suspend fun postTokenPremium(
             }
         }
     }
+
+    /**
+     * Retrieves all playlists created by a specific user.
+     *
+     * This function makes a GET request to the server to fetch all playlists
+     * created by the specified user, excluding the default "Me Gusta" playlist.
+     *
+     * @param userId The ID of the user whose playlists are being retrieved
+     * @return A list of Playlist objects representing the user's created playlists,
+     *         or null if the request fails or the user ID is invalid
+     *
+     * @throws Exception If an error occurs during the network request or when processing the response
+     */
+    suspend fun getUserPlaylists(userId: String): List<Playlist>? {
+        return withContext(Dispatchers.IO) {
+            try {
+                if (userId.isBlank()) {
+                    Log.d("getUserPlaylists", "User ID is empty")
+                    return@withContext null
+                }
+
+                val url = URL("$BASE_URL/playlists/users/$userId/playlists")
+                val connection = url.openConnection() as HttpURLConnection
+                connection.apply {
+                    requestMethod = "GET"
+                    setRequestProperty("Accept", "application/json")
+                    connectTimeout = 10000 // 10 seconds
+                    readTimeout = 10000 // 10 seconds
+                }
+
+                when (val responseCode = connection.responseCode) {
+                    HttpURLConnection.HTTP_OK -> {
+                        val response = connection.inputStream.bufferedReader().use { it.readText() }
+                        Log.d("getUserPlaylists", "Response: $response")
+
+                        val jsonArray = JSONArray(response)
+                        val userPlaylists = mutableListOf<Playlist>()
+
+                        for (i in 0 until jsonArray.length()) {
+                            val jsonObject = jsonArray.getJSONObject(i)
+                            userPlaylists.add(
+                                Playlist(
+                                    id = jsonObject.getString("id"),
+                                    title = jsonObject.getString("name"),
+                                    idAutor = jsonObject.getString("user_id"),
+                                    idArtista = jsonObject.optString("artist_id", ""),
+                                    description = jsonObject.optString("description", ""),
+                                    esPublica = jsonObject.optString("type", ""),
+                                    esAlbum = jsonObject.optString("typeP", ""),
+                                    imageUrl = jsonObject.optString("front_page", "")
+                                )
+                            )
+                        }
+                        return@withContext userPlaylists
+                    }
+                    HttpURLConnection.HTTP_BAD_REQUEST -> {
+                        Log.e("getUserPlaylists", "Bad request - invalid parameters")
+                        null
+                    }
+                    else -> {
+                        Log.e("getUserPlaylists", "Error response code: $responseCode")
+                        val errorResponse = connection.errorStream?.bufferedReader()?.use { it.readText() }
+                        Log.e("getUserPlaylists", "Error response: $errorResponse")
+                        null
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("getUserPlaylists", "Exception occurred", e)
+                null
+            }
+        }
+    }
+
+    /**
+     * Obtiene la información detallada de una canción por su ID, incluyendo sus artistas.
+     *
+     * Esta función realiza una petición GET al endpoint `/player/details/:songId` para obtener
+     * los detalles completos de una canción específica, incluyendo la lista de artistas asociados.
+     *
+     * @param songId El ID de la canción a consultar
+     * @return Un objeto con la información de la canción y sus artistas, o null si hay error
+     *
+     * @throws IOException Si ocurre un error durante la comunicación con el servidor
+     */
+    suspend fun getSongDetails(songId: String): Map<String, Any>? {
+        return withContext(Dispatchers.IO) {
+            try {
+                if (songId.isBlank()) {
+                    Log.e("getSongDetails", "ID de canción inválido")
+                    return@withContext null
+                }
+
+                val url = URL("$BASE_URL/player/details/$songId")
+                val connection = url.openConnection() as HttpURLConnection
+                connection.apply {
+                    requestMethod = "GET"
+                    setRequestProperty("Accept", "application/json")
+                    connectTimeout = 10000 // 10 segundos
+                    readTimeout = 10000 // 10 segundos
+                }
+
+                when (val responseCode = connection.responseCode) {
+                    HttpURLConnection.HTTP_OK -> {
+                        val response = connection.inputStream.bufferedReader().use { it.readText() }
+                        Log.d("getSongDetails", "Respuesta: $response")
+
+                        val jsonObject = JSONObject(response)
+
+                        // Lista de artistas
+                        val artistsArray = jsonObject.getJSONArray("artists")
+                        val artists = (0 until artistsArray.length()).map { i ->
+                            val artistObj = artistsArray.getJSONObject(i)
+                            mapOf(
+                                "id" to artistObj.getString("id"),
+                                "name" to artistObj.getString("name")
+                            )
+                        }
+
+                        // Datos completos de la canción
+                        return@withContext mapOf(
+                            "id" to jsonObject.getInt("id"),
+                            "name" to jsonObject.getString("name"),
+                            "duration" to jsonObject.getInt("duration"),
+                            "lyrics" to jsonObject.optString("lyrics", ""),
+                            "photo_video" to jsonObject.optString("photo_video", ""),
+                            "url_mp3" to jsonObject.getString("url_mp3"),
+                            "artists" to artists
+                        )
+                    }
+                    HttpURLConnection.HTTP_NOT_FOUND -> {
+                        Log.e("getSongDetails", "Canción no encontrada")
+                        null
+                    }
+                    else -> {
+                        Log.e("getSongDetails", "Error: código $responseCode")
+                        val errorResponse = connection.errorStream?.bufferedReader()?.use { it.readText() }
+                        Log.e("getSongDetails", "Respuesta de error: $errorResponse")
+                        null
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("getSongDetails", "Excepción al obtener detalles de la canción", e)
+                null
+            }
+        }
+    }
+
+
 }
