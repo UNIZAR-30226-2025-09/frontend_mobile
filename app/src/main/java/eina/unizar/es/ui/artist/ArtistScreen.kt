@@ -384,7 +384,7 @@ fun ArtistScreen(navController: NavController, playerViewModel: MusicPlayerViewM
                         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
                     ) {
                         SongOptionsBottomSheetContent(
-                            navController = navController,
+                            songId = song.id.toString(),
                             viewModel = playerViewModel,
                             songTitle = song.name, // Pasa el título de la canción
                             artistName = artistName // Pasa el nombre del artista
@@ -577,7 +577,7 @@ fun ArtistScreen(navController: NavController, playerViewModel: MusicPlayerViewM
 @Composable
 fun SongOptionsBottomSheetContent(
     viewModel: MusicPlayerViewModel,
-    navController: NavController,
+    songId: String,
     songTitle: String,
     artistName: String
 ) {
@@ -588,6 +588,7 @@ fun SongOptionsBottomSheetContent(
     if (showAddToPlaylistDialog) {
         ADSongs(
             viewModel = viewModel,
+            songId = songId,
             onDismiss = { showAddToPlaylistDialog = false }
         )
     }

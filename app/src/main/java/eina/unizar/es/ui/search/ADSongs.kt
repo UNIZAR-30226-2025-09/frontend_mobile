@@ -32,13 +32,17 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.musicapp.ui.theme.VibraBlue
 import eina.unizar.es.data.model.network.ApiClient.getImageUrl
+import eina.unizar.es.data.model.network.ApiClient.getPlaylistsBySongId
 import eina.unizar.es.data.model.network.ApiClient.getUserPlaylists
+import eina.unizar.es.data.model.network.ApiClient.handleSongToPlaylist
 import eina.unizar.es.ui.player.MusicPlayerViewModel
 import eina.unizar.es.ui.playlist.Playlist
+import kotlinx.coroutines.launch
 
 @Composable
 fun ADSongs(
     viewModel: MusicPlayerViewModel,
+    songId: String = null.toString(),
     onDismiss: () -> Unit = {}
 ) {
     var searchText by remember { mutableStateOf("") }
@@ -47,8 +51,12 @@ fun ADSongs(
     val textColor = Color.White
     val subtitleColor = Color.Gray
 
+    // Estado para controlar las playlists donde ya está la canción
+    var songPlaylistIds by remember { mutableStateOf<Set<String>>(setOf()) }
+    var isProcessingAction by remember { mutableStateOf(false) }
+
     // Para obtener el contexto de la actividad
-    val context = LocalContext.current // Contexto de la actividad
+    val context = LocalContext.current
 
     // Estado para mostrar un indicador de carga
     var isLoading by remember { mutableStateOf(true) }
@@ -59,9 +67,6 @@ fun ADSongs(
     // Estado para almacenar las playlists del usuario
     var playlists by remember { mutableStateOf<List<Playlist>>(emptyList()) }
 
-    // Estado para manejar la selección de playlists
-    var selectedPlaylistIds by remember { mutableStateOf(setOf<String>()) }
-
     val filteredPlaylists = remember(searchText, playlists) {
         if (searchText.isEmpty()) {
             playlists
@@ -70,10 +75,38 @@ fun ADSongs(
         }
     }
 
+    // En la función ADSongs, dentro del LaunchedEffect
+    LaunchedEffect(songId, userId) {
+        if (songId.isNotEmpty() && userId.isNotEmpty()) {
+            try {
+                // Obtener playlists donde está la canción
+                val playlistsWithSong = getPlaylistsBySongId(songId)
+
+                // Mostrar en logs las playlists donde está la canción
+                if (playlistsWithSong != null && playlistsWithSong.isNotEmpty()) {
+                    Log.d("ADSongs", "La canción está en ${playlistsWithSong.size} playlists:")
+                    playlistsWithSong.forEach { playlist ->
+                        Log.d("ADSongs", "- ID: ${playlist.id}, Nombre: ${playlist.title}")
+                    }
+
+                    // Convertir a Set de IDs
+                    songPlaylistIds = playlistsWithSong.map { it.id }.toSet()
+                } else {
+                    Log.d("ADSongs", "La canción no está en ninguna playlist")
+                    songPlaylistIds = setOf()
+                }
+            } catch (e: Exception) {
+                Log.e("ADSongs", "Error al cargar playlists de la canción: ${e.message}")
+                songPlaylistIds = setOf()
+            }
+        }
+    }
+
     LaunchedEffect(Unit) {
         if (viewModel.getUserId().isEmpty()) {
             viewModel.setUserId(context)
         }
+        userId = viewModel.getUserId()
         if (userId.isNotEmpty()) {
             try {
                 Log.d("User ID", "User ID: $userId")
@@ -82,8 +115,6 @@ fun ADSongs(
                 if (userPlaylists != null) {
                     // Convertir las playlists y ordenarlas para que Vibra_likedSong aparezca primero
                     playlists = userPlaylists.sortedWith(compareBy {
-                        // Si el tipo es Vibra_likedSong, va primero (valor -1)
-                        // El resto mantiene su orden original
                         if (it.esAlbum == "Vibra_likedSong") -1 else 0
                     }).map { playlist ->
                         Playlist(
@@ -196,14 +227,48 @@ fun ADSongs(
                                     .weight(1f)
                             ) {
                                 items(filteredPlaylists) { playlist ->
+                                    val isInPlaylist = songPlaylistIds.contains(playlist.id)
+
                                     PlaylistRowWithCheckbox(
                                         playlist = playlist,
-                                        isSelected = selectedPlaylistIds.contains(playlist.id),
+                                        isSelected = isInPlaylist,
                                         onClick = {
-                                            selectedPlaylistIds = if (selectedPlaylistIds.contains(playlist.id)) {
-                                                selectedPlaylistIds - playlist.id
-                                            } else {
-                                                selectedPlaylistIds + playlist.id
+                                            if (!isProcessingAction && songId.isNotEmpty()) {
+                                                isProcessingAction = true
+                                                viewModel.viewModelScope.launch {
+                                                    try {
+                                                        // Llamamos a la función del ApiClient
+                                                        val result = handleSongToPlaylist(
+                                                            songId = songId,
+                                                            playlistId = playlist.id,
+                                                            operation = !isInPlaylist // Si no está en la playlist, añadir; si está, eliminar
+                                                        )
+                                                        val success = result != null
+                                                        if (success) {
+                                                            // Actualizamos el estado local
+                                                            songPlaylistIds = if (isInPlaylist) {
+                                                                val newSet = songPlaylistIds.minus(playlist.id)
+                                                                Log.d("ADSongs", "Canción eliminada de ${playlist.title}. Playlists restantes: ${newSet.size}")
+                                                                newSet
+                                                            } else {
+                                                                val newSet = songPlaylistIds.plus(playlist.id)
+                                                                Log.d("ADSongs", "Canción añadida a ${playlist.title}. Total playlists: ${newSet.size}")
+                                                                newSet
+                                                            }
+
+                                                            // Mostrar todas las playlists donde está la canción después de la operación
+                                                            Log.d("ADSongs", "Playlists actuales con esta canción:")
+                                                            songPlaylistIds.forEach { playlistId ->
+                                                                val playlistName = playlists.find { it.id == playlistId }?.title ?: "Playlist desconocida"
+                                                                Log.d("ADSongs", "- ID: $playlistId, Nombre: $playlistName")
+                                                            }
+                                                        }
+                                                    } catch (e: Exception) {
+                                                        Log.e("ADSongs", "Error en la operación: ${e.message}")
+                                                    } finally {
+                                                        isProcessingAction = false
+                                                    }
+                                                }
                                             }
                                         }
                                     )
@@ -295,7 +360,7 @@ fun CustomRadioButton(
                 color = if (selected) selectedColor else Color.Gray,
                 shape = RoundedCornerShape(size/2)
             )
-            .clickable { onClick() },
+            .clickable { onClick()},
         contentAlignment = Alignment.Center
     ) {
         if (selected) {

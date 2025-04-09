@@ -679,7 +679,7 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
                         ) {
                             SongOptionsBottomSheetContent(
-                                navController = navController,
+                                songId = song.id.toString(),
                                 viewModel = playerViewModel,
                                 songTitle = song.name, // Pasa el título de la canción
                                 artistName = artistName // Pasa el nombre del artista

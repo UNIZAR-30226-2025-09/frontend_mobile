@@ -19,11 +19,10 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 
 object ApiClient {
-    //const val BASE_URL = "http://10.0.2.2/request/api" // Usa la IP local del backend
-    //const val BASE_URL_IMG = "http://10.0.2.2/request"
-    const val BASE_URL = "http://164.90.160.181/request/api" // Usa la IP publica (nube) del backend
-    const val BASE_URL_IMG = "http://164.90.160.181/request"
-
+    const val BASE_URL = "http://10.0.2.2/request/api" // Usa la IP local del backend
+    const val BASE_URL_IMG = "http://10.0.2.2/request"
+    //const val BASE_URL = "http://164.90.160.181/request/api" // Usa la IP publica (nube) del backend
+    //const val BASE_URL_IMG = "http://164.90.160.181/request"
 
 
     /**
@@ -210,13 +209,15 @@ object ApiClient {
     suspend fun logoutUser(context: Context, navController: NavController) {
         withContext(Dispatchers.IO) {
             try {
-                val sharedPreferences = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+                val sharedPreferences =
+                    context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
                 val token = sharedPreferences.getString("auth_token", null)
 
                 if (token.isNullOrEmpty()) {
                     Log.e("Logout", "No hay token guardado, no se puede cerrar sesión")
                     withContext(Dispatchers.Main) {
-                        Toast.makeText(context, "Error: No has iniciado sesión", Toast.LENGTH_LONG).show()
+                        Toast.makeText(context, "Error: No has iniciado sesión", Toast.LENGTH_LONG)
+                            .show()
                     }
                     return@withContext
                 }
@@ -233,7 +234,8 @@ object ApiClient {
                     Log.d("Logout", "Sesión cerrada correctamente")
 
                     withContext(Dispatchers.Main) {
-                        Toast.makeText(context, "Sesión cerrada correctamente", Toast.LENGTH_LONG).show()
+                        Toast.makeText(context, "Sesión cerrada correctamente", Toast.LENGTH_LONG)
+                            .show()
 
                         // Navegar al login y limpiar historial de navegación
                         navController.navigate("login") {
@@ -249,7 +251,8 @@ object ApiClient {
             } catch (e: Exception) {
                 Log.e("LogoutError", "Error cerrando sesión: ${e.message}")
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(context, "Error inesperado al cerrar sesión", Toast.LENGTH_LONG).show()
+                    Toast.makeText(context, "Error inesperado al cerrar sesión", Toast.LENGTH_LONG)
+                        .show()
                 }
             }
         }
@@ -276,8 +279,10 @@ object ApiClient {
     suspend fun getUserData(context: Context): Map<String, Any>? {
         return withContext(Dispatchers.IO) {
             try {
-            val sharedPreferences = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
-            val token = sharedPreferences.getString("auth_token", null) ?: return@withContext null
+                val sharedPreferences =
+                    context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+                val token =
+                    sharedPreferences.getString("auth_token", null) ?: return@withContext null
 
                 val headers = mapOf("Authorization" to "Bearer $token")
                 val response = getWithHeaders("user/profile", context, headers)
@@ -285,7 +290,10 @@ object ApiClient {
                 if (response != null) {
                     val jsonResponse = JSONObject(response)
 
-                    Log.d("UserData", "Datos recibidos: $jsonResponse") // Debug para ver qué devuelve la API
+                    Log.d(
+                        "UserData",
+                        "Datos recibidos: $jsonResponse"
+                    ) // Debug para ver qué devuelve la API
 
                     return@withContext mapOf(
                         "id" to jsonResponse.optInt("id", 0),
@@ -310,7 +318,11 @@ object ApiClient {
      * @param headers Mapa con las cabeceras HTTP a incluir en la petición.
      * @return La respuesta en formato String o `null` si hay error.
      */
-    suspend fun getWithHeaders(endpoint: String, context: Context, headers: Map<String, String>): String? {
+    suspend fun getWithHeaders(
+        endpoint: String,
+        context: Context,
+        headers: Map<String, String>
+    ): String? {
         return withContext(Dispatchers.IO) {
             try {
                 val client = OkHttpClient()
@@ -318,19 +330,19 @@ object ApiClient {
                     .url("$BASE_URL/$endpoint")
                     .get()
 
-                    // Agregar cabeceras
-                    headers.forEach { (key, value) ->
-                        requestBuilder.addHeader(key, value)
-                    }
+                // Agregar cabeceras
+                headers.forEach { (key, value) ->
+                    requestBuilder.addHeader(key, value)
+                }
 
-                    val request = requestBuilder.build()
-                    val response = client.newCall(request).execute()
+                val request = requestBuilder.build()
+                val response = client.newCall(request).execute()
 
-                    if (!response.isSuccessful) {
-                        Log.e("API", "Error en GET $endpoint: código ${response.code}")
-                        return@withContext null
-                    }
-                    response.body?.string()
+                if (!response.isSuccessful) {
+                    Log.e("API", "Error en GET $endpoint: código ${response.code}")
+                    return@withContext null
+                }
+                response.body?.string()
 
             } catch (e: IOException) {
                 Log.e("API", "Error en la petición GET: ${e.message}", e)
@@ -348,7 +360,12 @@ object ApiClient {
      * @param headers Mapa con las cabeceras HTTP a incluir en la petición.
      * @return La respuesta en formato String o `null` si hay error.
      */
-    suspend fun putWithHeaders(endpoint: String, jsonBody: JSONObject, context: Context, headers: Map<String, String>): String? {
+    suspend fun putWithHeaders(
+        endpoint: String,
+        jsonBody: JSONObject,
+        context: Context,
+        headers: Map<String, String>
+    ): String? {
         return withContext(Dispatchers.IO) {
             try {
                 val client = OkHttpClient()
@@ -402,36 +419,40 @@ object ApiClient {
     ): String? = withContext(Dispatchers.IO) {
         try {
             // Obtener el token desde SharedPreferences
-            val sharedPreferences: SharedPreferences = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
-                val token = sharedPreferences.getString("auth_token", null)
+            val sharedPreferences: SharedPreferences =
+                context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+            val token = sharedPreferences.getString("auth_token", null)
 
-                if (token.isNullOrEmpty()) {
-                    Log.e("API", "Token no disponible")
+            if (token.isNullOrEmpty()) {
+                Log.e("API", "Token no disponible")
+                return@withContext null
+            }
+
+            val client = OkHttpClient()
+            val mediaType = "application/json; charset=utf-8".toMediaTypeOrNull()
+            val body = jsonBody.toString().toRequestBody(mediaType)
+
+            val request = Request.Builder()
+                .url("$BASE_URL/$endpoint") // Construcción de la URL
+                .post(body) // Método POST
+                .addHeader("Content-Type", "application/json")
+                .addHeader("Authorization", "Bearer $token") // Se envía el token aquí
+                .build()
+
+            client.newCall(request).execute().use { response ->
+                val responseBody = response.body?.string()
+
+                if (!response.isSuccessful) {
+                    Log.e(
+                        "API",
+                        "Error en la respuesta: código ${response.code}, mensaje: ${responseBody}"
+                    )
                     return@withContext null
+                } else {
+                    Log.d("API", "Respuesta exitosa: $responseBody")
+                    return@withContext responseBody
                 }
-
-                val client = OkHttpClient()
-                val mediaType = "application/json; charset=utf-8".toMediaTypeOrNull()
-                val body = jsonBody.toString().toRequestBody(mediaType)
-
-                val request = Request.Builder()
-                    .url("$BASE_URL/$endpoint") // Construcción de la URL
-                    .post(body) // Método POST
-                    .addHeader("Content-Type", "application/json")
-                    .addHeader("Authorization", "Bearer $token") // Se envía el token aquí
-                    .build()
-
-                client.newCall(request).execute().use { response ->
-                    val responseBody = response.body?.string()
-
-                    if (!response.isSuccessful) {
-                        Log.e("API", "Error en la respuesta: código ${response.code}, mensaje: ${responseBody}")
-                        return@withContext null
-                    } else {
-                        Log.d("API", "Respuesta exitosa: $responseBody")
-                        return@withContext responseBody
-                    }
-                }
+            }
         } catch (e: IOException) {
             Log.e("API", "Error en la petición: ${e.message}", e)
             return@withContext null
@@ -453,7 +474,7 @@ object ApiClient {
      *
      * @throws Exception If there's an error during the network request or response processing
      */
-    suspend fun likeUnlikePlaylist(playlistId: String, userId : String, isLiked: Boolean): String? {
+    suspend fun likeUnlikePlaylist(playlistId: String, userId: String, isLiked: Boolean): String? {
         return withContext(Dispatchers.IO) {
             try {
                 if (userId.isNullOrEmpty()) {
@@ -663,9 +684,11 @@ object ApiClient {
                             )
                         }
                     }
+
                     else -> {
                         Log.e("getLikedSongsPlaylist", "Error response code: $responseCode")
-                        val errorResponse = connection.errorStream?.bufferedReader()?.use { it.readText() }
+                        val errorResponse =
+                            connection.errorStream?.bufferedReader()?.use { it.readText() }
                         Log.e("getLikedSongsPlaylist", "Error response: $errorResponse")
                         null
                     }
@@ -717,13 +740,16 @@ object ApiClient {
                         val jsonObject = JSONObject(response)
                         return@withContext jsonObject.optBoolean("isLiked", false)
                     }
+
                     HttpURLConnection.HTTP_BAD_REQUEST -> {
                         Log.e("checkIfSongIsLiked", "Bad request - invalid parameters")
                         false
                     }
+
                     else -> {
                         Log.e("checkIfSongIsLiked", "Error response code: $responseCode")
-                        val errorResponse = connection.errorStream?.bufferedReader()?.use { it.readText() }
+                        val errorResponse =
+                            connection.errorStream?.bufferedReader()?.use { it.readText() }
                         Log.e("checkIfSongIsLiked", "Error response: $errorResponse")
                         false
                     }
@@ -836,13 +862,16 @@ object ApiClient {
                         }
                         return@withContext userPlaylists
                     }
+
                     HttpURLConnection.HTTP_BAD_REQUEST -> {
                         Log.e("getUserPlaylists", "Bad request - invalid parameters")
                         null
                     }
+
                     else -> {
                         Log.e("getUserPlaylists", "Error response code: $responseCode")
-                        val errorResponse = connection.errorStream?.bufferedReader()?.use { it.readText() }
+                        val errorResponse =
+                            connection.errorStream?.bufferedReader()?.use { it.readText() }
                         Log.e("getUserPlaylists", "Error response: $errorResponse")
                         null
                     }
@@ -910,13 +939,16 @@ object ApiClient {
                             "artists" to artists
                         )
                     }
+
                     HttpURLConnection.HTTP_NOT_FOUND -> {
                         Log.e("getSongDetails", "Canción no encontrada")
                         null
                     }
+
                     else -> {
                         Log.e("getSongDetails", "Error: código $responseCode")
-                        val errorResponse = connection.errorStream?.bufferedReader()?.use { it.readText() }
+                        val errorResponse =
+                            connection.errorStream?.bufferedReader()?.use { it.readText() }
                         Log.e("getSongDetails", "Respuesta de error: $errorResponse")
                         null
                     }
@@ -928,5 +960,199 @@ object ApiClient {
         }
     }
 
+    /**
+     * Gestiona la adición o eliminación de una canción en una playlist específica.
+     *
+     * Esta función realiza una petición POST al endpoint `/playlists/:playlistId/:operation/handleSong`
+     * para añadir o eliminar una canción de una playlist según la operación especificada.
+     *
+     * @param playlistId El ID de la playlist a modificar
+     * @param songId El ID de la canción a añadir o eliminar
+     * @param operation La operación a realizar ("add" para añadir, "remove" para eliminar)
+     * @return La respuesta del servidor como String, o null si hay error
+     *
+     * @throws IOException Si ocurre un error durante la comunicación con el servidor
+     */
+    suspend fun handleSongToPlaylist(
+        playlistId: String,
+        songId: String,
+        operation: Boolean
+    ): Map<String, Any>? {
+        return withContext(Dispatchers.IO) {
+            try {
+                // Validar parámetros
+                if (playlistId.isBlank() || songId.isBlank()) {
+                    Log.e("handleSongToPlaylist", "ID de playlist o canción inválido")
+                    return@withContext null
+                }
+
+                val operation = if (operation) "add" else "remove"
+                if (operation != "add" && operation != "remove") {
+                    Log.e("handleSongToPlaylist", "Operación inválida. Debe ser 'add' o 'remove'")
+                    return@withContext null
+                }
+
+                val url = URL("$BASE_URL/playlists/$playlistId/$operation/handleSong")
+                val connection = url.openConnection() as HttpURLConnection
+                connection.apply {
+                    requestMethod = "POST"
+                    setRequestProperty("Content-Type", "application/json")
+                    setRequestProperty("Accept", "application/json")
+                    connectTimeout = 10000 // 10 segundos
+                    readTimeout = 10000 // 10 segundos
+                    doOutput = true
+                }
+
+                // Crear el cuerpo JSON
+                val jsonBody = JSONObject().apply {
+                    put("songId", songId)
+                }
+
+                // Enviar el cuerpo de la solicitud
+                connection.outputStream.use { os ->
+                    os.write(jsonBody.toString().toByteArray(Charsets.UTF_8))
+                }
+
+                when (val responseCode = connection.responseCode) {
+                    HttpURLConnection.HTTP_OK -> {
+                        val response = connection.inputStream.bufferedReader().use { it.readText() }
+                        Log.d("handleSongToPlaylist", "Respuesta: $response")
+
+                        val jsonObject = JSONObject(response)
+                        return@withContext mapOf(
+                            "message" to jsonObject.getString("message"),
+                            "operation" to jsonObject.getString("operation"),
+                            "success" to true
+                        )
+                    }
+
+                    HttpURLConnection.HTTP_BAD_REQUEST -> {
+                        val errorResponse =
+                            connection.errorStream?.bufferedReader()?.use { it.readText() }
+                        Log.e("handleSongToPlaylist", "Error en la solicitud: $errorResponse")
+
+                        val jsonObject = JSONObject(errorResponse ?: "{}")
+                        return@withContext mapOf(
+                            "error" to jsonObject.optString("error", "Error en la solicitud"),
+                            "success" to false
+                        )
+                    }
+
+                    HttpURLConnection.HTTP_NOT_FOUND -> {
+                        val errorResponse =
+                            connection.errorStream?.bufferedReader()?.use { it.readText() }
+                        Log.e("handleSongToPlaylist", "Recurso no encontrado: $errorResponse")
+
+                        val jsonObject = JSONObject(errorResponse ?: "{}")
+                        return@withContext mapOf(
+                            "error" to jsonObject.optString(
+                                "error",
+                                "Canción no encontrada en la playlist"
+                            ),
+                            "success" to false
+                        )
+                    }
+
+                    else -> {
+                        val errorResponse =
+                            connection.errorStream?.bufferedReader()?.use { it.readText() }
+                        Log.e(
+                            "handleSongToPlaylist",
+                            "Error: código $responseCode, respuesta: $errorResponse"
+                        )
+                        return@withContext mapOf(
+                            "error" to "Error del servidor",
+                            "success" to false
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("handleSongToPlaylist", "Excepción al gestionar canción en playlist", e)
+                return@withContext mapOf(
+                    "error" to (e.message ?: "Error desconocido"),
+                    "success" to false
+                )
+            }
+        }
+    }
+
+
+    /**
+     * Obtiene todas las playlists que contienen una canción específica.
+     *
+     * @param songId El ID de la canción para buscar en las playlists
+     * @return Una lista de objetos Playlist que contienen la canción especificada,
+     *         o null si hay un error de validación o en la solicitud
+     */
+    suspend fun getPlaylistsBySongId(songId: String): List<Playlist>? {
+        return withContext(Dispatchers.IO) {
+            try {
+                // Validar parámetros
+                if (songId.isBlank()) {
+                    Log.e("getPlaylistsBySongId", "ID de canción inválido")
+                    return@withContext null
+                }
+
+                val url = URL("$BASE_URL/playlists/$songId/songPlaylists")
+                val connection = url.openConnection() as HttpURLConnection
+                connection.apply {
+                    requestMethod = "GET"
+                    setRequestProperty("Accept", "application/json")
+                    connectTimeout = 10000 // 10 segundos
+                    readTimeout = 10000 // 10 segundos
+                }
+
+                when (val responseCode = connection.responseCode) {
+                    HttpURLConnection.HTTP_OK -> {
+                        val response = connection.inputStream.bufferedReader().use { it.readText() }
+                        Log.d("getPlaylistsBySongId", "Respuesta: $response")
+
+                        val jsonObject = JSONObject(response)
+                        val playlistsArray = jsonObject.getJSONArray("playlists")
+                        val songPlaylists = mutableListOf<Playlist>()
+
+                        for (i in 0 until playlistsArray.length()) {
+                            val jsonObject = playlistsArray.getJSONObject(i)
+                            songPlaylists.add(
+                                Playlist(
+                                    id = jsonObject.getString("id"),
+                                    title = jsonObject.getString("name"),
+                                    idAutor = jsonObject.getString("user_id"),
+                                    idArtista = jsonObject.optString("artist_id", ""),
+                                    description = jsonObject.optString("description", ""),
+                                    esPublica = jsonObject.optString("type", ""),
+                                    esAlbum = jsonObject.optString("typeP", ""),
+                                    imageUrl = jsonObject.optString("front_page", "")
+                                )
+                            )
+                        }
+                        return@withContext songPlaylists
+                    }
+
+                    HttpURLConnection.HTTP_BAD_REQUEST -> {
+                        Log.e("getPlaylistsBySongId", "Solicitud incorrecta - parámetros inválidos")
+                        null
+                    }
+
+                    HttpURLConnection.HTTP_NOT_FOUND -> {
+                        Log.e("getPlaylistsBySongId", "No se encontraron playlists con esta canción")
+                        // Devolver una lista vacía en lugar de null cuando no hay playlists
+                        emptyList()
+                    }
+
+                    else -> {
+                        Log.e("getPlaylistsBySongId", "Código de respuesta de error: $responseCode")
+                        val errorResponse =
+                            connection.errorStream?.bufferedReader()?.use { it.readText() }
+                        Log.e("getPlaylistsBySongId", "Respuesta de error: $errorResponse")
+                        null
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("getPlaylistsBySongId", "Excepción al obtener playlists por ID de canción", e)
+                null
+            }
+        }
+    }
 
 }
