@@ -47,7 +47,6 @@ import eina.unizar.es.ui.player.MusicPlayerViewModel
 import eina.unizar.es.ui.playlist.BottomSheetContent
 import eina.unizar.es.ui.playlist.Playlist
 import eina.unizar.es.ui.playlist.PlaylistScreen
-import eina.unizar.es.ui.playlist.SongOptionsBottomSheetContent
 import eina.unizar.es.ui.song.Song
 import eina.unizar.es.ui.user.UserProfileMenu
 import kotlinx.coroutines.Dispatchers

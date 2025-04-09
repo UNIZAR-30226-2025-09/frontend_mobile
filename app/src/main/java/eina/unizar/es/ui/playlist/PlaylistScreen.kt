@@ -59,8 +59,10 @@ import eina.unizar.es.data.model.network.ApiClient.getLikedPlaylists
 import eina.unizar.es.data.model.network.ApiClient.getLikedSongsPlaylist
 import eina.unizar.es.data.model.network.ApiClient.getSongDetails
 import eina.unizar.es.data.model.network.ApiClient.getUserData
+import eina.unizar.es.data.model.network.ApiClient.isPlaylistOwner
 import eina.unizar.es.data.model.network.ApiClient.likeUnlikePlaylist
 import eina.unizar.es.data.model.network.ApiClient.likeUnlikeSong
+import eina.unizar.es.ui.artist.SongOptionItem
 import eina.unizar.es.ui.navbar.BottomNavigationBar
 import eina.unizar.es.ui.player.FloatingMusicPlayer
 import eina.unizar.es.ui.player.MusicPlayerViewModel
@@ -88,7 +90,6 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
     // Colores básicos
     val backgroundColor = MaterialTheme.colorScheme.background // Negro
     val textColor = MaterialTheme.colorScheme.onBackground // Blanco
-    val cardBackgroundColor = MaterialTheme.colorScheme.primaryContainer // Negro un poco más claro
     val buttonColor = MaterialTheme.colorScheme.primary
 
     //Gestion del ViewModel
@@ -145,6 +146,9 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
     // Para poder realizar el post del like/unlike
     val coroutineScope = rememberCoroutineScope()
 
+    // Id del usuario a guardar al darle like
+    var userId by remember { mutableStateOf("") }  // Estado inicial
+
     // Función para cambiar el estado de "me gusta" de una canción
     fun toggleSongLike(songId: Int, userId: String) {
         coroutineScope.launch {
@@ -184,9 +188,6 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
             song.id to likedSongsSet.contains(song.id.toString())
         }
     }
-
-    // Id del usuario a guardar al darle like
-    var userId by remember { mutableStateOf("") }  // Estado inicial
 
 
     //Logica si es un sencillo
@@ -732,10 +733,33 @@ fun BottomSheetContent(
     val scope = rememberCoroutineScope()  // Para lanzar corrutinas en Compose
     val textColor = Color.White
     var showAlertDialog by remember { mutableStateOf(false) }
+    var soyPropietario by remember { mutableStateOf(false) }// Estado para saber si es propietario
+    val context = LocalContext.current
+    var userId by remember { mutableStateOf("") }  // Estado inicial
+    val coroutineScope = rememberCoroutineScope()
 
     // Función interna para manejar el dismissal
     val dismiss = {
         showAlertDialog = false
+    }
+    Log.d("BottomSheetContent", "Playlist ID: $playlistId")
+
+    LaunchedEffect(Unit) {
+        coroutineScope.launch  {
+            val userData = getUserData(context)
+            if (userData != null) {
+                userId =
+                    (userData["id"]
+                        ?: "Id").toString()  // Si no hay nickname, usa "Usuario"
+            }
+            // Verificar si el usuario es propietario de la playlist
+            soyPropietario = if (playlistId != null) {
+                isPlaylistOwner(playlistId, userId) ?: true
+            } else {
+                false
+            }
+            Log.d("BottomSheetContent", "Soy propietario: $soyPropietario")
+        }
     }
 
     Column(
@@ -778,8 +802,10 @@ fun BottomSheetContent(
             Spacer(modifier = Modifier.height(8.dp))
             SongOptionItem("Compartir", onClick = dismiss)
             Spacer(modifier = Modifier.height(8.dp))
+            SongOptionItem("Valorar Playlist", onClick = dismiss)
+            Spacer(modifier = Modifier.height(8.dp))
 
-            if(playlistMeGusta != "Vibra_likedSong") {
+            if(playlistMeGusta != "Vibra_likedSong" && soyPropietario) {
                 // Opción "Eliminar Playlist" con estilo personalizado
                 SongOptionItem("Editar Playlist", onClick = dismiss)
                 Spacer(modifier = Modifier.height(8.dp))
@@ -805,78 +831,6 @@ fun BottomSheetContent(
             }
             Spacer(modifier = Modifier.height(38.dp))
         }
-    }
-}
-
-// Desplegable para las canciones
-@Composable
-fun SongOptionsBottomSheetContent(
-    onDismiss: () -> Unit,
-    songTitle: String,
-    artistName: String
-) {
-    val textColor = Color.White
-
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(16.dp)
-    ) {
-        Text(
-            songTitle,
-            color = textColor,
-            fontSize = 18.sp,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.fillMaxWidth()
-        )
-        Text(
-            "de $artistName",
-            color = Color.Gray,
-            fontSize = 14.sp,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            SongOptionItem("Añadir a lista", onDismiss)
-            Spacer(modifier = Modifier.height(8.dp))
-            SongOptionItem("Añadir a la cola", onDismiss)
-            Spacer(modifier = Modifier.height(8.dp))
-            SongOptionItem("Compartir", onDismiss)
-            Spacer(modifier = Modifier.height(8.dp))
-            SongOptionItem("Eliminar de esta lista", onDismiss)
-        }
-        Spacer(modifier = Modifier.height(16.dp))
-    }
-}
-
-@Composable
-fun SongOptionItem(
-    text: String,
-    onClick: () -> Unit,
-    textColor: Color = Color.White,
-    background: Color = Color.Transparent,
-    roundedCornerShape: RoundedCornerShape = RoundedCornerShape(0.dp),
-    textAlign: TextAlign = TextAlign.Start,
-    modifier: Modifier = Modifier
-        .fillMaxWidth()
-) {
-    Box(modifier = modifier) {
-        Text(
-            text = text,
-            color = textColor,
-            fontSize = 16.sp,
-            textAlign = textAlign,
-            modifier = Modifier
-                .clip(roundedCornerShape)
-                .background(background)
-                .padding(4.dp)
-                .clickable { onClick() }
-        )
     }
 }
 

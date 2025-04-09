@@ -1155,4 +1155,62 @@ object ApiClient {
         }
     }
 
+    /**
+     * Verifica si un usuario es el propietario de una playlist específica.
+     *
+     * @param playlistId El ID de la playlist a verificar
+     * @param userId El ID del usuario a verificar como propietario
+     * @return true si el usuario es propietario de la playlist, false si no lo es o null si hay un error
+     */
+    suspend fun isPlaylistOwner(playlistId: String, userId: String): Boolean? {
+        return withContext(Dispatchers.IO) {
+            try {
+                // Validar parámetros
+                if (playlistId.isBlank() || userId.isBlank()) {
+                    Log.e("isPlaylistOwner", "ID de playlist o usuario inválido")
+                    return@withContext null
+                }
+
+                val url = URL("$BASE_URL/playlists/$playlistId/isOwner/$userId")
+                val connection = url.openConnection() as HttpURLConnection
+                connection.apply {
+                    requestMethod = "GET"
+                    setRequestProperty("Accept", "application/json")
+                    connectTimeout = 10000 // 10 segundos
+                    readTimeout = 10000 // 10 segundos
+                }
+
+                when (val responseCode = connection.responseCode) {
+                    HttpURLConnection.HTTP_OK -> {
+                        val response = connection.inputStream.bufferedReader().use { it.readText() }
+                        Log.d("isPlaylistOwner", "Respuesta: $response")
+
+                        val jsonObject = JSONObject(response)
+                        return@withContext jsonObject.getBoolean("isOwner")
+                    }
+
+                    HttpURLConnection.HTTP_BAD_REQUEST -> {
+                        Log.e("isPlaylistOwner", "Solicitud incorrecta - parámetros inválidos")
+                        null
+                    }
+
+                    HttpURLConnection.HTTP_NOT_FOUND -> {
+                        Log.e("isPlaylistOwner", "La playlist especificada no existe")
+                        null
+                    }
+
+                    else -> {
+                        Log.e("isPlaylistOwner", "Código de respuesta de error: $responseCode")
+                        val errorResponse =
+                            connection.errorStream?.bufferedReader()?.use { it.readText() }
+                        Log.e("isPlaylistOwner", "Respuesta de error: $errorResponse")
+                        null
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("isPlaylistOwner", "Excepción al verificar propiedad de playlist", e)
+                null
+            }
+        }
+    }
 }
