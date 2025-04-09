@@ -529,7 +529,7 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                     }
 
                     Spacer(modifier = Modifier.width(8.dp))
-                    if (playlistInfo?.esPublica != "private" && playlistInfo?.idAutor != userId) {
+                    if (playlistInfo?.esPublica != "private" && playlistInfo?.idAutor != userId && !isSencillo) {
                         IconButton(
                             onClick = {
                                 coroutineScope.launch {
@@ -651,6 +651,7 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                         SongItem(
                             song = song,
                             showHeartIcon = true,
+                            isSencillo = true,
                             showMoreVertIcon = true,
                             isLiked = songLikes[song.id] ?: false,
                             onLikeToggle = {
@@ -818,8 +819,8 @@ fun BottomSheetContent(
                             if (!playlistId.isNullOrEmpty()) {
                                 try {
                                     eliminarPlaylistEnBackend(playlistId)
-                                    // Si se elimina con éxito, navega y cierra bottomSheet
-                                    navController.navigate("menu")
+                                    // Si se elimina con éxito, realizamos un popBackStack
+                                    navController.popBackStack()
                                     // Cierra tu bottomSheet como veas (estado local, etc.)
                                 } catch (e: Exception) {
                                     println("Error al eliminar la playlist: ${e.message}")

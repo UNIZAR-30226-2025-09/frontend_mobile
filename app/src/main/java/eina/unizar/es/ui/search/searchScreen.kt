@@ -412,6 +412,7 @@ fun SongItem(
     onMoreVertClick: (() -> Unit) = {},
     viewModel: MusicPlayerViewModel,
     isPlaylist: Boolean = false,
+    isSencillo: Boolean = false,
     playlistSongs: List<Song> = emptyList(),
     idPlaylist: String = ""
 ) {
@@ -428,11 +429,20 @@ fun SongItem(
             .padding(vertical = 4.dp)
             .padding(start = 16.dp, end = 16.dp)
             .clickable {
-                if (!isPlaylist) {
+                if (isSencillo) {
+                    // Si estamos en un sencillo, usamos siempre loadSongsFromApi
                     viewModel.loadSongsFromApi(songId = song.id.toString(), context = context, albumArtResId = R.drawable.kanyeperfil)
+                } else if (isPlaylist) {
+                    // Para playlists normales
+                    viewModel.loadSongsFromPlaylist(
+                        playlistSongs = convertSongsToCurrentSongs(playlistSongs, R.drawable.kanyeperfil),
+                        songId = song.id.toString(),
+                        context,
+                        idPlaylist = idPlaylist
+                    )
                 } else {
-                    viewModel.loadSongsFromPlaylist(playlistSongs = convertSongsToCurrentSongs(playlistSongs, R.drawable.kanyeperfil),
-                        songId = song.id.toString(), context, idPlaylist = idPlaylist)
+                    // Para canción individual desde otras partes de la app
+                    viewModel.loadSongsFromApi(songId = song.id.toString(), context = context, albumArtResId = R.drawable.kanyeperfil)
                 }
             },
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
