@@ -522,8 +522,10 @@ fun ArtistScreen(navController: NavController, playerViewModel: MusicPlayerViewM
                                         contentAlignment = Alignment.Center
                                     ) {
                                         AsyncImage(
-                                            model = getImageUrl(single.photo_video, "/default-playlist.jpg"),
-                                            contentDescription = "Portada de la playlist",
+                                            model = getImageUrl(single.photo_video, "/defaultx.jpg"),
+                                            contentDescription = "Portada del single",
+                                            placeholder = painterResource(R.drawable.defaultx), // Fallback local
+                                            error = painterResource(R.drawable.defaultx),
                                             contentScale = ContentScale.Crop,  // Añadir scale para recortar imagen
                                             modifier = Modifier
                                                 .clip(RoundedCornerShape(8.dp))

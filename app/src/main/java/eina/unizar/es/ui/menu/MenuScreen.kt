@@ -262,12 +262,11 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
                                         modifier = Modifier.fillMaxSize(),
                                         contentAlignment = Alignment.Center
                                     ) {
-                                        val playlistImage = getImageUrl(artist.photo, "/default-playlist.jpg")
                                         AsyncImage(
-                                            model = getImageUrl(artist.photo, "defaultplaylist.jpg"),
+                                            model = getImageUrl(artist.photo, "defaultartist.jpg"),
                                             contentDescription = null,
-                                            placeholder = painterResource(R.drawable.defaultplaylist), // Fallback local
-                                            error = painterResource(R.drawable.defaultplaylist),
+                                            placeholder = painterResource(R.drawable.defaultartist), // Fallback local
+                                            error = painterResource(R.drawable.defaultartist),
                                             modifier = Modifier
                                                 .size(100.dp)
                                                 .clip(CircleShape)
@@ -315,11 +314,11 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
                                             // Cargar la imagen desde la URL
                                             val urlAntes = album?.imageUrl
                                             val playlistImage =
-                                                getImageUrl(urlAntes, "/default-playlist.jpg")
+                                                getImageUrl(urlAntes, "/defaultx.jpg")
                                             AsyncImage(
                                                 model = playlistImage,
-                                                placeholder = painterResource(R.drawable.defaultplaylist), // Fallback local
-                                                error = painterResource(R.drawable.defaultplaylist),
+                                                placeholder = painterResource(R.drawable.defaultx), // Fallback local
+                                                error = painterResource(R.drawable.defaultx),
                                                 contentDescription = "Portada de la playlist",
                                                 modifier = Modifier
                                                     //.size(imageSize)
@@ -370,7 +369,7 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
                                             // Cargar la imagen desde la URL
                                             val urlAntes = playlist?.imageUrl
                                             val playlistImage =
-                                                getImageUrl(urlAntes, "/default-playlist.jpg")
+                                                getImageUrl(urlAntes, "/defaultplaylist.jpg")
                                             AsyncImage(
                                                 model = playlistImage,
                                                 contentDescription = "Portada de la playlist",

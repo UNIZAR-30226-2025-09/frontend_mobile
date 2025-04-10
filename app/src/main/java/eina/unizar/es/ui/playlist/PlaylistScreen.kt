@@ -381,9 +381,8 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                     playlistInfo?.let { Log.d("URL antes", "URL antes: " + it.imageUrl) }
                     // Cargar la imagen desde la URL
                     val urlAntes = playlistInfo?.imageUrl
-                    val playlistImage = getImageUrl(urlAntes, "/default-playlist.jpg")
                     AsyncImage(
-                        model = getImageUrl(urlAntes, "/default-playlist.jpg"),
+                        model = getImageUrl(urlAntes, "/defaultplaylist.jpg"),
                         contentDescription = "Portada de la playlist",
                         placeholder = painterResource(R.drawable.defaultplaylist), // Fallback local
                         error = painterResource(R.drawable.defaultplaylist),
@@ -700,7 +699,7 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                 sheetState = sheetState
             ) {
                 var urlAntes = playlistInfo?.imageUrl
-                val playlistImage = getImageUrl(urlAntes, "default-playlist.jpg")
+                val playlistImage = getImageUrl(urlAntes, "defaultplaylist.jpg")
                 playlistInfo?.let {
                     if (playlistAuthor != null) {
                         BottomSheetContent(
