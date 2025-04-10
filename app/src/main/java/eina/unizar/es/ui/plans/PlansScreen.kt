@@ -3,6 +3,7 @@ package eina.unizar.es.ui.plans
 import android.content.Context
 import android.util.Log
 import android.widget.Toast
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -15,17 +16,24 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import androidx.navigation.NavController
+import com.example.musicapp.ui.theme.VibraBlue
 import com.stripe.android.PaymentConfiguration
 import com.stripe.android.paymentsheet.PaymentSheet
+import com.stripe.android.paymentsheet.PaymentSheetResult
 import eina.unizar.es.R
 import eina.unizar.es.data.model.network.ApiClient.getUserData
 import eina.unizar.es.data.model.network.ApiClient.postTokenPremium
+import eina.unizar.es.ui.main.MainActivity
 import eina.unizar.es.ui.player.MusicPlayerViewModel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.json.JSONObject
+import kotlin.math.min
 
 @Composable
 fun PlansScreen(paymentSheet: PaymentSheet, navController: NavController, isPremium: Boolean, playerViewModel: MusicPlayerViewModel) {
@@ -33,6 +41,8 @@ fun PlansScreen(paymentSheet: PaymentSheet, navController: NavController, isPrem
     val coroutineScope = rememberCoroutineScope()
     var isPremium by remember { mutableStateOf(isPremium) }
     var isPaymentReady by remember { mutableStateOf(false) }
+    var showDialog by remember { mutableStateOf(false) }
+    var changingToPremium by remember { mutableStateOf(false) }
     var paymentIntentClientSecret by remember { mutableStateOf<String?>(null) }
     val previousRoute = navController.previousBackStackEntry?.destination?.route
 
@@ -42,6 +52,7 @@ fun PlansScreen(paymentSheet: PaymentSheet, navController: NavController, isPrem
         Log.d("PlansScreen", "isPremium actualizado: $isPremium")
     }
 
+
     LaunchedEffect(Unit) {
         if (previousRoute == "settings") {
             PaymentConfiguration.init(
@@ -50,22 +61,10 @@ fun PlansScreen(paymentSheet: PaymentSheet, navController: NavController, isPrem
             )
 
             coroutineScope.launch {
-                val clientSecret = eina.unizar.es.ui.payments.fetchPaymentIntent()
-                if (clientSecret != null) {
-                    paymentIntentClientSecret = clientSecret
-                    isPaymentReady = true
-                } else {
-                    isPaymentReady = false
-                }
-                val userData = getUserData(context)
-                if (userData != null) {
-                    isPremium = userData["is_premium"] as Boolean
-                    Log.d("UserData", "isPremium asignado: $isPremium") // Verifica si is_premium se asigna correctamente
-                }
+                paymentIntentClientSecret = eina.unizar.es.ui.payments.fetchPaymentIntent()
             }
         }
     }
-
 
     Box(
         modifier = Modifier
@@ -78,7 +77,7 @@ fun PlansScreen(paymentSheet: PaymentSheet, navController: NavController, isPrem
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier
                 .fillMaxSize()
-                .padding(16.dp)
+                .padding(40.dp)
         ) {
             // Tarjeta Gratuita
             PlanCard(
@@ -90,38 +89,23 @@ fun PlansScreen(paymentSheet: PaymentSheet, navController: NavController, isPrem
                     "Anuncios visuales y de audio",
                     "Podrás saltar 5 canciones al día"
                 ),
-                buttonText = "Pasar a Gratuito",
+                buttonText = if (isPremium) "Pasar a Gratuito" else "Plan Actual",
                 buttonColor = Color(0xFFFFAFC1),
                 textColor = Color(0xFFFFAFC1),
                 iconResId = R.drawable.logorosa,
+                isCurrentPlan = !isPremium,
                 onClick = {
                     if (previousRoute == "settings") {
                         if (!isPremium) {
-                            Toast.makeText(context, "Ya eres usuario Gratuito", Toast.LENGTH_LONG).show()
+                            Toast.makeText(context, "Ya eres usuario Gratuito", Toast.LENGTH_LONG)
+                                .show()
                         } else {
-                            coroutineScope.launch {
-                                try {
-                                    val jsonBody = JSONObject().apply {
-                                        put("is_premium", false)  // Cambiar a gratuito
-                                    }
+                            changingToPremium = false
+                            showDialog = true
 
-                                    val response = postTokenPremium("user/premium", jsonBody, context)
-
-                                    if (response != null) {
-                                        isPremium = false
-                                        Toast.makeText(context, "Has cambiado a Plan Gratuito", Toast.LENGTH_LONG).show()
-                                    } else {
-                                        Toast.makeText(context, "Error al cambiar a gratuito", Toast.LENGTH_LONG).show()
-                                    }
-                                } catch (e: Exception) {
-                                    Log.e("PlanChangeError", "Error al cambiar a gratuito: ${e.message}")
-                                    Toast.makeText(context, "Error al procesar la solicitud", Toast.LENGTH_LONG).show()
-                                }
-                            }
 
                         }
-                    }
-                    else{
+                    } else {
                         navController.popBackStack()
                     }
                 }
@@ -139,33 +123,139 @@ fun PlansScreen(paymentSheet: PaymentSheet, navController: NavController, isPrem
                     "Saltar ilimitadas canciones al día",
                     "Cancela cuando quieras"
                 ),
-                buttonText = "Pasar a Premium",
+                buttonText = if (!isPremium) "Pasar a Premium" else "Plan Actual",
                 buttonColor = Color(0xFFB0C4DE),
                 textColor = Color(0xFFB0C4DE),
                 iconResId = R.drawable.logoazul,
+                isCurrentPlan = isPremium,
                 onClick = {
                     if (previousRoute == "settings") {
                         if (isPremium) {
-                            Toast.makeText(context, "Ya eres usuario Premium", Toast.LENGTH_LONG)
-                                .show()
+                            Toast.makeText(context, "Ya eres usuario Premium", Toast.LENGTH_LONG).show()
                         } else {
-                            paymentIntentClientSecret?.let { clientSecret ->
-                                paymentSheet.presentWithPaymentIntent(
-                                    clientSecret,
-                                    PaymentSheet.Configuration("Vibra Music")
-                                )
-                            } ?: Toast.makeText(context, "Error al obtener clientSecret", Toast.LENGTH_LONG).show()
+                            changingToPremium = true
+                            showDialog = true
                         }
-                    }
-                    else{
+                    } else {
                         navController.popBackStack()
+                    }
+                }
+            )
+        }
+        // Diálogo de confirmación
+        if (showDialog) {
+            AlertDialog(
+                onDismissRequest = { showDialog = false },
+                shape = RoundedCornerShape(16.dp),
+                containerColor = Color(0xFF1E1E1E),
+                title = {
+                    Text(
+                        "Confirmar cambio de plan",
+                        color = Color.White,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                },
+                text = {
+                    Column(modifier = Modifier.padding(vertical = 8.dp)) {
+                        Text(
+                            text = "¿Estás seguro de que quieres cambiar al plan ${if (changingToPremium) "Premium" else "Gratuito"}?",
+                            color = Color.White.copy(alpha = 0.9f),
+                            fontSize = 15.sp,
+                            modifier = Modifier.fillMaxWidth(),
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            showDialog = false
+                            if (changingToPremium) {
+                                // Lógica para Premium (pago)
+                                paymentIntentClientSecret?.let { clientSecret ->
+                                    paymentSheet.presentWithPaymentIntent(
+                                        clientSecret,
+                                        PaymentSheet.Configuration("Vibra Music")
+                                    )
+
+                                } ?: Toast.makeText(context, "Error al procesar el pago", Toast.LENGTH_LONG).show()
+                                coroutineScope.launch {
+                                    delay(5000)
+                                    navController.navigate("settings")
+                                }
+                            } else {
+                                // Lógica MEJORADA para Gratuito
+                                coroutineScope.launch {
+                                    try {
+                                        val jsonBody = JSONObject().apply {
+                                            put("is_premium", false)
+                                        }
+                                        val response = postTokenPremium("user/premium", jsonBody, context)
+
+                                        if (response != null /*&& response.getBoolean("success")*/) {
+                                            // Actualizar estado local y SharedPreferences
+                                            isPremium = false
+                                            context.getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
+                                                .edit()
+                                                .putBoolean("is_premium", false)
+                                                .apply()
+
+                                            Toast.makeText(
+                                                context,
+                                                "Plan cambiado a Gratuito correctamente",
+                                                Toast.LENGTH_LONG
+                                            ).show()
+
+                                            navController.navigate("settings") {
+                                                popUpTo("settings") { inclusive = true }
+                                            }
+                                        } else {
+                                            Toast.makeText(
+                                                context,
+                                                "Error en la respuesta del servidor",
+                                                Toast.LENGTH_LONG
+                                            ).show()
+                                        }
+                                    } catch (e: Exception) {
+                                        Log.e("ChangeToFree", "Error: ${e.message}")
+                                        Toast.makeText(
+                                            context,
+                                            "Error al cambiar a Gratuito: ${e.message}",
+                                            Toast.LENGTH_LONG
+                                        ).show()
+                                    }
+                                }
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF79E2FF),
+                            contentColor = Color.Black
+                        ),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.padding(end = 12.dp)
+                    ) {
+                        Text("Confirmar", fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    OutlinedButton(
+                        onClick = { showDialog = false }, // Solo cierra el diálogo
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = Color.White
+                        ),
+                        border = BorderStroke(1.dp, Color(0xFF79E2FF)),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.padding(end = 24.dp)
+                    ) {
+                        Text("Cancelar")
                     }
                 }
             )
         }
     }
 }
-
 
 @Composable
 fun PlanCard(
@@ -177,80 +267,117 @@ fun PlanCard(
     buttonColor: Color,
     textColor: Color,
     iconResId: Int, // Se agrega el logo como parámetro
+    isCurrentPlan: Boolean, //Plan actual
     onClick: () -> Unit
 ) {
-    Card(
-        shape = RoundedCornerShape(16.dp), // Esquinas redondeadas
-        modifier = Modifier
-            .fillMaxWidth(0.9f) // Ancho de la tarjeta
-            .height(350.dp) // Altura fija
-            .border(2.dp, Color.Gray, RoundedCornerShape(16.dp)) // Borde con esquinas redondeadas
-            .background(Color(0xFF2E2E2E), shape = RoundedCornerShape(16.dp)), // Asegura que el fondo respete las esquinas
-        colors = CardDefaults.cardColors(containerColor = Color.Transparent) // Evita fondo adicional de la Card
+
+    Box(
+        modifier = Modifier.fillMaxWidth(1f)
+            .padding(start = 24.dp)
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            // 🔹 Icono del plan
-            Icon(
-                painter = painterResource(id = iconResId),
-                contentDescription = "Plan Icon",
-                tint = textColor,
-                modifier = Modifier.size(90.dp),
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Título del plan
+        // Cartelito "Tu plan actual" (solo visible si isCurrentPlan es true)
+        if (isCurrentPlan) {
             Text(
-                text = title,
-                fontSize = 24.sp,
+                text = "Tu plan actual",
+                color = Color.White,
                 fontWeight = FontWeight.Bold,
-                color = textColor
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Precio
-            Text(
-                text = price,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.White
-            )
-
-            // Precio mensual
-            Text(
-                text = monthlyPrice,
                 fontSize = 14.sp,
-                color = Color.Gray,
-                modifier = Modifier.padding(top = 8.dp)
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .offset(y = (-8).dp, x = (10.dp))
+                    .background(
+                        color = Color(0xFF4CAF50), // Verde para destacar
+                        shape = RoundedCornerShape(4.dp)
+                    )
+                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                    .zIndex(1f) // Asegura que esté por encima
             )
+        }
 
-            Spacer(modifier = Modifier.height(12.dp))
+        Card(
+            shape = RoundedCornerShape(16.dp), // Esquinas redondeadas
+            modifier = Modifier
+                .fillMaxWidth(0.9f) // Ancho de la tarjeta
+                .height(350.dp) // Altura fija
+                .border(
+                    width = 2.dp,
+                    color = Color.Gray,
+                    shape = RoundedCornerShape(16.dp)
+                )
+                .background(
+                    Color(0xFF2E2E2E),
+                    shape = RoundedCornerShape(16.dp)
+                ), // Asegura que el fondo respete las esquinas
+            colors = CardDefaults.cardColors(containerColor = Color.Transparent) // Evita fondo adicional de la Card
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // 🔹 Icono del plan
+                Icon(
+                    painter = painterResource(id = iconResId),
+                    contentDescription = "Plan Icon",
+                    tint = textColor,
+                    modifier = Modifier.size(90.dp),
+                )
 
-            // Lista de características
-            features.forEach { feature ->
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Título del plan
                 Text(
-                    text = feature,
-                    fontSize = 14.sp,
+                    text = title,
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = textColor
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Precio
+                Text(
+                    text = price,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
                     color = Color.White
                 )
-            }
 
-            Spacer(modifier = Modifier.height(16.dp))
+                // Precio mensual
+                Text(
+                    text = monthlyPrice,
+                    fontSize = 14.sp,
+                    color = Color.Gray,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
 
-            // Botón
-            Button(
-                onClick = onClick,
-                colors = ButtonDefaults.buttonColors(containerColor = buttonColor),
-                shape = RoundedCornerShape(50.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(text = buttonText, color = Color.Black, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Lista de características
+                features.forEach { feature ->
+                    Text(
+                        text = feature,
+                        fontSize = 14.sp,
+                        color = Color.White
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                if (!isCurrentPlan) { // Botón
+                    Button(
+                        onClick = onClick,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = buttonColor
+                        ),
+                        shape = RoundedCornerShape(50.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                    ) {
+                        Text(text = buttonText, color = Color.Black, fontWeight = FontWeight.Bold)
+                    }
+                }
             }
         }
     }

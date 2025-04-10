@@ -264,8 +264,10 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
                                     ) {
                                         val playlistImage = getImageUrl(artist.photo, "/default-playlist.jpg")
                                         AsyncImage(
-                                            model = playlistImage,
-                                            contentDescription = "Foto del artista",
+                                            model = getImageUrl(artist.photo, "defaultplaylist.jpg"),
+                                            contentDescription = null,
+                                            placeholder = painterResource(R.drawable.defaultplaylist), // Fallback local
+                                            error = painterResource(R.drawable.defaultplaylist),
                                             modifier = Modifier
                                                 .size(100.dp)
                                                 .clip(CircleShape)
@@ -316,6 +318,8 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
                                                 getImageUrl(urlAntes, "/default-playlist.jpg")
                                             AsyncImage(
                                                 model = playlistImage,
+                                                placeholder = painterResource(R.drawable.defaultplaylist), // Fallback local
+                                                error = painterResource(R.drawable.defaultplaylist),
                                                 contentDescription = "Portada de la playlist",
                                                 modifier = Modifier
                                                     //.size(imageSize)
@@ -370,6 +374,8 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
                                             AsyncImage(
                                                 model = playlistImage,
                                                 contentDescription = "Portada de la playlist",
+                                                placeholder = painterResource(R.drawable.defaultplaylist), // Fallback local
+                                                error = painterResource(R.drawable.defaultplaylist),
                                                 modifier = Modifier
                                                     //.size(imageSize)
                                                     //.alpha(imageAlpha)

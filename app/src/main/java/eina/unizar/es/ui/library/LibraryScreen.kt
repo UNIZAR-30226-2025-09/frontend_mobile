@@ -360,14 +360,15 @@ fun LibraryItem(playlist: Playlist, navController: NavController) {
         if (playlist?.esAlbum == "Vibra_likedSong"){path = "playlist_images/meGusta.png"} else {path = playlist.imageUrl}
         val playlistImage = getImageUrl(path, "default-playlist.jpg")
         Log.d("ImageURL", "URL final: $playlistImage")
-        AsyncImage(
-            model = playlistImage,
-            contentDescription = "Imagen",
-            modifier = Modifier.size(50.dp)/*,
-            placeholder = painterResource(id = playlistImage), // Asegúrate de tener este recurso
-            error = painterResource(id = playlistImage) // Imagen a mostrar en caso de error
-            */
-        )
+        //if(playlistImage != "default-playlist.jpg"){
+            AsyncImage(
+                model = getImageUrl(path, "defaultplaylist.jpg"),
+                contentDescription = "Imagen",
+                modifier = Modifier.size(50.dp),
+                placeholder = painterResource(R.drawable.defaultplaylist), // Fallback local
+                error = painterResource(R.drawable.defaultplaylist)
+            )
+        //}
         Spacer(modifier = Modifier.width(10.dp))
         Column {
             Text(

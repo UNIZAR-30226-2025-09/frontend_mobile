@@ -24,6 +24,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -456,7 +457,9 @@ fun SongItem(
         ) {
             // Imagen de la canción
             AsyncImage(
-                model = getImageUrl(song?.photo_video, "default-song.jpg"),
+                model = getImageUrl(song?.photo_video, "defaultsong.jpg"),
+                placeholder = painterResource(R.drawable.defaultsong), // Fallback local
+                error = painterResource(R.drawable.defaultsong),
                 contentDescription = "Foto Cancion",
                 modifier = Modifier
                     .size(40.dp)
@@ -558,9 +561,11 @@ fun ArtistItem(
         verticalAlignment = Alignment.CenterVertically
     ) {
         // Imagen del artista
-        val playlistImage = getImageUrl(artist.photo, "/default-playlist.jpg")
+        val playlistImage = getImageUrl(artist.photo, "/default-artist.jpg")
         AsyncImage(
             model = playlistImage,
+            placeholder = painterResource(R.drawable.defaultartist), // Fallback local
+            error = painterResource(R.drawable.defaultartist),
             contentDescription = "Foto del artista",
             modifier = Modifier
                 .size(40.dp)
