@@ -30,6 +30,7 @@ import eina.unizar.es.data.model.network.ApiClient.getUserData
 import eina.unizar.es.data.model.network.ApiClient.postTokenPremium
 import eina.unizar.es.ui.main.MainActivity
 import eina.unizar.es.ui.player.MusicPlayerViewModel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 import kotlin.math.min
@@ -51,18 +52,6 @@ fun PlansScreen(paymentSheet: PaymentSheet, navController: NavController, isPrem
         Log.d("PlansScreen", "isPremium actualizado: $isPremium")
     }
 
-    /* ESTO NO FUNCIONA
-    val activity = LocalContext.current as MainActivity
-
-
-    // Efecto que observa cambios en el resultado
-    LaunchedEffect(activity.lastPaymentResult) {
-        if(activity.lastPaymentResult != null) {
-            navController.navigate("settings")
-            activity.lastPaymentResult = null // Resetear
-        }
-    }
-    */
 
     LaunchedEffect(Unit) {
         if (previousRoute == "settings") {
@@ -190,7 +179,12 @@ fun PlansScreen(paymentSheet: PaymentSheet, navController: NavController, isPrem
                                         clientSecret,
                                         PaymentSheet.Configuration("Vibra Music")
                                     )
+
                                 } ?: Toast.makeText(context, "Error al procesar el pago", Toast.LENGTH_LONG).show()
+                                coroutineScope.launch {
+                                    delay(5000)
+                                    navController.navigate("settings")
+                                }
                             } else {
                                 // Lógica MEJORADA para Gratuito
                                 coroutineScope.launch {
