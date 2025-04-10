@@ -24,9 +24,11 @@ import androidx.navigation.NavController
 import com.example.musicapp.ui.theme.VibraBlue
 import com.stripe.android.PaymentConfiguration
 import com.stripe.android.paymentsheet.PaymentSheet
+import com.stripe.android.paymentsheet.PaymentSheetResult
 import eina.unizar.es.R
 import eina.unizar.es.data.model.network.ApiClient.getUserData
 import eina.unizar.es.data.model.network.ApiClient.postTokenPremium
+import eina.unizar.es.ui.main.MainActivity
 import eina.unizar.es.ui.player.MusicPlayerViewModel
 import kotlinx.coroutines.launch
 import org.json.JSONObject
@@ -48,6 +50,19 @@ fun PlansScreen(paymentSheet: PaymentSheet, navController: NavController, isPrem
         isPremium = getPremiumStatus(context)
         Log.d("PlansScreen", "isPremium actualizado: $isPremium")
     }
+
+    /* ESTO NO FUNCIONA
+    val activity = LocalContext.current as MainActivity
+
+
+    // Efecto que observa cambios en el resultado
+    LaunchedEffect(activity.lastPaymentResult) {
+        if(activity.lastPaymentResult != null) {
+            navController.navigate("settings")
+            activity.lastPaymentResult = null // Resetear
+        }
+    }
+    */
 
     LaunchedEffect(Unit) {
         if (previousRoute == "settings") {

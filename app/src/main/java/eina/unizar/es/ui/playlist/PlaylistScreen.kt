@@ -380,8 +380,10 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                     val urlAntes = playlistInfo?.imageUrl
                     val playlistImage = getImageUrl(urlAntes, "/default-playlist.jpg")
                     AsyncImage(
-                        model = playlistImage,
+                        model = getImageUrl(urlAntes, "/default-playlist.jpg"),
                         contentDescription = "Portada de la playlist",
+                        placeholder = painterResource(R.drawable.defaultplaylist), // Fallback local
+                        error = painterResource(R.drawable.defaultplaylist),
                         modifier = Modifier
                             .size(250.dp)
                             .alpha(imageAlpha)
@@ -733,10 +735,13 @@ fun BottomSheetContent(
             AsyncImage(
                 model = playlistImage,
                 contentDescription = "Portada de la playlist",
+                placeholder = painterResource(R.drawable.defaultplaylist), // Fallback local
+                error = painterResource(R.drawable.defaultplaylist),
                 modifier = Modifier
                     .size(50.dp)
                     //.alpha(imageAlpha)
                     .clip(RoundedCornerShape(8.dp)) // Opcional: añade esquinas redondeadas
+
             )
             Spacer(modifier = Modifier.width(8.dp))
             Column {
