@@ -31,6 +31,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.musicapp.ui.theme.VibraBlue
+import eina.unizar.es.R
 import eina.unizar.es.data.model.network.ApiClient.getImageUrl
 import eina.unizar.es.data.model.network.ApiClient.getPlaylistsBySongId
 import eina.unizar.es.data.model.network.ApiClient.getUserPlaylists
@@ -313,14 +314,16 @@ fun PlaylistRowWithCheckbox(
         verticalAlignment = Alignment.CenterVertically
     ) {
         // Playlist cover image
-        val playlistImage = getImageUrl(playlist.imageUrl, "/default-playlist.jpg")
+        val playlistImage = getImageUrl(playlist.imageUrl, "/defaultplaylist.jpg")
         AsyncImage(
             model = playlistImage,
             contentDescription = "Playlist cover",
             modifier = Modifier
                 .size(40.dp)
                 .clip(RoundedCornerShape(4.dp)),
-            contentScale = ContentScale.Crop
+            contentScale = ContentScale.Crop,
+            placeholder = painterResource(R.drawable.defaultplaylist), // Fallback local
+            error = painterResource(R.drawable.defaultplaylist)
         )
 
         // Playlist info

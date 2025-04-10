@@ -61,23 +61,29 @@ import kotlinx.coroutines.delay
 @Composable
 fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremium: Boolean, playerViewModel: MusicPlayerViewModel) {
     val context = LocalContext.current
-    var showPaymentDialog by remember { mutableStateOf(false) } // Estado para mostrar pop-up
+    var showPaymentDialog by remember { mutableStateOf(false) }
     var isPremium by remember { mutableStateOf(isPremium) }
     val coroutineScope = rememberCoroutineScope()
 
+    // Cambiar esta variable para controlar la visibilidad inicial
+    var isLoading by remember { mutableStateOf(true) }
+
+    // Contadores para rastrear el progreso de carga
+    var totalImagesToLoad by remember { mutableStateOf(0) }
+    var loadedImagesCount by remember { mutableStateOf(0) }
+
     LaunchedEffect(Unit) {
-            coroutineScope.launch {
-                val userData = getUserData(context)
-                if (userData != null) {
-                    isPremium = userData["is_premium"] as Boolean
-                    Log.d("UserData", "isPremium asignado: $isPremium") // Verifica si is_premium se asigna correctamente
-                }
+        coroutineScope.launch {
+            val userData = getUserData(context)
+            if (userData != null) {
+                isPremium = userData["is_premium"] as Boolean
+                Log.d("UserData", "isPremium asignado: $isPremium")
             }
+        }
     }
 
     var playlists by remember { mutableStateOf<List<Playlist>>(emptyList()) }
     var albums by remember { mutableStateOf<List<Playlist>>(emptyList()) }
-
     var artists by remember { mutableStateOf<List<Artist>>(emptyList()) }
     var songs by remember { mutableStateOf<List<Song>>(emptyList()) }
 
@@ -90,11 +96,10 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
             }
 
             // Cargar explícitamente el estado de "me gusta"
-            // ya que si el ViewModel no se inicializa, no se saben las likedSongs
             playerViewModel.initializeLikedSongs(playerViewModel.getUserId())
         }
 
-        val response = get("playlists") // Llamada a la API
+        val response = get("playlists")
         response?.let {
             val jsonArray = JSONArray(it)
             val fetchedPlaylists = mutableListOf<Playlist>()
@@ -118,7 +123,7 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
         }
 
         // Canciones de la parte superior de recomendaciones
-        val responseSS = get("songs") // Llamada a la API para obtener canciones
+        val responseSS = get("songs")
         responseSS?.let {
             val jsonArray = JSONArray(it)
             val fetchedSongs = mutableListOf<Song>()
@@ -139,8 +144,8 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
             songs = fetchedSongs
         }
 
-        val albumsAux = mutableListOf<Playlist>() // Lista para álbumes
-        val listasDeReproduccionAux = mutableListOf<Playlist>() // Lista para playlists
+        val albumsAux = mutableListOf<Playlist>()
+        val listasDeReproduccionAux = mutableListOf<Playlist>()
 
         for (playlist in playlists) {
             if (playlist.esAlbum == "album") {
@@ -150,12 +155,11 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
             }
         }
 
-        albums = albumsAux;
-        playlists = listasDeReproduccionAux;
-
+        albums = albumsAux
+        playlists = listasDeReproduccionAux
 
         // Canciones de la parte superior de recomendaciones
-        val responseS = get("artist/artists") // Llamada a la API para obtener canciones
+        val responseS = get("artist/artists")
         responseS?.let {
             val jsonArray = JSONArray(it)
             val fetchedArtists = mutableListOf<Artist>()
@@ -166,7 +170,7 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
                     Artist(
                         id = jsonObject.getString("id"),
                         name = jsonObject.getString("name"),
-                        biography = "Prueba",//jsonObject.getString("bio")//
+                        biography = "Prueba",
                         photo = jsonObject.getString("photo"),
                     )
                 )
@@ -175,25 +179,45 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
             artists = fetchedArtists
         }
 
+        // Al finalizar la carga de datos, actualizar el estado
+        coroutineScope.launch {
+            // Calcular el total de imágenes a cargar antes de mostrar contenido
+            totalImagesToLoad = artists.size +
+                    albums.filter { it.esPublica == "public" }.size +
+                    playlists.filter { it.esAlbum == "Vibra" }.size
+
+            // Establecer un tiempo límite para la carga
+            delay(100)
+            if (isLoading) {
+                isLoading = false
+                Log.d("Loading", "Forced loading complete after timeout")
+            }
+        }
     }
 
     // Mostrar el pop-up de publicidad al entrar a la pantalla
-    var showAdvertPopup by remember { mutableStateOf(!isPremium) } // Cambiado a true inicialmente
+    var showAdvertPopup by remember { mutableStateOf(!isPremium) }
 
+    // Función para incrementar el contador de imágenes cargadas
+    val onImageLoaded = {
+        loadedImagesCount++
+        Log.d("Loading", "Image loaded: $loadedImagesCount/$totalImagesToLoad")
+        // Check if all images are loaded
+        if (loadedImagesCount >= totalImagesToLoad && totalImagesToLoad > 0) {
+            isLoading = false
+            Log.d("Loading", "All images loaded")
+        }
+    }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
-                    Row(
-//                        modifier = Modifier.fillMaxWidth(),
-//                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        // Mostrar el pop-up de publicidad
+                    Row {
                         if(showAdvertPopup) {
                             LaunchedEffect(Unit) {
                                 while (true) {
-                                    delay(300000) // 5 minutos
+                                    delay(13000)
                                     showPaymentDialog = true
                                 }
                             }
@@ -201,13 +225,12 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
 
                         Spacer(modifier = Modifier.weight(0.9f))
                         if (!isPremium) {
-                            // Hacerse Premium activa el pop-up en lugar de cambiar de pantalla
                             VibraBanner(
                                 modifier = Modifier
                                     .align(Alignment.CenterVertically)
-                                   .padding(end = 16.dp, top = 16.dp, bottom = 16.dp),
+                                    .padding(end = 16.dp, top = 16.dp, bottom = 16.dp),
                                 premium = isPremium,
-                                onPremiumClick = { showPaymentDialog = true } // Mostrar pop-up
+                                onPremiumClick = { showPaymentDialog = true }
                             )
                         }
                     }
@@ -225,169 +248,234 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
                 }
             )
         }
-    )
-    { innerPadding ->
+    ) { innerPadding ->
         Column(modifier = Modifier.fillMaxSize()) {
             Spacer(modifier = Modifier.height(16.dp))
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .background(MaterialTheme.colorScheme.background)
-                .padding(horizontal = 16.dp, vertical = 0.dp)
-        ) {
-            Column(
-                modifier = Modifier.fillMaxSize() // Aseguramos que la columna ocupa todo el espacio
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .background(MaterialTheme.colorScheme.background)
+                    .padding(horizontal = 16.dp, vertical = 0.dp)
             ) {
-                // Artistas recomendados en Grid
-                Column {
-                    Text(
-                        "Artistas recomendados",
-                        color = MaterialTheme.colorScheme.onBackground,
-                        style = MaterialTheme.typography.titleLarge,
-                        fontFamily = Rubik // Quitar si no convence
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
+                // Indicador de carga global mientras se cargan todas las imágenes
+                if (isLoading) {
+                    // Mostrar solo el indicador de carga
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(60.dp),
+                            color = VibraBlue
+                        )
+                    }
+                }
+                else {
 
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                        items(artists) { artist ->
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Card(
-                                    modifier = Modifier
-                                        .size(100.dp)
-                                        .clickable { navController.navigate("artist/${artist.id}") },
-                                    colors = CardDefaults.cardColors(containerColor = Color.Transparent)
-                                ) {
-                                    Box(
-                                        modifier = Modifier.fillMaxSize(),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        AsyncImage(
-                                            model = getImageUrl(artist.photo, "defaultartist.jpg"),
-                                            contentDescription = null,
-                                            placeholder = painterResource(R.drawable.defaultartist), // Fallback local
-                                            error = painterResource(R.drawable.defaultartist),
+                    Column(
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        // Artistas recomendados en Grid
+                        Column {
+                            Text(
+                                "Artistas recomendados",
+                                color = MaterialTheme.colorScheme.onBackground,
+                                style = MaterialTheme.typography.titleLarge,
+                                fontFamily = Rubik
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                                items(artists) { artist ->
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Card(
                                             modifier = Modifier
                                                 .size(100.dp)
-                                                .clip(CircleShape)
+                                                .clickable { navController.navigate("artist/${artist.id}") },
+                                            colors = CardDefaults.cardColors(containerColor = Color.Transparent)
+                                        ) {
+                                            Box(
+                                                modifier = Modifier.fillMaxSize(),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                var isImageLoading by remember { mutableStateOf(true) }
+
+                                                if (isImageLoading) {
+                                                    CircularProgressIndicator(
+                                                        modifier = Modifier.align(Alignment.Center),
+                                                        color = VibraBlue
+                                                    )
+                                                }
+
+                                                AsyncImage(
+                                                    model = getImageUrl(
+                                                        artist.photo,
+                                                        "defaultartist.jpg"
+                                                    ),
+                                                    contentDescription = null,
+                                                    placeholder = painterResource(R.drawable.defaultartist),
+                                                    error = painterResource(R.drawable.defaultartist),
+                                                    modifier = Modifier
+                                                        .size(100.dp)
+                                                        .clip(CircleShape),
+                                                    onLoading = { isImageLoading = true },
+                                                    onSuccess = {
+                                                        isImageLoading = false
+                                                        onImageLoaded()
+                                                    },
+                                                    onError = {
+                                                        isImageLoading = false
+                                                        onImageLoaded()
+                                                    }
+                                                )
+                                            }
+                                        }
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            text = artist.name,
+                                            color = MaterialTheme.colorScheme.onSurface,
+                                            style = MaterialTheme.typography.bodyMedium
                                         )
                                     }
                                 }
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(
-                                    text = artist.name,
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                    style = MaterialTheme.typography.bodyMedium
-                                )
                             }
                         }
-                    }
-                }
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(16.dp))
 
-                    // Álbumes populares
-                    Text(
-                        "Álbumes populares",
-                        color = MaterialTheme.colorScheme.onBackground,
-                        style = MaterialTheme.typography.titleLarge,
-                        fontFamily = Rubik // Quitar si no convence
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
+                        // Álbumes populares
+                        Text(
+                            "Álbumes populares",
+                            color = MaterialTheme.colorScheme.onBackground,
+                            style = MaterialTheme.typography.titleLarge,
+                            fontFamily = Rubik
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
 
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                        items(albums) { album ->
-                            if (album.esPublica == "public") {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Card(
-                                        modifier = Modifier
-                                            .size(120.dp)
-                                            .clickable {
-                                                navController.navigate("playlist/${album.id}")
-                                            }, // PASAMOS EL ID
-                                        colors = CardDefaults.cardColors(containerColor = Color.Transparent)
-                                    ) {
-                                        Box(
-                                            modifier = Modifier.fillMaxSize(),
-                                            contentAlignment = Alignment.Center
+                        LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                            items(albums) { album ->
+                                if (album.esPublica == "public") {
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Card(
+                                            modifier = Modifier
+                                                .size(120.dp)
+                                                .clickable {
+                                                    navController.navigate("playlist/${album.id}")
+                                                },
+                                            colors = CardDefaults.cardColors(containerColor = Color.Transparent)
                                         ) {
-                                            // Cargar la imagen desde la URL
-                                            val urlAntes = album?.imageUrl
-                                            val playlistImage =
-                                                getImageUrl(urlAntes, "/defaultx.jpg")
-                                            AsyncImage(
-                                                model = playlistImage,
-                                                placeholder = painterResource(R.drawable.defaultx), // Fallback local
-                                                error = painterResource(R.drawable.defaultx),
-                                                contentDescription = "Portada de la playlist",
-                                                modifier = Modifier
-                                                    //.size(imageSize)
-                                                    //.alpha(imageAlpha)
-                                                    .clip(RoundedCornerShape(8.dp)) // Opcional: añade esquinas redondeadas
-                                            )
+                                            Box(
+                                                modifier = Modifier.fillMaxSize(),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                var isImageLoading by remember { mutableStateOf(true) }
+
+                                                if (isImageLoading) {
+                                                    CircularProgressIndicator(
+                                                        modifier = Modifier.size(40.dp),
+                                                        color = VibraBlue
+                                                    )
+                                                }
+
+                                                val urlAntes = album?.imageUrl
+                                                val playlistImage =
+                                                    getImageUrl(urlAntes, "/defaultx.jpg")
+                                                AsyncImage(
+                                                    model = playlistImage,
+                                                    placeholder = painterResource(R.drawable.defaultx),
+                                                    error = painterResource(R.drawable.defaultx),
+                                                    contentDescription = "Portada de la playlist",
+                                                    modifier = Modifier
+                                                        .clip(RoundedCornerShape(8.dp)),
+                                                    onLoading = { isImageLoading = true },
+                                                    onSuccess = {
+                                                        isImageLoading = false
+                                                        onImageLoaded()
+                                                    },
+                                                    onError = {
+                                                        isImageLoading = false
+                                                        onImageLoaded()
+                                                    }
+                                                )
+                                            }
                                         }
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            text = album.title,
+                                            color = MaterialTheme.colorScheme.onSurface,
+                                            style = MaterialTheme.typography.bodyMedium
+                                        )
                                     }
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Text(
-                                        text = album.title,
-                                        color = MaterialTheme.colorScheme.onSurface,
-                                        style = MaterialTheme.typography.bodyMedium
-                                    )
                                 }
                             }
                         }
-                    }
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(16.dp))
 
-                    // Listas de reproducción recomendadas
-                    Text(
-                        "Listas para ti",
-                        color = MaterialTheme.colorScheme.onBackground,
-                        style = MaterialTheme.typography.titleLarge,
-                        fontFamily = Rubik // Quitar si no convence
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
+                        // Listas de reproducción recomendadas
+                        Text(
+                            "Listas para ti",
+                            color = MaterialTheme.colorScheme.onBackground,
+                            style = MaterialTheme.typography.titleLarge,
+                            fontFamily = Rubik
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
 
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                        items(playlists) { playlist ->
-                            if (playlist?.esAlbum == "Vibra") {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Card(
-                                        modifier = Modifier
-                                            .size(120.dp)
-                                            .clickable {
-                                                navController.navigate("playlist/${playlist.id}") // PASAMOS EL ID
-                                            },
-                                        colors = CardDefaults.cardColors(containerColor = Color.Transparent)
-                                        //elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-                                    ) {
-                                        Box(
-                                            modifier = Modifier.fillMaxSize(),
-                                            contentAlignment = Alignment.Center
+                        LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                            items(playlists) { playlist ->
+                                if (playlist?.esAlbum == "Vibra") {
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Card(
+                                            modifier = Modifier
+                                                .size(120.dp)
+                                                .clickable {
+                                                    navController.navigate("playlist/${playlist.id}")
+                                                },
+                                            colors = CardDefaults.cardColors(containerColor = Color.Transparent)
                                         ) {
-                                            // Cargar la imagen desde la URL
-                                            val urlAntes = playlist?.imageUrl
-                                            val playlistImage =
-                                                getImageUrl(urlAntes, "/defaultplaylist.jpg")
-                                            AsyncImage(
-                                                model = playlistImage,
-                                                contentDescription = "Portada de la playlist",
-                                                placeholder = painterResource(R.drawable.defaultplaylist), // Fallback local
-                                                error = painterResource(R.drawable.defaultplaylist),
-                                                modifier = Modifier
-                                                    //.size(imageSize)
-                                                    //.alpha(imageAlpha)
-                                                    .clip(RoundedCornerShape(8.dp)) // Opcional: añade esquinas redondeadas
-                                            )
+                                            Box(
+                                                modifier = Modifier.fillMaxSize(),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                var isImageLoading by remember { mutableStateOf(true) }
+
+                                                if (isImageLoading) {
+                                                    CircularProgressIndicator(
+                                                        modifier = Modifier.size(40.dp),
+                                                        color = VibraBlue
+                                                    )
+                                                }
+
+                                                val urlAntes = playlist?.imageUrl
+                                                val playlistImage =
+                                                    getImageUrl(urlAntes, "/defaultplaylist.jpg")
+                                                AsyncImage(
+                                                    model = playlistImage,
+                                                    contentDescription = "Portada de la playlist",
+                                                    placeholder = painterResource(R.drawable.defaultplaylist),
+                                                    error = painterResource(R.drawable.defaultplaylist),
+                                                    modifier = Modifier
+                                                        .clip(RoundedCornerShape(8.dp)),
+                                                    onLoading = { isImageLoading = true },
+                                                    onSuccess = {
+                                                        isImageLoading = false
+                                                        onImageLoaded()
+                                                    },
+                                                    onError = {
+                                                        isImageLoading = false
+                                                        onImageLoaded()
+                                                    }
+                                                )
+                                            }
                                         }
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            playlist.title,
+                                            color = MaterialTheme.colorScheme.onSurface,
+                                            style = MaterialTheme.typography.bodyMedium
+                                        )
                                     }
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Text(
-                                        playlist.title, // Cambiado lista a playlist.title
-                                        color = MaterialTheme.colorScheme.onSurface,
-                                        style = MaterialTheme.typography.bodyMedium
-                                    )
                                 }
                             }
                         }
@@ -403,8 +491,8 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
                 )
             }
         }
-        }
     }
+}
     /**
      * Composable que dibuja un banner degradado con un logo y el texto "Vibra".
      * El banner se muestra a la derecha. Reemplaza R.drawable.my_logo por el recurso de tu logo.
