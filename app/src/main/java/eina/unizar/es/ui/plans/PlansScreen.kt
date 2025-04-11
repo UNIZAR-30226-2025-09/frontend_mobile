@@ -181,10 +181,10 @@ fun PlansScreen(paymentSheet: PaymentSheet, navController: NavController, isPrem
                                     )
 
                                 } ?: Toast.makeText(context, "Error al procesar el pago", Toast.LENGTH_LONG).show()
-                                coroutineScope.launch {
+                                /*coroutineScope.launch {
                                     delay(5000)
                                     navController.navigate("settings")
-                                }
+                                }*/
                             } else {
                                 // Lógica MEJORADA para Gratuito
                                 coroutineScope.launch {

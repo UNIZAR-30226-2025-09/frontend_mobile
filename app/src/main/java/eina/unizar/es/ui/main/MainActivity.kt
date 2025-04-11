@@ -11,6 +11,8 @@ import com.stripe.android.paymentsheet.PaymentSheetResult
 import eina.unizar.es.ui.theme.VibraAppTheme
 import android.util.Log
 import android.widget.Toast
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
 import eina.unizar.es.data.model.network.ApiClient.postTokenPremium
 import kotlinx.coroutines.*
 import org.json.JSONObject
@@ -19,18 +21,31 @@ import org.json.JSONObject
 class MainActivity : ComponentActivity() {
     private lateinit var paymentSheet: PaymentSheet
     private val coroutineScope = CoroutineScope(Dispatchers.IO)
+    private var navigateToSettings = mutableStateOf(false)
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         // Inicializar PaymentSheet
-        paymentSheet = PaymentSheet(this) { result -> handlePaymentResult(result) }
+        paymentSheet = PaymentSheet(this) { result -> handlePaymentResult(result)}
 
         setContent {
             VibraAppTheme {
                 val navController = rememberNavController()
-                val isPremium = getPremiumStatus(this)  // Obtener el estado actual
-                AppNavigator(navController, paymentSheet, isPremium) // Pasamos el estado
+                val isPremium = getPremiumStatus(this)
+
+                // Controlador de navegación
+                if (navigateToSettings.value) {
+                    LaunchedEffect(Unit) {
+                        navController.navigate("settings") {
+                            popUpTo("home") { inclusive = false }
+                        }
+                        navigateToSettings.value = false
+                    }
+                }
+
+                AppNavigator(navController, paymentSheet, isPremium)
             }
         }
     }
@@ -51,6 +66,7 @@ class MainActivity : ComponentActivity() {
                             setPremiumStatus(this@MainActivity, true) // Guardar en SharedPreferences
                             runOnUiThread {
                                 Toast.makeText(this@MainActivity, "Pago completado, disfruta de Vibra", Toast.LENGTH_LONG).show()
+                                navigateToSettings.value = true
                             }
                         } else {
                             Log.e("Payment", "Error al actualizar el estado en el servidor")

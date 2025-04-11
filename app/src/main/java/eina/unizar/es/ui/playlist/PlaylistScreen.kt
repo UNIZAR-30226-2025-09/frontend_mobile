@@ -21,6 +21,8 @@ import androidx.compose.material.icons.filled.MusicOff
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.StarOutline
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -51,6 +53,9 @@ import eina.unizar.es.data.model.network.ApiClient.getUserData
 import eina.unizar.es.data.model.network.ApiClient.likeUnlikePlaylist
 import kotlinx.coroutines.launch
 import coil.compose.AsyncImage
+import com.example.musicapp.ui.theme.VibraBlack
+import com.example.musicapp.ui.theme.VibraBlue
+import com.example.musicapp.ui.theme.VibraLightGrey
 import com.stripe.android.core.strings.resolvableString
 import eina.unizar.es.data.model.network.ApiClient
 import eina.unizar.es.data.model.network.ApiClient.checkIfSongIsLiked
@@ -74,7 +79,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.nio.file.Files.delete
 import eina.unizar.es.ui.artist.SongOptionsBottomSheetContent
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.CoroutineScope
 
 
 // Criterios de ordenacion de canciones de una lista
@@ -86,6 +91,10 @@ enum class SortOption {
 @Composable
 fun PlaylistScreen(navController: NavController, playlistId: String?, playerViewModel: MusicPlayerViewModel,
                    isSencillo: Boolean = false, singleId: String?) {
+
+
+    var showRatingDialog by remember { mutableStateOf(false) }
+    var currentRating by remember { mutableStateOf(0) }
 
     // Colores básicos
     val backgroundColor = MaterialTheme.colorScheme.background // Negro
@@ -692,6 +701,19 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                 }
             }
         }
+        StarRatingDialog(
+            showDialog = showRatingDialog,
+            onDismiss = { showRatingDialog = false },
+            onConfirm = { stars ->
+                currentRating = stars
+                // Lógica para guardar la valoración
+                CoroutineScope(Dispatchers.IO).launch {
+                    playlistId?.let {
+                        //savePlaylistRating(it, stars, LocalContext.current)
+                    }
+                }
+            }
+        )
         // Mostrar el BottomSheet de la playlist (fuera del items)
         if (showBottomSheet) {
             ModalBottomSheet(
@@ -709,7 +731,8 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                             onDismiss = { showBottomSheet = false },
                             navController = navController,
                             playlistId = playlistId,
-                            playlistMeGusta = playlistInfo!!.esAlbum
+                            playlistMeGusta = playlistInfo!!.esAlbum,
+                            onRateClick = { showRatingDialog = true }
                         )
                     }
                 }
@@ -729,6 +752,7 @@ fun BottomSheetContent(
     playlistAuthor: String,
     navController: NavController,
     playlistId: String?,
+    onRateClick: () -> Unit,
     onDismiss: () -> Unit,  // Llamar a esta función para cerrar
     playlistMeGusta: String
 ) {
@@ -789,7 +813,7 @@ fun BottomSheetContent(
                 modifier = Modifier
                     .size(50.dp)
                     //.alpha(imageAlpha)
-                    .clip(RoundedCornerShape(8.dp))
+                    .clip(RoundedCornerShape(8.dp)) // Opcional: añade esquinas redondeadas
 
             )
             Spacer(modifier = Modifier.width(8.dp))
@@ -828,7 +852,10 @@ fun BottomSheetContent(
                     Spacer(modifier = Modifier.height(8.dp))
                     SongOptionItem("Compartir", onClick = dismiss)
                     Spacer(modifier = Modifier.height(8.dp))
-                    SongOptionItem("Valorar Playlist", onClick = dismiss)
+                    SongOptionItem("Valorar Playlist", onClick = {
+                        onRateClick()  // Esto activará el diálogo
+                        onDismiss() // Cierra el BottomSheet
+                    })
                     Spacer(modifier = Modifier.height(8.dp))
 
                     if(playlistMeGusta != "Vibra_likedSong" && soyPropietario) {
@@ -898,5 +925,66 @@ private fun getPlaylistAuthor(playlist: Playlist): String {
         "album" -> playlist.title?.let { "$it" } ?: "Álbum sin título"
         null -> "Origen desconocido"
         else -> "Colección personalizada"
+    }
+}
+
+@Composable
+fun StarRatingDialog(
+    showDialog: Boolean,
+    onDismiss: () -> Unit,
+    onConfirm: (Int) -> Unit
+) {
+    var selectedRating by remember { mutableStateOf(0) }
+
+    if (showDialog) {
+        AlertDialog(
+            onDismissRequest = onDismiss,
+            title = { Text("Valorar playlist", color = MaterialTheme.colorScheme.onBackground) },
+            text = {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row {
+                        (1..5).forEach { rating ->
+                            IconButton(
+                                onClick = { selectedRating = rating },
+                                modifier = Modifier.padding(2.dp)
+                            ) {
+                                Icon(
+                                    imageVector = if (rating <= selectedRating) Icons.Default.Star else Icons.Default.StarOutline,
+                                    contentDescription = "$rating estrellas",
+                                    tint = if (rating <= selectedRating) VibraBlue else VibraLightGrey,
+                                    modifier = Modifier.size(32.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        onConfirm(selectedRating)
+                        onDismiss()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = VibraBlue),
+                    modifier = Modifier
+                        .padding(end = 12.dp)
+                ) {
+                    Text("Confirmar", color = VibraBlack)
+                }
+            },
+            dismissButton = {
+                Button(
+                    onClick = onDismiss,
+                    colors = ButtonDefaults.buttonColors(containerColor = VibraLightGrey),
+                    modifier = Modifier
+                    .padding(end = 20.dp)
+                ) {
+                    Text("Cancelar", color = VibraBlack)
+                }
+            }
+        )
     }
 }
