@@ -87,18 +87,6 @@ fun UserRegisterScreen(navController: NavController) {
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Campo de Nombre de Usuario
-                Text(
-                    text = "Nombre de Usuario",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White,
-                    modifier = Modifier.align(Alignment.Start)
-                        .padding(top = 0.dp, bottom = 4.dp)
-                )
-
-                Spacer(modifier = Modifier.height(4.dp))
-
                 OutlinedTextField(
                     value = username,
                     onValueChange = { username = it },
@@ -115,19 +103,7 @@ fun UserRegisterScreen(navController: NavController) {
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text)
                 )
 
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // Campo de Correo Electrónico
-                Text(
-                    text = "Correo Electrónico",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White,
-                    modifier = Modifier.align(Alignment.Start)
-                        .padding(top = 0.dp, bottom = 4.dp)
-                )
-
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
                 OutlinedTextField(
                     value = email,
@@ -145,19 +121,7 @@ fun UserRegisterScreen(navController: NavController) {
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email)
                 )
 
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // Campo de Contraseña
-                Text(
-                    text = "Contraseña",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White,
-                    modifier = Modifier.align(Alignment.Start)
-                        .padding(top = 0.dp, bottom = 4.dp)
-                )
-
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
                 OutlinedTextField(
                     value = password,
@@ -176,19 +140,7 @@ fun UserRegisterScreen(navController: NavController) {
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
                 )
 
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // Campo de Confirmar Contraseña
-                Text(
-                    text = "Confirmar Contraseña",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White,
-                    modifier = Modifier.align(Alignment.Start)
-                        .padding(top = 0.dp, bottom = 4.dp)
-                )
-
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
                 OutlinedTextField(
                     value = confirmPassword,
@@ -253,13 +205,21 @@ fun UserRegisterScreen(navController: NavController) {
                     )
                 }
 
-                Spacer(modifier = Modifier.height(20.dp))
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Text(
+                    text = "o",
+                    fontSize = 14.sp,
+                    color = Color.Gray
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
 
                 // Texto de inicio de sesión
                 val loginText = buildAnnotatedString {
                     append("¿Ya tienes cuenta? ")
                     pushStyle(SpanStyle(color = Color.White, fontWeight = FontWeight.Bold))
-                    append("Inicia sesión en Vibra.")
+                    append("Inicia sesión en Vibra")
                     pop()
                 }
 

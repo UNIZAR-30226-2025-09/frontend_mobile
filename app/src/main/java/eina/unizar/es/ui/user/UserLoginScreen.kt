@@ -95,18 +95,7 @@ fun UserLoginScreen(navController: NavController) {
                     modifier = Modifier.padding(top = 0.dp, bottom = 16.dp)
                 )
 
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Text(
-                    text = "Correo Electrónico",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White,
-                    modifier = Modifier.align(Alignment.Start)
-                        .padding(top = 0.dp, bottom = 4.dp)
-                )
-
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
                 OutlinedTextField(
                     value = email,
@@ -124,18 +113,7 @@ fun UserLoginScreen(navController: NavController) {
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email)
                 )
 
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Text(
-                    text = "Contraseña",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White,
-                    modifier = Modifier.align(Alignment.Start)
-                        .padding(top = 0.dp, bottom = 4.dp)
-                )
-
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(24.dp))
 
                 OutlinedTextField(
                     value = password,
@@ -162,7 +140,7 @@ fun UserLoginScreen(navController: NavController) {
                     )
                 }
 
-                Spacer(modifier = Modifier.height(20.dp))
+                Spacer(modifier = Modifier.height(30.dp))
 
                 Button(
                     onClick = {
@@ -192,23 +170,6 @@ fun UserLoginScreen(navController: NavController) {
                         fontWeight = FontWeight.Bold
                     )
                 }
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Text(
-                    text = "¿Has olvidado tu contraseña?",
-                    color = Color(0xFF79E2FF),
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier
-                        //.align(Alignment.End)
-                        .clickable {
-                            coroutineScope.launch {
-                                Log.d("Email", "El email de recuperacion es: " + email)
-                                dialogEmail = email // Pre-carga el email si ya estaba escrito
-                                showForgotPasswordDialog = true
-                            }
-                        }
-                        .padding(top = 4.dp)
-                )
 
                 Spacer(modifier = Modifier.height(12.dp))
 
@@ -223,15 +184,34 @@ fun UserLoginScreen(navController: NavController) {
                 val registerText = buildAnnotatedString {
                     append("¿No tienes una cuenta? ")
                     pushStyle(SpanStyle(color = Color.White, fontWeight = FontWeight.Bold))
-                    append("Regístrate en Vibra.")
+                    append("Regístrate en Vibra")
                     pop()
                 }
 
                 Text(
                     text = registerText,
-                    fontSize = 14.sp,
+                    fontSize = 13.sp,
                     color = Color.Gray,
                     modifier = Modifier.clickable { navController.navigate("register") }
+                        .padding(8.dp),
+                )
+
+                Text(
+                    text = "¿Has olvidado tu contraseña?",
+                    color = Color.White,
+                    textAlign = TextAlign.Center,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier
+                        //.align(Alignment.End)
+                        .clickable {
+                            coroutineScope.launch {
+                                Log.d("Email", "El email de recuperacion es: " + email)
+                                dialogEmail = email // Pre-carga el email si ya estaba escrito
+                                showForgotPasswordDialog = true
+                            }
+                        }
+                        .padding(top = 4.dp)
                 )
 
                 Spacer(modifier = Modifier.height(8.dp))
