@@ -33,6 +33,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.musicapp.ui.theme.VibraBlue
+import com.example.musicapp.ui.theme.VibraDarkGrey
+import com.example.musicapp.ui.theme.VibraLightGrey
+import com.example.musicapp.ui.theme.VibraMediumGrey
 import eina.unizar.es.R
 import eina.unizar.es.data.model.network.ApiClient
 import eina.unizar.es.ui.artist.SongOptionsBottomSheetContent
@@ -41,6 +44,7 @@ import eina.unizar.es.data.model.network.ApiClient.getSongDetails
 import eina.unizar.es.data.model.network.ApiClient.likeUnlikeSong
 import eina.unizar.es.ui.artist.Artist
 import eina.unizar.es.ui.library.LibraryItem
+import eina.unizar.es.ui.main.Rubik
 import eina.unizar.es.ui.navbar.BottomNavigationBar
 import eina.unizar.es.ui.player.CurrentSong
 import eina.unizar.es.ui.player.FloatingMusicPlayer
@@ -140,8 +144,8 @@ fun SearchScreen(navController: NavController, playerViewModel: MusicPlayerViewM
             TopAppBar(
                 title = {
                     Row (verticalAlignment = Alignment.CenterVertically) {
-                        Spacer(modifier = Modifier.width(5.dp))
-                        Text("Buscar", color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.titleLarge)
+                        Spacer(modifier = Modifier.width(15.dp))
+                        Text("Buscar", color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.titleLarge, fontFamily = Rubik, fontSize = 25.sp)
                     }
                 },
                 modifier = Modifier
@@ -446,7 +450,10 @@ fun SongItem(
                     viewModel.loadSongsFromApi(songId = song.id.toString(), context = context, albumArtResId = R.drawable.kanyeperfil)
                 }
             },
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        colors = CardDefaults.cardColors(
+            containerColor = VibraMediumGrey,
+            contentColor = Color.White
+        ),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
         Row(

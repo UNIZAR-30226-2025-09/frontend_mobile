@@ -1,6 +1,8 @@
 package eina.unizar.es.ui.artist
 
 import android.util.Log
+import androidx.compose.animation.core.Animatable
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -19,13 +21,16 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -52,6 +57,8 @@ import eina.unizar.es.data.model.network.ApiClient.getUserData
 import eina.unizar.es.data.model.network.ApiClient.likeUnlikePlaylist
 import kotlinx.coroutines.launch
 import coil.compose.AsyncImage
+import com.example.musicapp.ui.theme.VibraBlue
+import com.example.musicapp.ui.theme.VibraDarkGrey
 import eina.unizar.es.data.model.network.ApiClient
 import eina.unizar.es.data.model.network.ApiClient.getImageUrl
 import eina.unizar.es.data.model.network.ApiClient.getSongDetails
@@ -80,27 +87,10 @@ fun ArtistScreen(navController: NavController, playerViewModel: MusicPlayerViewM
     val backgroundColor = Color(0xFF000000) // Negro
     val textColor = Color(0xFFFFFFFF) // Blanco
 
-    // Estado del LazyColumn para detectar scroll y aplicar efecto en el header
-
     val lazyListState = rememberLazyListState()
     val imageSize = 150.dp
     val maxOffset = with(LocalDensity.current) { imageSize.toPx() }
     val scrollOffset = lazyListState.firstVisibleItemScrollOffset.toFloat()
-    val collapseFraction = (scrollOffset / maxOffset).coerceIn(0f, 1f)
-
-    // Ajustamos solo la opacidad (sin escala) con Modifier.alpha
-
-    val imageAlpha = 1f - collapseFraction
-
-
-    // Alpha para el título en el TopAppBar: aparece gradualmente conforme se hace scroll
-    val topTitleAlpha = if (lazyListState.firstVisibleItemIndex > 0) {
-        1f
-    } else {
-        ((scrollOffset) / (maxOffset / 2)).coerceIn(0f, 1f)
-    }
-
-
     var songsList by remember { mutableStateOf<List<Song>>(emptyList()) }
     var artistInfo by remember { mutableStateOf<Artist?>(null) }
     var albums by remember { mutableStateOf<List<Playlist>>(emptyList()) }
@@ -222,107 +212,134 @@ fun ArtistScreen(navController: NavController, playerViewModel: MusicPlayerViewM
     }
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    artistInfo?.let {
-                        Text(
-                            text = artistInfo!!.name,
-                            color = textColor,
-                            modifier = Modifier.alpha(topTitleAlpha)
-                        )
-                    }
-                },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(
-                            imageVector = Icons.Default.ArrowBack,
-                            contentDescription = "Volver",
-                            tint = textColor
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = backgroundColor)
-            )
-        },
-//        bottomBar = {
-//            Column {
-//                val isPlaying = remember { mutableStateOf(false) }
-//                FloatingMusicPlayer(navController, playerViewModel)
-//                BottomNavigationBar(navController)
-//            }
-//        },
+        // Quitamos el TopAppBar para que la imagen cubra también esa parte
         containerColor = backgroundColor
     ) { innerPadding ->
         LazyColumn(
             state = lazyListState,
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
-                .background(backgroundColor)
+                .background(VibraDarkGrey)
         ) {
-            // Header: Portada, título y autor
+            // Header: Imagen de fondo con nombre y verificación del artista superpuesto
             item {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.fillMaxWidth()
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(320.dp)
                 ) {
                     // Cargar la imagen desde la URL
                     val urlAntes = artistInfo?.photo
-                    val playlistImage = getImageUrl(urlAntes, "/default-playlist.jpg")
+                    val artistImage = getImageUrl(urlAntes, "/default-playlist.jpg")
+
+                    // Imagen de fondo
                     AsyncImage(
-                        model = playlistImage,
-                        contentDescription = "Portada de la playlist",
+                        model = artistImage,
+                        contentDescription = "Imagen del artista",
+                        contentScale = ContentScale.Crop,
                         modifier = Modifier
-                            .size(250.dp)
-                            .alpha(imageAlpha)
-                            .clip(RoundedCornerShape(8.dp)) // Opcional: añade esquinas redondeadas
+                            .fillMaxSize()
+                            .alpha(0.8f) // Ligera transparencia
                     )
 
-                    Spacer(modifier = Modifier.height(8.dp))
-                    artistInfo?.let {
-                        Text(
-                            text = artistInfo!!.name,
-                            color = textColor,
-                            style = TextStyle(fontSize = 20.sp)
-                        )
-
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Card(
+                    // Overlay para mejor legibilidad del texto
+                    Box(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 20.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = Color(0xFF1E1E1E)
-                        ),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(16.dp)
-                        ) {
-                            Text(
-                                text = "Biografía",
-                                color = Color(0xFF79E2FF),
-                                fontFamily = Rubik,
-                                fontWeight = FontWeight.Medium,
-                                fontSize = 16.sp,
-                                modifier = Modifier.padding(bottom = 8.dp)
+                            .fillMaxSize()
+                            .background(
+                                brush = Brush.verticalGradient(
+                                    colors = listOf(
+                                        Color.Black.copy(alpha = 0.5f), // Oscurecemos la parte superior para el botón
+                                        Color.Transparent.copy(alpha = 0.2f), // Parte media más transparente
+                                        Color.Black.copy(alpha = 0.9f) // Parte inferior más oscura para texto y biografía
+                                    )
+                                )
                             )
+                    )
 
+                    // Botón de volver (ahora encima de la imagen)
+                    IconButton(
+                        onClick = { navController.popBackStack() },
+                        modifier = Modifier
+                            .padding(16.dp)
+                            .align(Alignment.TopStart)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ArrowBack,
+                            contentDescription = "Volver",
+                            tint = textColor,
+                            modifier = Modifier.size(28.dp)
+                        )
+                    }
+
+                    // Contenido superpuesto: nombre, verificación y biografía
+                    Column(
+                        modifier = Modifier
+                            .align(Alignment.BottomStart)
+                            .padding(start = 16.dp, bottom = 16.dp, end = 16.dp)
+                            .fillMaxWidth()
+                    ) {
+                        // Verificación con ícono
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(bottom = 4.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(16.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Verified,
+                                    contentDescription = "Verificado",
+                                    tint = VibraBlue,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = artistInfo!!.biography.ifEmpty { "No hay biografía disponible" },
-                                color = Color.White.copy(alpha = 0.8f),
-                                fontSize = 14.sp,
-                                lineHeight = 20.sp
+                                text = "Artista verificado",
+                                color = Color.White,
+                                fontSize = 14.sp
                             )
                         }
-                    }
+
+                        // Nombre del artista (estilo grande)
+                        artistInfo?.let {
+                            Text(
+                                text = it.name,
+                                color = Color.White,
+                                fontSize = 48.sp,
+                                fontWeight = FontWeight.Bold,
+                                style = TextStyle(
+                                    fontFamily = Rubik,
+                                    shadow = Shadow(
+                                        color = Color.Black.copy(alpha = 0.5f),
+                                        blurRadius = 4f
+                                    )
+                                )
+                            )
+
+                            // Biografía directamente debajo del nombre
+                            if (it.biography.isNotEmpty()) {
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Text(
+                                    text = it.biography,
+                                    color = Color.White.copy(alpha = 0.8f),
+                                    fontSize = 14.sp,
+                                    lineHeight = 20.sp,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
                     }
                 }
             }
 
+
             item {
-                Spacer(modifier = Modifier.height(26.dp))
+                Spacer(modifier = Modifier.height(24.dp))
                 Text(
                     text = "Populares",
                     fontSize = 24.sp, // Cambia el tamaño aquí
@@ -330,6 +347,7 @@ fun ArtistScreen(navController: NavController, playerViewModel: MusicPlayerViewM
                     modifier = Modifier
                             .padding(start = 20.dp)
                 )
+                Spacer(modifier = Modifier.height(6.dp))
             }
 
 
@@ -413,6 +431,7 @@ fun ArtistScreen(navController: NavController, playerViewModel: MusicPlayerViewM
             }
 
             item {
+                Spacer(modifier = Modifier.height(15.dp))
                 Text(
                     text = "Albumes",
                     fontSize = 24.sp,
@@ -420,6 +439,7 @@ fun ArtistScreen(navController: NavController, playerViewModel: MusicPlayerViewM
                     modifier = Modifier
                         .padding(start = 20.dp)
                 )
+                Spacer(modifier = Modifier.height(12.dp))
                 Column(
                     modifier = Modifier.padding(start = 20.dp) // Aplicamos el margen solo al principio del LazyRow
                 ) {
@@ -452,7 +472,9 @@ fun ArtistScreen(navController: NavController, playerViewModel: MusicPlayerViewM
                                         )
                                     }
                                 }
-                                Spacer(modifier = Modifier.height(4.dp))
+
+                                Spacer(modifier = Modifier.height(5.dp))
+
                                 Text(
                                     text = album.title,
                                     color = MaterialTheme.colorScheme.onSurface,
@@ -485,6 +507,7 @@ fun ArtistScreen(navController: NavController, playerViewModel: MusicPlayerViewM
             }
 
             item {
+                Spacer(modifier = Modifier.height(20.dp))
                 Text(
                     text = "Sencillos",
                     fontSize = 24.sp,
@@ -492,6 +515,7 @@ fun ArtistScreen(navController: NavController, playerViewModel: MusicPlayerViewM
                     modifier = Modifier
                         .padding(start = 20.dp)
                 )
+                Spacer(modifier = Modifier.height(12.dp))
             }
 
             item {
@@ -533,7 +557,7 @@ fun ArtistScreen(navController: NavController, playerViewModel: MusicPlayerViewM
                                     }
                                 }
 
-                                //Spacer(modifier = Modifier.height(4.dp))
+                                Spacer(modifier = Modifier.height(5.dp))
 
                                 Text(
                                     text = single.name,
