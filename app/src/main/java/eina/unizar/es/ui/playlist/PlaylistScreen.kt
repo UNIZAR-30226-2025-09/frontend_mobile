@@ -2,6 +2,16 @@ package eina.unizar.es.ui.playlist
 
 import android.annotation.SuppressLint
 import android.util.Log
+import android.widget.Space
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -15,6 +25,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.MusicOff
@@ -29,7 +40,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathSegment
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
@@ -117,6 +130,31 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
 
     // Estado para mostrar/ocultar la barra de búsqueda
     var showSearch by remember { mutableStateOf(false) }
+
+    // Animation states
+    val searchFieldWidth by animateDpAsState(
+        targetValue = if (showSearch) 280.dp else 0.dp,
+        animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing),
+        label = "searchFieldWidth"
+    )
+
+    val searchIconRotation by animateFloatAsState(
+        targetValue = if (showSearch) 90f else 0f,
+        animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing),
+        label = "searchIconRotation"
+    )
+
+    val searchIconAlpha by animateFloatAsState(
+        targetValue = if (showSearch) 0f else 1f,
+        animationSpec = tween(durationMillis = 150),
+        label = "searchIconAlpha"
+    )
+
+    val closeIconAlpha by animateFloatAsState(
+        targetValue = if (showSearch) 1f else 0f,
+        animationSpec = tween(durationMillis = 150),
+        label = "closeIconAlpha"
+    )
 
     // Estado del LazyColumn para detectar scroll y aplicar efecto en el header
     val lazyListState = rememberLazyListState()
@@ -427,12 +465,28 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                         .padding(horizontal = 16.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    if (showSearch) {
+                    AnimatedVisibility(
+                        visible = showSearch,
+                        enter = expandHorizontally(
+                            animationSpec = tween(
+                                durationMillis = 300,
+                                easing = FastOutSlowInEasing
+                            )
+                        ) + fadeIn(animationSpec = tween(durationMillis = 300)),
+                        exit = shrinkHorizontally(
+                            animationSpec = tween(
+                                durationMillis = 300,
+                                easing = FastOutSlowInEasing
+                            )
+                        ) + fadeOut(animationSpec = tween(durationMillis = 150))
+                    ) {
                         OutlinedTextField(
                             value = searchText,
                             onValueChange = { searchText = it },
                             label = { Text("Buscar en playlist", color = textColor) },
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(top = 12.dp, bottom = 12.dp),  // Separación de 12.dp arriba y abajo
                             shape = RoundedCornerShape(16.dp),
                             textStyle = TextStyle(color = textColor),
                             colors = TextFieldDefaults.outlinedTextFieldColors(
@@ -441,10 +495,14 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                                 cursorColor = textColor
                             )
                         )
-                    } else {
+                    }
+
+                    if (!showSearch) {
                         Spacer(modifier = Modifier.weight(1f))
                     }
+
                     Spacer(modifier = Modifier.width(8.dp))
+
                     IconButton(
                         onClick = {
                             showSearch = !showSearch
@@ -453,15 +511,31 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                                 searchText = TextFieldValue("")
                             }
                         },
-                        modifier = Modifier.size(48.dp)
+                        modifier = Modifier
+                            .size(48.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Search,
-                            contentDescription = "Mostrar/Ocultar búsqueda",
-                            tint = textColor
-                        )
+                        Box {
+                            Icon(
+                                imageVector = Icons.Default.Search,
+                                contentDescription = "Buscar",
+                                tint = if (showSearch) Color.Black else textColor,
+                                modifier = Modifier
+                                    .rotate(searchIconRotation)
+                                    .alpha(searchIconAlpha)
+                            )
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Cerrar búsqueda",
+                                tint = Color.White,
+                                modifier = Modifier
+                                    .alpha(closeIconAlpha)
+                            )
+                        }
                     }
+
                     Spacer(modifier = Modifier.width(8.dp))
+
+                    // Your existing play/pause button
                     IconButton(
                         onClick = {
                             if (isPlaying && currentIdPlaylist == playlistId) {
@@ -472,7 +546,8 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                                         playerViewModel.loadSongsFromPlaylist(
                                             convertSongsToCurrentSongs(sortedAndFilteredSongs, 1),
                                             sortedAndFilteredSongs.first().id.toString(), context,
-                                            playlistId)
+                                            playlistId
+                                        )
                                     }
                                 }
                             }
