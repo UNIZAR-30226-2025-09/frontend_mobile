@@ -55,6 +55,8 @@ import androidx.compose.ui.unit.fontscaling.MathUtils.lerp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import com.example.musicapp.ui.theme.VibraBlue
+import com.example.musicapp.ui.theme.VibraDarkGrey
 import eina.unizar.es.data.model.network.ApiClient.checkIfSongIsLiked
 import eina.unizar.es.data.model.network.ApiClient.getImageUrl
 import eina.unizar.es.ui.playlist.getArtistName
@@ -202,6 +204,11 @@ fun FloatingMusicPlayer(navController: NavController, viewModel: MusicPlayerView
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .border(
+                        width = 2.dp,
+                        color = surfaceVariantColor,
+                        shape = RoundedCornerShape(16.dp)
+                    )
                     .clip(RoundedCornerShape(16.dp))
                     .clickable(enabled = !isDragging && !isChangingSong) {
                         navController.navigate("song/${song.id}")
@@ -309,7 +316,8 @@ fun FloatingMusicPlayer(navController: NavController, viewModel: MusicPlayerView
                             }
                         )
                     },
-                color = surfaceVariantColor.copy(alpha = 0.9f)
+                //color = surfaceVariantColor.copy(alpha = 0.9f)
+                color = VibraDarkGrey.copy(alpha = 0.9f)
             ) {
                 Row(
                     modifier = Modifier.fillMaxSize(),
@@ -334,7 +342,7 @@ fun FloatingMusicPlayer(navController: NavController, viewModel: MusicPlayerView
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
-                                .background(Color.Black)
+                                .background(VibraDarkGrey)
                         )
 
                         // Imagen de portada
@@ -363,8 +371,8 @@ fun FloatingMusicPlayer(navController: NavController, viewModel: MusicPlayerView
                             modifier = Modifier
                                 .size(12.dp)
                                 .align(Alignment.Center)
-                                .background(Color.DarkGray, CircleShape)
-                                .border(1.dp, Color.Black, CircleShape)
+                                .background(VibraDarkGrey, CircleShape)
+                                .border(1.dp, surfaceVariantColor, CircleShape)
                         )
                     }
 
