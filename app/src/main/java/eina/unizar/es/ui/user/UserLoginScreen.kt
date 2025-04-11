@@ -2,8 +2,10 @@ package eina.unizar.es.ui.auth
 
 import android.content.Context
 import android.util.Log
+import android.widget.ImageView
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -17,6 +19,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
@@ -33,6 +36,9 @@ import eina.unizar.es.data.model.network.ApiClient
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.viewinterop.AndroidView
+import com.bumptech.glide.Glide
+import com.bumptech.glide.load.engine.DiskCacheStrategy
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -62,38 +68,60 @@ fun UserLoginScreen(navController: NavController) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF121212)),
-        contentAlignment = Alignment.Center
+            .background(Color(0xFF121212))
     ) {
-        Card(
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E1E)),
+        // GIF de fondo
+        AndroidView(
+            factory = { ctx ->
+                ImageView(ctx).apply {
+                    scaleType = ImageView.ScaleType.CENTER_CROP
+                    Glide.with(ctx)
+                        .asGif()
+                        .load(R.raw.inicio_gif) // GIF desde res/raw/
+                        .diskCacheStrategy(DiskCacheStrategy.NONE) // Se evita que se save en cache
+                        .into(this)
+                }
+            },
+            modifier = Modifier.fillMaxSize()
+        )
+
+        // Overlay para mejorar legibilidad
+        Box(
             modifier = Modifier
-                .fillMaxWidth(0.85f)
-                .padding(16.dp)
+                .fillMaxSize()
+                .background(Color(0xFF121212).copy(alpha = 0.7f)),
+            contentAlignment = Alignment.Center
         ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
+            Card(
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E1E).copy(alpha = 0.9f)),
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(24.dp)
+                    .fillMaxWidth(0.85f)
+                    .padding(16.dp)
             ) {
-                Icon(
-                    painter = painterResource(id = R.drawable.logoblanco),
-                    contentDescription = "Logo de Vibra",
-                    tint = Color.White,
-                    modifier = Modifier.size(80.dp)
-                )
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(24.dp)
+                ) {
+                    // Resto del contenido sin cambios...
+                    Icon(
+                        painter = painterResource(id = R.drawable.logoblanco),
+                        contentDescription = "Logo de Vibra",
+                        tint = Color.White,
+                        modifier = Modifier.size(80.dp)
+                    )
 
-                Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
 
-                Text(
-                    text = "Iniciar Sesión en Vibra",
-                    fontSize = 26.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White,
-                    modifier = Modifier.padding(top = 0.dp, bottom = 16.dp)
-                )
+                    Text(
+                        text = "Iniciar Sesión en Vibra",
+                        fontSize = 26.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                        modifier = Modifier.padding(top = 0.dp, bottom = 16.dp)
+                    )
 
                 Spacer(modifier = Modifier.height(12.dp))
 
@@ -217,17 +245,17 @@ fun UserLoginScreen(navController: NavController) {
                 Spacer(modifier = Modifier.height(8.dp))
             }
         }
-        // Diálogo de recuperación
+        // Diálogo de recuperación (mantener tal como está)
         if (showForgotPasswordDialog) {
             ForgotPasswordDialog(
                 onDismiss = {
                     showForgotPasswordDialog = false
                     dialogEmail = ""
                 },
-                onConfirm = { email ->
-                    dialogEmail = email
+                onConfirm = { emailValue ->
+                    dialogEmail = emailValue
                     coroutineScope.launch {
-                        handleForgotPassword(context, email)
+                        handleForgotPassword(context, emailValue)
                         showForgotPasswordDialog = false
                     }
                 },
@@ -235,6 +263,7 @@ fun UserLoginScreen(navController: NavController) {
             )
         }
     }
+}
 }
 
 /**
