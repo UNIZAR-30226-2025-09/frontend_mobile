@@ -268,7 +268,7 @@ fun LibraryScreen(navController: NavController, playerViewModel: MusicPlayerView
                             contentAlignment = Alignment.Center
                         ) {
                             CircularProgressIndicator(
-                                modifier = Modifier.size(60.dp),
+                                modifier = Modifier.size(30.dp),
                                 color = VibraBlue
                             )
                         }

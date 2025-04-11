@@ -266,7 +266,7 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
                         contentAlignment = Alignment.Center
                     ) {
                         CircularProgressIndicator(
-                            modifier = Modifier.size(60.dp),
+                            modifier = Modifier.size(30.dp),
                             color = VibraBlue
                         )
                     }

@@ -74,7 +74,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.nio.file.Files.delete
 import eina.unizar.es.ui.artist.SongOptionsBottomSheetContent
-
+import kotlinx.coroutines.delay
 
 
 // Criterios de ordenacion de canciones de una lista
@@ -740,6 +740,9 @@ fun BottomSheetContent(
     var userId by remember { mutableStateOf("") }  // Estado inicial
     val coroutineScope = rememberCoroutineScope()
 
+    // Estado para controlar la carga
+    var isLoading by remember { mutableStateOf(true) }
+
     // Función interna para manejar el dismissal
     val dismiss = {
         showAlertDialog = false
@@ -761,6 +764,10 @@ fun BottomSheetContent(
                 false
             }
             Log.d("BottomSheetContent", "Soy propietario: $soyPropietario")
+
+            // Simular tiempo de carga o esperar a que termine de cargar los datos
+            delay(500)  // Un pequeño retraso para simular la carga de datos
+            isLoading = false
         }
     }
 
@@ -782,7 +789,7 @@ fun BottomSheetContent(
                 modifier = Modifier
                     .size(50.dp)
                     //.alpha(imageAlpha)
-                    .clip(RoundedCornerShape(8.dp)) // Opcional: añade esquinas redondeadas
+                    .clip(RoundedCornerShape(8.dp))
 
             )
             Spacer(modifier = Modifier.width(8.dp))
@@ -792,49 +799,65 @@ fun BottomSheetContent(
             }
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
-        // Opciones de la playlist centradas
-        Column(
+        // Box contenedor para el círculo de carga o las opciones
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                //.padding(start = 120.dp)
-                .wrapContentWidth(Alignment.CenterHorizontally), // Centra el Column en su contenedor
-            horizontalAlignment = Alignment.CenterHorizontally
+                .wrapContentWidth(Alignment.CenterHorizontally)
         ) {
-            Spacer(modifier = Modifier.height(15.dp))
-            SongOptionItem("Añadir a la biblioteca", onClick = dismiss)
-            Spacer(modifier = Modifier.height(8.dp))
-            SongOptionItem("Compartir", onClick = dismiss)
-            Spacer(modifier = Modifier.height(8.dp))
-            SongOptionItem("Valorar Playlist", onClick = dismiss)
-            Spacer(modifier = Modifier.height(8.dp))
+            if (isLoading) {
+                LinearProgressIndicator(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(4.dp),
+                    color = Color(0xFF00a0d7),
+                    trackColor = Color(0xFF303030)
+                )
+            } else {
+                // Opciones de la playlist centradas - mostrar solo cuando isLoading es false
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .wrapContentWidth(Alignment.CenterHorizontally),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Spacer(modifier = Modifier.height(15.dp))
+                    SongOptionItem("Añadir a la biblioteca", onClick = dismiss)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    SongOptionItem("Compartir", onClick = dismiss)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    SongOptionItem("Valorar Playlist", onClick = dismiss)
+                    Spacer(modifier = Modifier.height(8.dp))
 
-            if(playlistMeGusta != "Vibra_likedSong" && soyPropietario) {
-                // Opción "Eliminar Playlist" con estilo personalizado
-                SongOptionItem("Editar Playlist", onClick = dismiss)
-                Spacer(modifier = Modifier.height(8.dp))
-                SongOptionItem(
-                    text = "Eliminar Playlist",
-                    textColor = Color(0xFFFF6B6B),
-                    onClick = {
-                        // Llamada al backend en una corrutina
-                        scope.launch {
-                            if (!playlistId.isNullOrEmpty()) {
-                                try {
-                                    eliminarPlaylistEnBackend(playlistId)
-                                    // Si se elimina con éxito, realizamos un popBackStack
-                                    navController.popBackStack()
-                                    // Cierra tu bottomSheet como veas (estado local, etc.)
-                                } catch (e: Exception) {
-                                    println("Error al eliminar la playlist: ${e.message}")
+                    if(playlistMeGusta != "Vibra_likedSong" && soyPropietario) {
+                        // Opción "Eliminar Playlist" con estilo personalizado
+                        SongOptionItem("Editar Playlist", onClick = dismiss)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        SongOptionItem(
+                            text = "Eliminar Playlist",
+                            textColor = Color(0xFFFF6B6B),
+                            onClick = {
+                                // Llamada al backend en una corrutina
+                                scope.launch {
+                                    if (!playlistId.isNullOrEmpty()) {
+                                        try {
+                                            eliminarPlaylistEnBackend(playlistId)
+                                            // Si se elimina con éxito, realizamos un popBackStack
+                                            navController.popBackStack()
+                                            // Cierra tu bottomSheet como veas (estado local, etc.)
+                                        } catch (e: Exception) {
+                                            println("Error al eliminar la playlist: ${e.message}")
+                                        }
+                                    }
                                 }
                             }
-                        }
+                        )
                     }
-                )
+                    Spacer(modifier = Modifier.height(38.dp))
+                }
             }
-            Spacer(modifier = Modifier.height(38.dp))
         }
     }
 }
