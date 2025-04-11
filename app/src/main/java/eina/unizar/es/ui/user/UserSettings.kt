@@ -44,11 +44,12 @@ import coil.request.ImageRequest
 import eina.unizar.es.data.model.network.ApiClient
 import eina.unizar.es.data.model.network.ApiClient.getUserData
 import eina.unizar.es.ui.main.Rubik
+import eina.unizar.es.ui.player.MusicPlayerViewModel
 import kotlinx.coroutines.launch
 import java.time.format.TextStyle
 
 @Composable
-fun UserSettings(navController: NavController, isPremium: Boolean) {
+fun UserSettings(navController: NavController, isPremium: Boolean, viewModel: MusicPlayerViewModel) {
     val backgroundColor = Color(0xFF000000)   // Fondo negro
     val cardColor = Color(0xFF121212)         // Tarjetas gris oscuro
     val coroutineScope = rememberCoroutineScope()
@@ -127,6 +128,7 @@ fun UserSettings(navController: NavController, isPremium: Boolean) {
                 icon = Icons.Default.ExitToApp,
                 onClickAction = {
                     coroutineScope.launch {
+                        viewModel.cleanupOnLogout()  // Reinicia el reproductor
                         ApiClient.logoutUser(context, navController)  // Llama a la función logout
                     }
                 }

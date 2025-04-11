@@ -58,6 +58,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -89,6 +90,13 @@ fun LibraryScreen(navController: NavController, playerViewModel: MusicPlayerView
 
     // Id del usuario a guardar al darle like
     var userId by remember { mutableStateOf("") }  // Estado inicial
+
+    // Cambiar esta variable para controlar la visibilidad inicial
+    var isLoading by remember { mutableStateOf(true) }
+
+    // Contadores para rastrear el progreso de carga
+    var totalImagesToLoad by remember { mutableStateOf(0) }
+    var loadedImagesCount by remember { mutableStateOf(0) }
 
     LaunchedEffect(Unit) {
         coroutineScope.launch {
@@ -133,6 +141,30 @@ fun LibraryScreen(navController: NavController, playerViewModel: MusicPlayerView
             }
         }
 
+        // Al finalizar la carga de datos, actualizar el estado
+        coroutineScope.launch {
+            // Calcular el total de imágenes a cargar antes de mostrar contenido
+            totalImagesToLoad = playlists.size
+
+            // Establecer un tiempo límite para la carga
+            delay(500)
+            if (isLoading) {
+                isLoading = false
+                Log.d("Loading", "Forced loading complete after timeout")
+            }
+        }
+
+    }
+
+    // Función para incrementar el contador de imágenes cargadas
+    val onImageLoaded = {
+        loadedImagesCount++
+        Log.d("Loading", "Image loaded: $loadedImagesCount/$totalImagesToLoad")
+        // Check if all images are loaded
+        if (loadedImagesCount >= totalImagesToLoad && totalImagesToLoad > 0) {
+            isLoading = false
+            Log.d("Loading", "All images loaded")
+        }
     }
 
     suspend fun createPlaylist(playlistName: String, userId : String, playlistDescription: String) {
@@ -226,7 +258,7 @@ fun LibraryScreen(navController: NavController, playerViewModel: MusicPlayerView
                 ),
                 navigationIcon = {
                     Box(modifier = Modifier.padding(start = 4.dp)) {
-                        UserProfileMenu(navController)
+                        UserProfileMenu(navController, playerViewModel)
                     }
                 }
             )
@@ -241,51 +273,68 @@ fun LibraryScreen(navController: NavController, playerViewModel: MusicPlayerView
         ) {
             // Lista de elementos filtrados según la búsqueda
             LazyColumn(modifier = Modifier.padding(8.dp)) {
-                // Playlists Creadas section
-                if (playlists.isNotEmpty()) {
+                // Indicador de carga global mientras se cargan todas las imágenes
+                if (isLoading) {
+                    // Envuelve el Box dentro de un item{}
                     item {
-                        Text(
-                            text = "Tus Playlists",
-                            style = MaterialTheme.typography.titleSmall,
-                            color = MaterialTheme.colorScheme.onBackground,
-                            //fontFamily = Rubik,
-                            modifier = Modifier.padding(vertical = 8.dp, horizontal = 16.dp)
-                        )
-                    }
-                    items(playlists) { item ->
-                        LibraryItem(item, navController)
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(60.dp),
+                                color = VibraBlue
+                            )
+                        }
                     }
                 }
-
-                // Liked Playlists section
-                if (playlistsLike.isNotEmpty()) {
-                    item {
-                        Text(
-                            text = "Playlists que te gustan",
-                            style = MaterialTheme.typography.titleSmall,
-                            color = MaterialTheme.colorScheme.onBackground,
-                            //fontFamily = Rubik,
-                            modifier = Modifier.padding(vertical = 8.dp, horizontal = 16.dp)
-                        )
+                else {
+                    // Playlists Creadas section
+                    if (playlists.isNotEmpty()) {
+                        item {
+                            Text(
+                                text = "Tus Playlists",
+                                style = MaterialTheme.typography.titleSmall,
+                                color = MaterialTheme.colorScheme.onBackground,
+                                //fontFamily = Rubik,
+                                modifier = Modifier.padding(vertical = 8.dp, horizontal = 16.dp)
+                            )
+                        }
+                        items(playlists) { item ->
+                            LibraryItem(item, navController, onImageLoaded)
+                        }
                     }
-                    items(playlistsLike) { item2 ->
-                        LibraryItem(item2, navController)
-                    }
-                }
 
-                // Optional: Show a message if no playlists exist
-                if (playlists.isEmpty() && playlistsLike.isEmpty()) {
-                    item {
-                        Text(
-                            text = "No tienes playlists aún",
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp)
-                                .wrapContentHeight()
-                                .clickable { showCreatePlaylistDialog = true }
-                        )
+                    // Liked Playlists section
+                    if (playlistsLike.isNotEmpty()) {
+                        item {
+                            Text(
+                                text = "Playlists que te gustan",
+                                style = MaterialTheme.typography.titleSmall,
+                                color = MaterialTheme.colorScheme.onBackground,
+                                //fontFamily = Rubik,
+                                modifier = Modifier.padding(vertical = 8.dp, horizontal = 16.dp)
+                            )
+                        }
+                        items(playlistsLike) { item2 ->
+                            LibraryItem(item2, navController, onImageLoaded)
+                        }
+                    }
+
+                    // Optional: Show a message if no playlists exist
+                    if (playlists.isEmpty() && playlistsLike.isEmpty()) {
+                        item {
+                            Text(
+                                text = "No tienes playlists aún",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp)
+                                    .wrapContentHeight()
+                                    .clickable { showCreatePlaylistDialog = true }
+                            )
+                        }
                     }
                 }
             }
@@ -384,8 +433,10 @@ fun LibraryScreen(navController: NavController, playerViewModel: MusicPlayerView
 
 
 @Composable
-fun LibraryItem(playlist: Playlist, navController: NavController) {
+fun LibraryItem(playlist: Playlist, navController: NavController, onImageLoaded: () -> Unit = {}) {
     var path = ""
+    var isImageLoading by remember { mutableStateOf(true) }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -399,13 +450,22 @@ fun LibraryItem(playlist: Playlist, navController: NavController) {
         if (playlist?.esAlbum == "Vibra_likedSong"){path = "playlist_images/meGusta.png"} else {path = playlist.imageUrl}
         val playlistImage = getImageUrl(path, "default-playlist.jpg")
         Log.d("ImageURL", "URL final: $playlistImage")
-        //if(playlistImage != "default-playlist.jpg"){
+
             AsyncImage(
                 model = getImageUrl(path, "defaultplaylist.jpg"),
                 contentDescription = "Imagen",
                 modifier = Modifier.size(50.dp),
                 placeholder = painterResource(R.drawable.defaultplaylist), // Fallback local
-                error = painterResource(R.drawable.defaultplaylist)
+                error = painterResource(R.drawable.defaultplaylist),
+                onLoading = { isImageLoading = true },
+                onSuccess = {
+                    isImageLoading = false
+                    onImageLoaded()
+                },
+                onError = {
+                    isImageLoading = false
+                    onImageLoaded()
+                }
             )
         //}
         Spacer(modifier = Modifier.width(10.dp))

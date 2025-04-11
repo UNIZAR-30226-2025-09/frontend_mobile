@@ -35,8 +35,9 @@ import coil.compose.AsyncImage
 import com.example.musicapp.ui.theme.VibraBlue
 import eina.unizar.es.R
 import eina.unizar.es.data.model.network.ApiClient
-import eina.unizar.es.data.model.network.ApiClient.checkIfSongIsLiked
+import eina.unizar.es.ui.artist.SongOptionsBottomSheetContent
 import eina.unizar.es.data.model.network.ApiClient.getImageUrl
+import eina.unizar.es.data.model.network.ApiClient.getSongDetails
 import eina.unizar.es.data.model.network.ApiClient.likeUnlikeSong
 import eina.unizar.es.ui.artist.Artist
 import eina.unizar.es.ui.library.LibraryItem
@@ -47,7 +48,6 @@ import eina.unizar.es.ui.player.MusicPlayerViewModel
 import eina.unizar.es.ui.playlist.BottomSheetContent
 import eina.unizar.es.ui.playlist.Playlist
 import eina.unizar.es.ui.playlist.PlaylistScreen
-import eina.unizar.es.ui.playlist.SongOptionsBottomSheetContent
 import eina.unizar.es.ui.song.Song
 import eina.unizar.es.ui.user.UserProfileMenu
 import kotlinx.coroutines.Dispatchers
@@ -112,7 +112,8 @@ fun SearchScreen(navController: NavController, playerViewModel: MusicPlayerViewM
 
             // Cargar explícitamente el estado de "me gusta"
             // ya que si el ViewModel no se inicializa, no se saben las likedSongs
-            playerViewModel.initializeLikedSongs(playerViewModel.getUserId(), context)
+            playerViewModel.initializeLikedSongs(playerViewModel.getUserId())
+
         }
     }
 
@@ -151,7 +152,7 @@ fun SearchScreen(navController: NavController, playerViewModel: MusicPlayerViewM
                 ),
                 navigationIcon = {
                     Box(modifier = Modifier.padding(start = 4.dp)) {
-                        UserProfileMenu(navController)
+                        UserProfileMenu(navController, playerViewModel)
                     }
                 }
             )
@@ -214,6 +215,15 @@ fun SearchScreen(navController: NavController, playerViewModel: MusicPlayerViewM
                     items(filteredSongs) { song ->
                         var songIsLiked = song.id.toString() in likedSongs
                         var showSongOptionsBottomSheet by remember { mutableStateOf(false) } // Estado para mostrar el BottomSheet de opciones de la canción
+                        var songArtists by remember { mutableStateOf<List<Map<String, String>>>(emptyList()) }
+
+                        LaunchedEffect(song.id) {
+                            val songDetails = getSongDetails(song.id.toString())
+                            songDetails?.let { details ->
+                                @Suppress("UNCHECKED_CAST")
+                                songArtists = details["artists"] as? List<Map<String, String>> ?: emptyList()
+                            }
+                        }
 
                         SongItem(
                             song = song,
@@ -240,14 +250,21 @@ fun SearchScreen(navController: NavController, playerViewModel: MusicPlayerViewM
 
                         // BottomSheet para opciones de la canción (dentro del items)
                         if (showSongOptionsBottomSheet) {
+                            val artistName = if (songArtists.isNotEmpty()) {
+                                songArtists.joinToString(", ") { it["name"] ?: "" }
+                            } else {
+                                "Artista desconocido"
+                            }
+
                             ModalBottomSheet(
                                 onDismissRequest = { showSongOptionsBottomSheet = false },
                                 sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
                             ) {
-                                eina.unizar.es.ui.artist.SongOptionsBottomSheetContent(
-                                    onDismiss = { showSongOptionsBottomSheet = false },
+                                SongOptionsBottomSheetContent(
+                                    songId = song.id.toString(),
+                                    viewModel = playerViewModel,
                                     songTitle = song.name, // Pasa el título de la canción
-                                    artistName = /*artist*/ "Artista de prueba" // Pasa el nombre del artista
+                                    artistName = artistName // Pasa el nombre del artista
                                 )
                             }
                         }
@@ -396,6 +413,7 @@ fun SongItem(
     onMoreVertClick: (() -> Unit) = {},
     viewModel: MusicPlayerViewModel,
     isPlaylist: Boolean = false,
+    isSencillo: Boolean = false,
     playlistSongs: List<Song> = emptyList(),
     idPlaylist: String = ""
 ) {
@@ -412,11 +430,20 @@ fun SongItem(
             .padding(vertical = 4.dp)
             .padding(start = 16.dp, end = 16.dp)
             .clickable {
-                if (!isPlaylist) {
+                if (isSencillo) {
+                    // Si estamos en un sencillo, usamos siempre loadSongsFromApi
                     viewModel.loadSongsFromApi(songId = song.id.toString(), context = context, albumArtResId = R.drawable.kanyeperfil)
+                } else if (isPlaylist) {
+                    // Para playlists normales
+                    viewModel.loadSongsFromPlaylist(
+                        playlistSongs = convertSongsToCurrentSongs(playlistSongs, R.drawable.kanyeperfil),
+                        songId = song.id.toString(),
+                        context,
+                        idPlaylist = idPlaylist
+                    )
                 } else {
-                    viewModel.loadSongsFromPlaylist(playlistSongs = convertSongsToCurrentSongs(playlistSongs, R.drawable.kanyeperfil),
-                        songId = song.id.toString(), context, idPlaylist = idPlaylist)
+                    // Para canción individual desde otras partes de la app
+                    viewModel.loadSongsFromApi(songId = song.id.toString(), context = context, albumArtResId = R.drawable.kanyeperfil)
                 }
             },
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),

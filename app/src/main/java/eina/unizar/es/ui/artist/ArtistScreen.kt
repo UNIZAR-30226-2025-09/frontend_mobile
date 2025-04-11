@@ -54,6 +54,7 @@ import kotlinx.coroutines.launch
 import coil.compose.AsyncImage
 import eina.unizar.es.data.model.network.ApiClient
 import eina.unizar.es.data.model.network.ApiClient.getImageUrl
+import eina.unizar.es.data.model.network.ApiClient.getSongDetails
 import eina.unizar.es.data.model.network.ApiClient.likeUnlikeSong
 import eina.unizar.es.ui.main.Rubik
 import eina.unizar.es.ui.navbar.BottomNavigationBar
@@ -105,30 +106,28 @@ fun ArtistScreen(navController: NavController, playerViewModel: MusicPlayerViewM
     var albums by remember { mutableStateOf<List<Playlist>>(emptyList()) }
     var sencillos by remember { mutableStateOf<List<Song>>(emptyList()) }
 
-
-    // Usamos un Map para manejar el estado de "me gusta" por canción usando el índice o algún identificador único
-    val songLikes = remember { mutableStateOf(songsList.associateWith { false }) }
-
     // Observa la lista de canciones con like desde el ViewModel
     val likedSongs by playerViewModel.likedSongs.collectAsState()
-
-    // Función para cambiar el estado de "me gusta" de una canción
-    fun toggleLike(song: Song) {
-        songLikes.value = songLikes.value.toMutableMap().apply {
-            this[song] = !(this[song] ?: false) // Cambiar el estado de "me gusta" de esta canción
-        }
-    }
 
     // Para poder realizar el post del like/unlike
     val coroutineScope = rememberCoroutineScope()
 
-    // Id del usuario a guardar al darle like
-    var userId by remember { mutableStateOf("") }  // Estado inicial
-
-    var playlists by remember { mutableStateOf<List<Playlist>>(emptyList()) }
+    // Para obtener el contexto de la actividad
     val context = LocalContext.current // Contexto de la actividad
 
     LaunchedEffect(Unit) {
+
+        coroutineScope {
+            // Inicializar el ViewModel con el ID de usuario
+            if (playerViewModel.getUserId().isEmpty()) {
+                playerViewModel.setUserId(context)
+            }
+
+            // Cargar explícitamente el estado de "me gusta"
+            // ya que si el ViewModel no se inicializa, no se saben las likedSongs
+            playerViewModel.initializeLikedSongs(playerViewModel.getUserId())
+        }
+
         val responseS = get("artist/${artistId}")
         responseS?.let { jsonResponse ->
             try {
@@ -161,9 +160,6 @@ fun ArtistScreen(navController: NavController, playerViewModel: MusicPlayerViewM
                             //type = songJson.optString("type"),
                             url_mp3 = songJson.optString("url_mp3", ""),
                             letra = ""
-                            //songId = songJson.optInt("artists.song_artist.song_id", 0),
-                            //artistId = songJson.optInt("artists.song_artist.artist_id", 0),
-                            //likes = songJson.optInt("likes", 0)
                         )
                         fetchedSongs.add(song)
                         Log.d("PARSING", "Canción ${i + 1}: $song")
@@ -223,11 +219,7 @@ fun ArtistScreen(navController: NavController, playerViewModel: MusicPlayerViewM
                 Log.e("PARSE_ERROR", "Error al parsear JSON: ${e.message}")
             }
         }
-        // Cargar explícitamente el estado de "me gusta"
-        // ya que si el ViewModel no se inicializa, no se saben las likedSongs
-        playerViewModel.initializeLikedSongs(playerViewModel.getUserId(), context)
     }
-    
 
     Scaffold(
         topBar = {
@@ -345,7 +337,15 @@ fun ArtistScreen(navController: NavController, playerViewModel: MusicPlayerViewM
             items(songsList) { song ->
                 var songIsLiked = song.id.toString() in likedSongs
                 var showSongOptionsBottomSheet by remember { mutableStateOf(false) } // Estado para mostrar el BottomSheet de opciones de la canción
+                var songArtists by remember { mutableStateOf<List<Map<String, String>>>(emptyList()) }
 
+                LaunchedEffect(song.id) {
+                    val songDetails = getSongDetails(song.id.toString())
+                    songDetails?.let { details ->
+                        @Suppress("UNCHECKED_CAST")
+                        songArtists = details["artists"] as? List<Map<String, String>> ?: emptyList()
+                    }
+                }
                 SongItem(
                     song = song,
                     showHeartIcon = true,
@@ -373,14 +373,21 @@ fun ArtistScreen(navController: NavController, playerViewModel: MusicPlayerViewM
 
                 // BottomSheet para opciones de la canción (dentro del items)
                 if (showSongOptionsBottomSheet) {
+                    val artistName = if (songArtists.isNotEmpty()) {
+                        songArtists.joinToString(", ") { it["name"] ?: "" }
+                    } else {
+                        artistInfo?.name ?: "Artista desconocido"
+                    }
+
                     ModalBottomSheet(
                         onDismissRequest = { showSongOptionsBottomSheet = false },
                         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
                     ) {
                         SongOptionsBottomSheetContent(
-                            onDismiss = { showSongOptionsBottomSheet = false },
+                            songId = song.id.toString(),
+                            viewModel = playerViewModel,
                             songTitle = song.name, // Pasa el título de la canción
-                            artistName = /*artist*/ "Artista de prueba" // Pasa el nombre del artista
+                            artistName = artistName // Pasa el nombre del artista
                         )
                     }
                 }
@@ -515,8 +522,10 @@ fun ArtistScreen(navController: NavController, playerViewModel: MusicPlayerViewM
                                         contentAlignment = Alignment.Center
                                     ) {
                                         AsyncImage(
-                                            model = getImageUrl(single.photo_video, "/default-playlist.jpg"),
-                                            contentDescription = "Portada de la playlist",
+                                            model = getImageUrl(single.photo_video, "/defaultx.jpg"),
+                                            contentDescription = "Portada del single",
+                                            placeholder = painterResource(R.drawable.defaultx), // Fallback local
+                                            error = painterResource(R.drawable.defaultx),
                                             contentScale = ContentScale.Crop,  // Añadir scale para recortar imagen
                                             modifier = Modifier
                                                 .clip(RoundedCornerShape(8.dp))
@@ -569,7 +578,8 @@ fun ArtistScreen(navController: NavController, playerViewModel: MusicPlayerViewM
 // Desplegable para las canciones
 @Composable
 fun SongOptionsBottomSheetContent(
-    onDismiss: () -> Unit,
+    viewModel: MusicPlayerViewModel,
+    songId: String,
     songTitle: String,
     artistName: String
 ) {
@@ -579,11 +589,9 @@ fun SongOptionsBottomSheetContent(
     // Si el diálogo está visible, muéstralo
     if (showAddToPlaylistDialog) {
         ADSongs(
-            onDismiss = {
-                showAddToPlaylistDialog = false
-                // No cerramos el bottom sheet principal aquí para permitir
-                // que el usuario pueda volver a él después de cerrar el diálogo
-            }
+            viewModel = viewModel,
+            songId = songId,
+            onDismiss = { showAddToPlaylistDialog = false }
         )
     }
     Column(
@@ -613,9 +621,9 @@ fun SongOptionsBottomSheetContent(
         ) {
             SongOptionItem("Añadir a lista", onClick = { showAddToPlaylistDialog = true })
             Spacer(modifier = Modifier.height(8.dp))
-            SongOptionItem("Añadir a la cola", onDismiss)
+            SongOptionItem("Añadir a la cola", onClick = { /* Acción de añadir a la cola */ })
             Spacer(modifier = Modifier.height(8.dp))
-            SongOptionItem("Compartir", onDismiss)
+            SongOptionItem("Compartir", onClick = { /* Acción de compartir */ })
         }
         Spacer(modifier = Modifier.height(16.dp))
     }
@@ -624,24 +632,27 @@ fun SongOptionsBottomSheetContent(
 @Composable
 fun SongOptionItem(
     text: String,
-    onClick: () -> Unit,  // Hacer onClick como una función normal y no @Composable
+    onClick: () -> Unit,
     textColor: Color = Color.White,
     background: Color = Color.Transparent,
     roundedCornerShape: RoundedCornerShape = RoundedCornerShape(0.dp),
-    textAlign: TextAlign = TextAlign.Start, // Alineación del texto
-    modifier: Modifier = Modifier.fillMaxWidth() // Modificador por defecto
+    textAlign: TextAlign = TextAlign.Start,
+    modifier: Modifier = Modifier.fillMaxWidth()
 ) {
-    Box(modifier = modifier) {
+    Box(
+        modifier = modifier
+            .clip(roundedCornerShape)
+            .background(background)
+            .clickable { onClick() } // Clickable en todo el Box
+    ) {
         Text(
             text = text,
             color = textColor,
             fontSize = 16.sp,
             textAlign = textAlign,
             modifier = Modifier
-                .clip(roundedCornerShape)
-                .background(background)
+                .fillMaxWidth()
                 .padding(8.dp)
-                .clickable { onClick() }  // Ejecutar la función onClick cuando se haga clic
         )
     }
 }
