@@ -3,6 +3,7 @@ package eina.unizar.es.ui.auth
 import android.content.Context
 import android.util.Log
 import android.widget.Toast
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -43,6 +44,9 @@ fun UserLoginScreen(navController: NavController) {
     var showError by remember { mutableStateOf(false) } // Nuevo estado para el error
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
+
+    var showForgotPasswordDialog by remember { mutableStateOf(false) }
+    var dialogEmail by remember { mutableStateOf("") }
 
     LaunchedEffect(Unit) {
         val sharedPreferences = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
@@ -188,8 +192,25 @@ fun UserLoginScreen(navController: NavController) {
                         fontWeight = FontWeight.Bold
                     )
                 }
+                Spacer(modifier = Modifier.height(8.dp))
 
-                Spacer(modifier = Modifier.height(20.dp))
+                Text(
+                    text = "¿Has olvidado tu contraseña?",
+                    color = Color(0xFF79E2FF),
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        //.align(Alignment.End)
+                        .clickable {
+                            coroutineScope.launch {
+                                Log.d("Email", "El email de recuperacion es: " + email)
+                                dialogEmail = email // Pre-carga el email si ya estaba escrito
+                                showForgotPasswordDialog = true
+                            }
+                        }
+                        .padding(top = 4.dp)
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
 
                 Text(
                     text = "o",
@@ -197,7 +218,7 @@ fun UserLoginScreen(navController: NavController) {
                     color = Color.Gray
                 )
 
-                Spacer(modifier = Modifier.height(20.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
                 val registerText = buildAnnotatedString {
                     append("¿No tienes una cuenta? ")
@@ -215,6 +236,23 @@ fun UserLoginScreen(navController: NavController) {
 
                 Spacer(modifier = Modifier.height(8.dp))
             }
+        }
+        // Diálogo de recuperación
+        if (showForgotPasswordDialog) {
+            ForgotPasswordDialog(
+                onDismiss = {
+                    showForgotPasswordDialog = false
+                    dialogEmail = ""
+                },
+                onConfirm = { email ->
+                    dialogEmail = email
+                    coroutineScope.launch {
+                        handleForgotPassword(context, email)
+                        showForgotPasswordDialog = false
+                    }
+                },
+                initialEmail = dialogEmail
+            )
         }
     }
 }
@@ -277,4 +315,113 @@ suspend fun loginUser(context: Context, email: String, password: String): Boolea
             return@withContext false
         }
     }
+}
+
+// Gestion cuando el usuario ha olvidad la contraseña de su cuenta
+private suspend fun handleForgotPassword(context: Context, email: String) {
+    val success = ApiClient.forgotPassword(email, context)
+
+    withContext(Dispatchers.Main) {
+        if (success) {
+            Toast.makeText(
+                context,
+                "Se ha enviado un correo para restablecer tu contraseña",
+                Toast.LENGTH_LONG
+            ).show()
+        } else {
+            Toast.makeText(
+                context,
+                "Error al enviar el correo. Verifica tu dirección.",
+                Toast.LENGTH_LONG
+            ).show()
+        }
+    }
+}
+
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ForgotPasswordDialog(
+    onDismiss: () -> Unit,
+    onConfirm: (String) -> Unit,
+    initialEmail: String
+) {
+    var email by remember { mutableStateOf(initialEmail) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = "Recuperar contraseña",
+                color = Color.White,
+                modifier = Modifier.fillMaxWidth(),
+                textAlign = TextAlign.Center
+            )
+        },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                OutlinedTextField(
+                    value = email,
+                    onValueChange = { email = it },
+                    label = {
+                        Text(
+                            "Correo electrónico",
+                            color = Color.White.copy(alpha = 0.8f)
+                        )
+                    },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                    colors = TextFieldDefaults.outlinedTextFieldColors(
+                        cursorColor = Color.White,
+                        focusedBorderColor = Color(0xFF79E2FF),
+                        unfocusedBorderColor = Color.Gray
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        containerColor = Color(0xFF1E1E1E),
+        titleContentColor = Color.White,
+        textContentColor = Color.White,
+        confirmButton = {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                // Botón Cancelar
+                Button(
+                    onClick = onDismiss,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color.Transparent,
+                        contentColor = Color.Gray
+                    ),
+                    border = BorderStroke(1.dp, Color.Gray),
+                    shape = RoundedCornerShape(24.dp),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("Cancelar")
+                }
+
+                Spacer(modifier = Modifier.width(16.dp))
+
+                // Botón Enviar
+                Button(
+                    onClick = { onConfirm(email) },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFF79E2FF),
+                        contentColor = Color.Black
+                    ),
+                    shape = RoundedCornerShape(24.dp),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("Enviar")
+                }
+            }
+        },
+        dismissButton = {} // Eliminamos el dismissButton por defecto
+    )
 }

@@ -10,8 +10,10 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Search
@@ -20,6 +22,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -65,6 +68,7 @@ fun LibraryScreen(navController: NavController, playerViewModel: MusicPlayerView
 
     var showCreatePlaylistDialog by remember { mutableStateOf(false) }
     var newPlaylistName by remember { mutableStateOf("") }
+    var newPlaylistDescription by remember { mutableStateOf("") }
 
 
     // Estado de la barra de navegación inferior
@@ -131,10 +135,11 @@ fun LibraryScreen(navController: NavController, playerViewModel: MusicPlayerView
 
     }
 
-    suspend fun createPlaylist(playlistName: String, userId : String) {
+    suspend fun createPlaylist(playlistName: String, userId : String, playlistDescription: String) {
         val jsonBody = JSONObject().apply {
             put("name", playlistName)
             put("user_id", userId) // Agregar el ID del usuario
+            put("description", playlistDescription)
         }
 
         coroutineScope  { // Lanza una corrutina en el scope
@@ -194,14 +199,23 @@ fun LibraryScreen(navController: NavController, playerViewModel: MusicPlayerView
 
                         Spacer(modifier = Modifier.width(50.dp))
 
-                        Button(
+                        IconButton(
                             onClick = { showCreatePlaylistDialog = true },
-                            shape = RoundedCornerShape(16.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = VibraBlue),
-                            modifier = Modifier.height(40.dp)
+                            modifier = Modifier
+                                .padding(start = 64.dp, top = 10.dp)
+                                .size(30.dp)
+                                .background(VibraBlue, CircleShape) // Forma circular
+                                .clip(CircleShape) // Asegura el recorte
+
                         ) {
-                            Text("Crear Playlist", color = VibraBlack)
+                            Icon(
+                                imageVector = Icons.Default.Add,
+                                contentDescription = "Crear Playlist",
+                                tint = VibraBlack,
+                                modifier = Modifier.size(20.dp)
+                            )
                         }
+                        Spacer(modifier = Modifier.width(8.dp))
                     }
                 },
                 modifier = Modifier
@@ -287,23 +301,48 @@ fun LibraryScreen(navController: NavController, playerViewModel: MusicPlayerView
                     )
                 }, // OnBackground
                 text = {
-                    OutlinedTextField(
-                        value = newPlaylistName,
-                        onValueChange = { newPlaylistName = it },
-                        label = {
-                            Text(
-                                "Nombre",
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                        }, // onSurface
-                        singleLine = true,
-                        colors = TextFieldDefaults.outlinedTextFieldColors(
-                            focusedBorderColor = MaterialTheme.colorScheme.primary,
-                            unfocusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                            cursorColor = MaterialTheme.colorScheme.primary
-                        ),
-                        modifier = Modifier.fillMaxWidth()
-                    )
+                    Column {
+                        // Campo para el nombre (obligatorio)
+                        OutlinedTextField(
+                            value = newPlaylistName,
+                            onValueChange = { newPlaylistName = it },
+                            label = {
+                                Text(
+                                    "Nombre",
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            },
+                            singleLine = true,
+                            colors = TextFieldDefaults.outlinedTextFieldColors(
+                                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                unfocusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                                cursorColor = MaterialTheme.colorScheme.primary
+                            ),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 8.dp)
+                        )
+
+                        // Campo para la descripción (opcional)
+                        OutlinedTextField(
+                            value = newPlaylistDescription,
+                            onValueChange = { newPlaylistDescription = it },
+                            label = {
+                                Text(
+                                    "Descripción (opcional)",
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            },
+                            singleLine = false,
+                            minLines = 2,
+                            colors = TextFieldDefaults.outlinedTextFieldColors(
+                                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                unfocusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                                cursorColor = MaterialTheme.colorScheme.primary
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
                 },
                 confirmButton = {
                     Row(horizontalArrangement = Arrangement.Start) { // Alineamos a la izquierda
@@ -312,7 +351,7 @@ fun LibraryScreen(navController: NavController, playerViewModel: MusicPlayerView
                             onClick = {
                                 if (newPlaylistName.isNotEmpty()) {
                                     CoroutineScope(Dispatchers.Main).launch {
-                                        createPlaylist(newPlaylistName, userId)
+                                        createPlaylist(newPlaylistName, userId, newPlaylistDescription)
                                     }
                                     showCreatePlaylistDialog = false
                                 }

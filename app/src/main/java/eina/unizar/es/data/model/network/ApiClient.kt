@@ -688,4 +688,111 @@ suspend fun postTokenPremium(
             }
         }
     }
+
+    /**
+     * Actualiza los datos del usuario autenticado.
+     * @param nickname Nuevo nickname (opcional)
+     * @param email Nuevo correo electrónico (opcional)
+     * @param password Nueva contraseña (opcional)
+     * @return Pair<Código de respuesta, Mensaje del servidor>
+     */
+    suspend fun updateUserProfile(
+        nickname: String?,
+        email: String?,
+        password: String?,
+        context: Context
+    ): Pair<Int, String?> = withContext(Dispatchers.IO) {
+        try {
+            // Obtener token de autenticación
+            val sharedPreferences = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+            val token = sharedPreferences.getString("auth_token", null)
+                ?: return@withContext Pair(401, "No autenticado")
+
+            // Construir cuerpo JSON
+            val jsonBody = JSONObject().apply {
+                nickname?.takeIf { it.isNotBlank() }?.let { put("nickname", it) }
+                email?.takeIf { it.isNotBlank() }?.let { put("main", it) }
+                password?.takeIf { it.isNotBlank() }?.let { put("password", it) }
+            }
+
+            // Configurar petición
+            val client = OkHttpClient()
+            val mediaType = "application/json; charset=utf-8".toMediaTypeOrNull()
+            val body = jsonBody.toString().toRequestBody(mediaType)
+
+            val request = Request.Builder()
+                .url("$BASE_URL/user/update")
+                .put(body)
+                .addHeader("Content-Type", "application/json")
+                .addHeader("Authorization", "Bearer $token")
+                .build()
+
+            // Ejecutar petición
+            client.newCall(request).execute().use { response ->
+                val responseBody = response.body?.string()
+                Log.d("Actualizar", "Actualizar usuario codigo: " + response.code)
+                return@withContext Pair(response.code, responseBody)
+            }
+        } catch (e: Exception) {
+            Log.e("UpdateProfile", "Error: ${e.javaClass.simpleName} - ${e.message}")
+            Pair(500, "Error de conexión")
+        }
+    }
+
+
+    suspend fun forgotPassword(email: String, context: Context): Boolean {
+        return withContext(Dispatchers.IO) {
+            try {
+                val jsonBody = JSONObject().apply {
+                    put("mail", email)
+                }
+
+                val response = postWithHeaders(
+                    endpoint = "user/forgot-password",
+                    jsonBody = jsonBody,
+                    context = context,
+                    responseHeaders = mutableMapOf()
+                )
+
+                response?.let {
+                    val jsonResponse = JSONObject(it)
+                    val status = jsonResponse.optInt("status", 200)
+                    status in 200..299
+                } ?: false
+
+            } catch (e: Exception) {
+                Log.e("ForgotPassword", "Error: ${e.message}")
+                false
+            }
+        }
+    }
+
+    suspend fun resetPassword(token: String, newPassword: String, context: Context): Boolean {
+        return withContext(Dispatchers.IO) {
+            try {
+                val jsonBody = JSONObject().apply {
+                    put("token", token)
+                    put("newPassword", newPassword)
+                }
+
+                val response = postWithHeaders(
+                    endpoint = "user/reset-password",
+                    jsonBody = jsonBody,
+                    context = context,
+                    responseHeaders = mutableMapOf()
+                )
+
+                response?.let {
+                    val jsonResponse = JSONObject(it)
+                    val status = jsonResponse.optInt("status", 200)
+                    status in 200..299
+                } ?: false
+
+            } catch (e: Exception) {
+                Log.e("ResetPassword", "Error: ${e.message}")
+                false
+            }
+        }
+    }
+
 }
