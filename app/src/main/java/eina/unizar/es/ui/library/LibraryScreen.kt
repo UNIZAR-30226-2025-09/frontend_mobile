@@ -226,10 +226,10 @@ fun LibraryScreen(navController: NavController, playerViewModel: MusicPlayerView
             TopAppBar(
                 title = {
                     Row (verticalAlignment = Alignment.CenterVertically) {
-                        Spacer(modifier = Modifier.width(5.dp))
-                        Text("Tu biblioteca", color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.titleLarge)
+                        Spacer(modifier = Modifier.width(15.dp))
+                        Text("Tu biblioteca", color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.titleLarge, fontFamily = Rubik, fontSize = 25.sp)
 
-                        Spacer(modifier = Modifier.width(50.dp))
+                        Spacer(modifier = Modifier.width(70.dp))
 
                         IconButton(
                             onClick = { showCreatePlaylistDialog = true },
@@ -282,7 +282,7 @@ fun LibraryScreen(navController: NavController, playerViewModel: MusicPlayerView
                             contentAlignment = Alignment.Center
                         ) {
                             CircularProgressIndicator(
-                                modifier = Modifier.size(60.dp),
+                                modifier = Modifier.size(30.dp),
                                 color = VibraBlue
                             )
                         }

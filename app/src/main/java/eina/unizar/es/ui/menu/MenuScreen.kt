@@ -217,7 +217,7 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
                         if(showAdvertPopup) {
                             LaunchedEffect(Unit) {
                                 while (true) {
-                                    delay(13000)
+                                    delay(13000) // 13 segundos (media)
                                     showPaymentDialog = true
                                 }
                             }
@@ -266,7 +266,7 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
                         contentAlignment = Alignment.Center
                     ) {
                         CircularProgressIndicator(
-                            modifier = Modifier.size(60.dp),
+                            modifier = Modifier.size(30.dp),
                             color = VibraBlue
                         )
                     }
@@ -278,13 +278,14 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
                     ) {
                         // Artistas recomendados en Grid
                         Column {
+                            Spacer(modifier = Modifier.height(12.dp))
+
                             Text(
                                 "Artistas recomendados",
                                 color = MaterialTheme.colorScheme.onBackground,
-                                style = MaterialTheme.typography.titleLarge,
-                                fontFamily = Rubik
+                                style = MaterialTheme.typography.titleLarge
                             )
-                            Spacer(modifier = Modifier.height(8.dp))
+                            Spacer(modifier = Modifier.height(12.dp))
 
                             LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                                 items(artists) { artist ->
@@ -342,16 +343,15 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(24.dp))
 
                         // Álbumes populares
                         Text(
                             "Álbumes populares",
                             color = MaterialTheme.colorScheme.onBackground,
-                            style = MaterialTheme.typography.titleLarge,
-                            fontFamily = Rubik
+                            style = MaterialTheme.typography.titleLarge
                         )
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(12.dp))
 
                         LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                             items(albums) { album ->
@@ -411,16 +411,15 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(24.dp))
 
                         // Listas de reproducción recomendadas
                         Text(
                             "Listas para ti",
                             color = MaterialTheme.colorScheme.onBackground,
-                            style = MaterialTheme.typography.titleLarge,
-                            fontFamily = Rubik
+                            style = MaterialTheme.typography.titleLarge
                         )
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(12.dp))
 
                         LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                             items(playlists) { playlist ->
