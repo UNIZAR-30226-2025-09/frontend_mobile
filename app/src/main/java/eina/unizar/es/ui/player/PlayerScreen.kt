@@ -70,14 +70,13 @@ fun FloatingMusicPlayer(navController: NavController, viewModel: MusicPlayerView
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
 
-    // Estados para animaciones
+    // Estados para gestión de la interfaz
     var artista by remember { mutableStateOf<String?>(null) }
     var offsetX by remember { mutableStateOf(0f) }
     var isDragging by remember { mutableStateOf(false) }
-    var diskRotation by remember { mutableStateOf(0f) }
     var isChangingSong by remember { mutableStateOf(false) }
 
-    // Animación constante de rotación del disco (vinilo)
+    // Animación constante de rotación del disco (mantenemos esta parte)
     val infiniteTransition = rememberInfiniteTransition(label = "diskSpin")
     val constantDiskRotation by infiniteTransition.animateFloat(
         initialValue = 0f,
@@ -89,15 +88,11 @@ fun FloatingMusicPlayer(navController: NavController, viewModel: MusicPlayerView
         label = "diskRotation"
     )
 
-    // Parámetros de animación
-    val maxOffset = 150f
-    val actionThreshold = 90f
-    val maxScale = 1.05f
-    val minScale = 0.95f
+    // Parámetros de animación - Simplificados para una experiencia más minimalista
+    val maxOffset = 120f
+    val actionThreshold = 70f
 
-    // Colores para usar dentro de Canvas
-    val primaryColor = MaterialTheme.colorScheme.primary
-    val onPrimaryColor = MaterialTheme.colorScheme.onPrimary
+    // Colores
     val surfaceVariantColor = MaterialTheme.colorScheme.surfaceVariant
     val onSurfaceColor = MaterialTheme.colorScheme.onSurface
 
@@ -109,19 +104,8 @@ fun FloatingMusicPlayer(navController: NavController, viewModel: MusicPlayerView
     }
 
     currentSong?.let { song ->
-        // Cálculos para efectos visuales
+        // Mantener solo los cálculos necesarios para la funcionalidad básica
         val swipeFactor = (offsetX / maxOffset).coerceIn(-1f, 1f)
-        val rotation = swipeFactor * 10f
-        val scale = if (isDragging) {
-            androidx.compose.ui.util.lerp(maxScale, minScale, abs(swipeFactor))
-        } else 1f
-
-        // Rotación adicional para el disco cuando se arrastra
-        val dynamicDiskRotation = constantDiskRotation + (swipeFactor * 180f)
-
-        // Opacidad para indicadores
-        val nextOpacity = (-offsetX / actionThreshold).coerceIn(0f, 1f)
-        val prevOpacity = (offsetX / actionThreshold).coerceIn(0f, 1f)
 
         Box(
             modifier = Modifier
@@ -129,83 +113,12 @@ fun FloatingMusicPlayer(navController: NavController, viewModel: MusicPlayerView
                 .height(70.dp)
                 .padding(horizontal = 8.dp)
         ) {
-            // Efecto de brillo/resplandor según dirección de arrastre
-            if (isDragging) {
-                val glowColorAlpha = (abs(swipeFactor) * 0.5f).coerceIn(0f, 0.5f)
-                val glowColor = primaryColor.copy(alpha = glowColorAlpha)
-                val startFraction = if (swipeFactor > 0) 0f else 1f
-                val endFraction = if (swipeFactor > 0) 1f else 0f
-
-                Canvas(modifier = Modifier.fillMaxSize()) {
-                    drawRect(
-                        brush = Brush.horizontalGradient(
-                            colors = listOf(Color.Transparent, glowColor, Color.Transparent),
-                            startX = size.width * startFraction,
-                            endX = size.width * endFraction
-                        )
-                    )
-                }
-
-                // Indicadores de acción estilo vinilo
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.CenterEnd)
-                        .alpha(nextOpacity)
-                        .padding(end = 16.dp)
-                        .size(28.dp)
-                        .graphicsLayer {
-                            rotationZ = -dynamicDiskRotation * 0.5f
-                            shadowElevation = 4f
-                        }
-                ) {
-                    // Disco pequeño indicador
-                    Canvas(modifier = Modifier.fillMaxSize()) {
-                        // Disco exterior
-                        drawCircle(
-                            color = primaryColor.copy(alpha = 0.7f),
-                            radius = size.minDimension / 2
-                        )
-                        // Centro del disco
-                        drawCircle(
-                            color = onPrimaryColor,
-                            radius = size.minDimension / 6
-                        )
-                    }
-                }
-
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.CenterStart)
-                        .alpha(prevOpacity)
-                        .padding(start = 16.dp)
-                        .size(28.dp)
-                        .graphicsLayer {
-                            rotationZ = dynamicDiskRotation * 0.5f
-                            shadowElevation = 4f
-                        }
-                ) {
-                    // Disco pequeño indicador
-                    Canvas(modifier = Modifier.fillMaxSize()) {
-                        // Disco exterior
-                        drawCircle(
-                            color = primaryColor.copy(alpha = 0.7f),
-                            radius = size.minDimension / 2
-                        )
-                        // Centro del disco
-                        drawCircle(
-                            color = onPrimaryColor,
-                            radius = size.minDimension / 6
-                        )
-                    }
-                }
-            }
-
-            // Reproductor principal con efecto de vinilo
+            // Reproductor principal con estilo minimalista
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
                     .border(
-                        width = 2.dp,
+                        width = 1.dp, // Reducido para un estilo más minimalista
                         color = surfaceVariantColor,
                         shape = RoundedCornerShape(16.dp)
                     )
@@ -215,10 +128,8 @@ fun FloatingMusicPlayer(navController: NavController, viewModel: MusicPlayerView
                     }
                     .offset(x = offsetX.dp)
                     .graphicsLayer {
-                        rotationZ = rotation
-                        scaleX = scale
-                        scaleY = scale
-                        shadowElevation = 8f + abs(swipeFactor) * 8f
+                        // Eliminamos rotación y efectos excesivos, mantenemos sólo sombra básica
+                        shadowElevation = 4f
                     }
                     .pointerInput(Unit) {
                         detectHorizontalDragGestures(
@@ -226,31 +137,19 @@ fun FloatingMusicPlayer(navController: NavController, viewModel: MusicPlayerView
                             onDragEnd = {
                                 coroutineScope.launch {
                                     if (abs(offsetX) > actionThreshold) {
-                                        // Cambio de canción con animación vinilo
+                                        // Cambio de canción con animación minimalista
                                         isChangingSong = true
 
                                         // Determinar dirección
                                         val isNext = offsetX < 0
 
-                                        // Primera fase: girar y desaparecer
-                                        val initialRotation = rotation
-                                        val targetRotation = if (isNext) -180f else 180f
-
-                                        // Animación de giro y escala
+                                        // Animación de salida suave
                                         animate(
-                                            initialValue = 0f,
-                                            targetValue = 1f,
-                                            animationSpec = tween(300, easing = FastOutSlowInEasing)
-                                        ) { progress, _ ->
-                                            // Rotación progresiva
-                                            val currentRotation = androidx.compose.ui.util.lerp(initialRotation, targetRotation, progress)
-                                            diskRotation = currentRotation * 3f
-
-                                            // Escala que disminuye
-                                            // val currentScale = lerp(scale, 0.7f, progress) - No usado, eliminado
-
-                                            // Aplicar transformaciones
-                                            offsetX = androidx.compose.ui.util.lerp(offsetX, if (isNext) -maxOffset*1.5f else maxOffset*1.5f, progress)
+                                            initialValue = offsetX,
+                                            targetValue = if (isNext) -maxOffset*1.5f else maxOffset*1.5f,
+                                            animationSpec = tween(150, easing = FastOutSlowInEasing)
+                                        ) { value, _ ->
+                                            offsetX = value
                                         }
 
                                         // Cambiar canción
@@ -260,19 +159,16 @@ fun FloatingMusicPlayer(navController: NavController, viewModel: MusicPlayerView
                                             viewModel.previousSong(context)
                                         }
 
-                                        // Segunda fase: aparecer desde el otro lado
+                                        // Entrar desde el lado opuesto con una animación suave
                                         offsetX = if (isNext) maxOffset*1.5f else -maxOffset*1.5f
 
-                                        // Animación de entrada
+                                        // Animación de entrada minimalista
                                         animate(
-                                            initialValue = 0f,
-                                            targetValue = 1f,
-                                            animationSpec = spring(
-                                                dampingRatio = Spring.DampingRatioMediumBouncy,
-                                                stiffness = Spring.StiffnessLow
-                                            )
-                                        ) { progress, _ ->
-                                            offsetX = androidx.compose.ui.util.lerp(if (isNext) maxOffset*1.5f else -maxOffset*1.5f, 0f, progress)
+                                            initialValue = offsetX,
+                                            targetValue = 0f,
+                                            animationSpec = tween(200, easing = FastOutSlowInEasing)
+                                        ) { value, _ ->
+                                            offsetX = value
                                         }
 
                                         isChangingSong = false
@@ -281,10 +177,7 @@ fun FloatingMusicPlayer(navController: NavController, viewModel: MusicPlayerView
                                         animate(
                                             initialValue = offsetX,
                                             targetValue = 0f,
-                                            animationSpec = spring(
-                                                dampingRatio = Spring.DampingRatioMediumBouncy,
-                                                stiffness = Spring.StiffnessMedium
-                                            )
+                                            animationSpec = tween(150, easing = FastOutSlowInEasing)
                                         ) { value, _ ->
                                             offsetX = value
                                         }
@@ -298,10 +191,7 @@ fun FloatingMusicPlayer(navController: NavController, viewModel: MusicPlayerView
                                     animate(
                                         initialValue = offsetX,
                                         targetValue = 0f,
-                                        animationSpec = spring(
-                                            dampingRatio = Spring.DampingRatioMediumBouncy,
-                                            stiffness = Spring.StiffnessMedium
-                                        )
+                                        animationSpec = tween(150, easing = FastOutSlowInEasing)
                                     ) { value, _ ->
                                         offsetX = value
                                     }
@@ -310,41 +200,30 @@ fun FloatingMusicPlayer(navController: NavController, viewModel: MusicPlayerView
                                 }
                             },
                             onHorizontalDrag = { _, dragAmount ->
-                                // Física con resistencia adaptativa
-                                val resistanceFactor = 1f - (abs(offsetX) / 350f).coerceIn(0f, 0.8f)
+                                // Mantenemos la física con resistencia pero más suave
+                                val resistanceFactor = 1f - (abs(offsetX) / 300f).coerceIn(0f, 0.7f)
                                 offsetX = (offsetX + dragAmount * resistanceFactor).coerceIn(-maxOffset, maxOffset)
                             }
                         )
                     },
-                //color = surfaceVariantColor.copy(alpha = 0.9f)
                 color = VibraDarkGrey.copy(alpha = 0.9f)
             ) {
                 Row(
                     modifier = Modifier.fillMaxSize(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Imagen con efecto de disco giratorio
+                    // Imagen con rotación simple del disco
                     Box(
                         modifier = Modifier
                             .size(64.dp)
                             .padding(8.dp)
                             .clip(CircleShape)
                             .graphicsLayer {
-                                // Combinar rotación constante con dinámica
-                                rotationZ = if (isChangingSong) diskRotation else constantDiskRotation
-
-                                // Efecto de "disco levitando" cuando se arrastra
-                                translationY = if (isDragging) (-swipeFactor * 2f).dp.toPx() else 0f
-                                shadowElevation = if (isDragging) 12f else 4f
+                                // Mantenemos solo la rotación constante
+                                rotationZ = constantDiskRotation
+                                shadowElevation = 2f
                             }
                     ) {
-                        // Vinilo base (negro)
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(VibraDarkGrey)
-                        )
-
                         // Imagen de portada
                         AsyncImage(
                             model = getImageUrl(song.photo, "default-playlist.jpg"),
@@ -353,36 +232,31 @@ fun FloatingMusicPlayer(navController: NavController, viewModel: MusicPlayerView
                                 .fillMaxSize()
                                 .clip(CircleShape)
                                 .border(
-                                    width = 2.dp,
-                                    brush = Brush.sweepGradient(
-                                        listOf(
-                                            Color.Black,
-                                            primaryColor.copy(alpha = 0.7f),
-                                            Color.Black
-                                        )
-                                    ),
+                                    width = 1.dp,
+                                    color = Color.Gray.copy(alpha = 0.3f),
                                     shape = CircleShape
                                 ),
                             contentScale = ContentScale.Crop
                         )
 
-                        // Agujero central del vinilo
+                        // Pequeño punto central (minimalista)
                         Box(
                             modifier = Modifier
-                                .size(12.dp)
+                                .size(8.dp)
                                 .align(Alignment.Center)
                                 .background(VibraDarkGrey, CircleShape)
-                                .border(1.dp, surfaceVariantColor, CircleShape)
+                                .border(0.5.dp, Color.Gray.copy(alpha = 0.5f), CircleShape)
                         )
                     }
 
-                    // Información con efecto de movimiento parallax
+                    // Información con movimiento sutil
                     Column(
                         modifier = Modifier
                             .weight(1f)
                             .padding(start = 8.dp)
                             .graphicsLayer {
-                                translationX = -offsetX * 0.2f
+                                // Movimiento paralaje sutil
+                                translationX = -offsetX * 0.1f
                             }
                     ) {
                         Text(
@@ -404,45 +278,45 @@ fun FloatingMusicPlayer(navController: NavController, viewModel: MusicPlayerView
                         }
                     }
 
-                    // Controles con efecto de movimiento parallax inverso
+                    // Controles con movimiento paralaje sutil
                     Row(
                         modifier = Modifier
                             .graphicsLayer {
-                                translationX = offsetX * 0.15f
+                                translationX = offsetX * 0.1f
                             }
-                            .padding(end = 8.dp),  // Añado padding para separar del borde
-                        verticalAlignment = Alignment.CenterVertically  // Alineación vertical centrada
+                            .padding(end = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         // Icono del ordenador
                         IconButton(
                             onClick = { /* acción futuro */ },
-                            modifier = Modifier.size(40.dp)  // Aumento tamaño del área táctil
+                            modifier = Modifier.size(40.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Filled.Computer,
                                 contentDescription = "Computer",
-                                modifier = Modifier.size(30.dp),  // Aumento tamaño del icono
-                                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
+                                modifier = Modifier.size(28.dp),
+                                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                             )
                         }
 
                         // Botón de like
                         IconButton(
                             onClick = { viewModel.toggleLike(context) },
-                            modifier = Modifier.size(40.dp)  // Aumento tamaño del área táctil
+                            modifier = Modifier.size(40.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Favorite,
                                 contentDescription = "Me gusta",
                                 tint = if (isLiked) Color.Red else Color.Gray,
-                                modifier = Modifier.size(30.dp)  // Aumento tamaño del icono
+                                modifier = Modifier.size(28.dp)
                             )
                         }
 
                         // Botón de reproducción/pausa
                         IconButton(
                             onClick = { viewModel.togglePlayPause() },
-                            modifier = Modifier.size(35.dp)  // Ligeramente más grande que los otros
+                            modifier = Modifier.size(40.dp)
                         ) {
                             Icon(
                                 imageVector = if (!song.isPlaying)
@@ -450,7 +324,7 @@ fun FloatingMusicPlayer(navController: NavController, viewModel: MusicPlayerView
                                 else
                                     Icons.Filled.Pause,
                                 contentDescription = if (!song.isPlaying) "Play" else "Pause",
-                                modifier = Modifier.size(34.dp),  // Más grande que los otros iconos
+                                modifier = Modifier.size(40.dp),
                                 tint = MaterialTheme.colorScheme.onSurface
                             )
                         }
