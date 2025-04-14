@@ -58,27 +58,15 @@ fun SongScreen(navController: NavController, playerViewModel: MusicPlayerViewMod
         }
     }
 
-
     BottomSheetScaffold(
         scaffoldState = scaffoldState,
-        sheetPeekHeight = 60.dp,
-        sheetContainerColor = Color(0xFF2C2C2C),
+        sheetPeekHeight = 70.dp,
+        sheetContainerColor = Color(0xFF1E1E1E),
+        sheetContentColor = Color.White,
+        sheetShape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+        sheetShadowElevation = 8.dp,
         sheetContent = {
-            Column(
-                Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp)
-                    .verticalScroll(rememberScrollState()),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text("LETRA", fontSize = 18.sp, color = Color.White)
-                Spacer(modifier = Modifier.height(12.dp))
-                Text(
-                    text = currentSong?.lyrics ?: "Cargando letra...",
-                    color = Color.White,
-                    style = MaterialTheme.typography.bodyMedium
-                )
-            }
+            EnhancedLyricsSheet(lyrics = currentSong?.lyrics)
         }
     ) { innerPadding ->
         Column(
@@ -223,5 +211,85 @@ fun formatDuration(ms: Long): String {
     val minutes = totalSeconds / 60
     val seconds = totalSeconds % 60
     return String.format("%02d:%02d", minutes, seconds)
+}
+
+
+@Composable
+fun EnhancedLyricsSheet(lyrics: String?) {
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 4.dp)
+            .verticalScroll(rememberScrollState()),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = "LETRA",
+            fontSize = 14.sp,
+            color = Color.Gray,
+            letterSpacing = 1.sp,
+            style = MaterialTheme.typography.labelMedium
+        )
+
+        Spacer(modifier = Modifier.height(20.dp))
+
+        Divider(
+            color = Color.Gray.copy(alpha = 0.2f),
+            thickness = 1.dp,
+            modifier = Modifier.fillMaxWidth(0.1f)
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        if (lyrics.isNullOrEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(200.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(
+                        imageVector = Icons.Default.MusicNote,
+                        contentDescription = null,
+                        tint = Color.Gray.copy(alpha = 0.7f),
+                        modifier = Modifier.size(48.dp)
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = "Lyrics not available",
+                        color = Color.Gray,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            }
+        } else {
+            val paragraphs = lyrics.split("\n\n")
+
+            Column(horizontalAlignment = Alignment.Start) {
+                paragraphs.forEachIndexed { index, paragraph ->
+                    val lines = paragraph.split("\n")
+
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        lines.forEach { line ->
+                            Text(
+                                text = line,
+                                color = Color.White,
+                                style = MaterialTheme.typography.bodyLarge,
+                                lineHeight = 28.sp,
+                                modifier = Modifier.padding(vertical = 3.dp)
+                            )
+                        }
+                    }
+
+                    if (index < paragraphs.size - 1) {
+                        Spacer(modifier = Modifier.height(20.dp))
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(40.dp))
+    }
 }
 
