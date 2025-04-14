@@ -58,6 +58,7 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.musicapp.ui.theme.VibraBlue
 import com.example.musicapp.ui.theme.VibraDarkGrey
+import com.example.musicapp.ui.theme.VibraMediumGrey
 import eina.unizar.es.data.model.network.ApiClient.checkIfSongIsLiked
 import eina.unizar.es.data.model.network.ApiClient.getImageUrl
 import eina.unizar.es.ui.playlist.getArtistName
@@ -206,7 +207,7 @@ fun FloatingMusicPlayer(navController: NavController, viewModel: MusicPlayerView
                             }
                         )
                     },
-                color = VibraDarkGrey.copy(alpha = 0.9f)
+                color = VibraMediumGrey.copy(alpha = 0.9f)
             ) {
                 Row(
                     modifier = Modifier.fillMaxSize(),
@@ -308,7 +309,7 @@ fun FloatingMusicPlayer(navController: NavController, viewModel: MusicPlayerView
                             Icon(
                                 imageVector = Icons.Default.Favorite,
                                 contentDescription = "Me gusta",
-                                tint = if (isLiked) Color.Red else Color.Gray,
+                                tint = if (isLiked) Color(0xFFFF6B6B) else Color.Gray,
                                 modifier = Modifier.size(28.dp)
                             )
                         }

@@ -645,7 +645,7 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                                 Icon(
                                     imageVector = Icons.Default.Favorite, // Usamos el ícono de "me gusta"
                                     contentDescription = "Me gusta",
-                                    tint = if (isLikedPlaylist) Color.Red else Color.Gray // Si está seleccionado, se colorea rojo, si no es gris
+                                    tint = if (isLikedPlaylist) Color(0xFFFF6B6B) else Color.Gray // Si está seleccionado, se colorea rojo, si no es gris
                                 )
                             }
                         }

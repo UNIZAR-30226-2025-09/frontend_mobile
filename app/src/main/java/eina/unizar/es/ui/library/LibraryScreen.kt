@@ -14,6 +14,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowForwardIos
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Search
@@ -26,7 +27,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -226,10 +229,7 @@ fun LibraryScreen(navController: NavController, playerViewModel: MusicPlayerView
             TopAppBar(
                 title = {
                     Row (verticalAlignment = Alignment.CenterVertically) {
-                        Spacer(modifier = Modifier.width(15.dp))
-                        Text("Tu biblioteca", color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.titleLarge, fontFamily = Rubik, fontSize = 25.sp)
-
-                        Spacer(modifier = Modifier.width(70.dp))
+                        Spacer(modifier = Modifier.width(215.dp))
 
                         IconButton(
                             onClick = { showCreatePlaylistDialog = true },
@@ -301,7 +301,7 @@ fun LibraryScreen(navController: NavController, playerViewModel: MusicPlayerView
                             )
                         }
                         items(playlists) { item ->
-                            LibraryItem(item, navController, onImageLoaded)
+                            LibraryItem(item, navController)
                         }
                     }
 
@@ -317,7 +317,7 @@ fun LibraryScreen(navController: NavController, playerViewModel: MusicPlayerView
                             )
                         }
                         items(playlistsLike) { item2 ->
-                            LibraryItem(item2, navController, onImageLoaded)
+                            LibraryItem(item2, navController)
                         }
                     }
 
@@ -433,57 +433,75 @@ fun LibraryScreen(navController: NavController, playerViewModel: MusicPlayerView
 
 
 @Composable
-fun LibraryItem(playlist: Playlist, navController: NavController, onImageLoaded: () -> Unit = {}) {
-    var path = ""
-    var isImageLoading by remember { mutableStateOf(true) }
-
-    Row(
+fun LibraryItem(
+    playlist: Playlist,
+    navController: NavController
+) {
+    Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(8.dp)
+            .padding(horizontal = 16.dp, vertical = 6.dp)
+            .clip(RoundedCornerShape(12.dp))
             .clickable {
-                // Navegar a la lista de canciones
-                navController.navigate("playlist/${playlist.id}") // Usamos el id de la playlist
+                navController.navigate("playlist/${playlist.id}")
             },
-        verticalAlignment = Alignment.CenterVertically
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
+        tonalElevation = 1.dp
     ) {
-        if (playlist?.esAlbum == "Vibra_likedSong"){path = "playlist_images/meGusta.png"} else {path = playlist.imageUrl}
-        val playlistImage = getImageUrl(path, "default-playlist.jpg")
-        Log.d("ImageURL", "URL final: $playlistImage")
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Imagen de la playlist
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(RoundedCornerShape(8.dp))
+            ) {
+                AsyncImage(
+                    model = getImageUrl(playlist.imageUrl, "defaultplaylist.jpg"),
+                    placeholder = painterResource(R.drawable.defaultplaylist),
+                    error = painterResource(R.drawable.defaultplaylist),
+                    contentDescription = "Portada de playlist",
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
 
-            AsyncImage(
-                model = getImageUrl(path, "defaultplaylist.jpg"),
-                contentDescription = "Imagen",
-                modifier = Modifier.size(50.dp),
-                placeholder = painterResource(R.drawable.defaultplaylist), // Fallback local
-                error = painterResource(R.drawable.defaultplaylist),
-                onLoading = { isImageLoading = true },
-                onSuccess = {
-                    isImageLoading = false
-                    onImageLoaded()
-                },
-                onError = {
-                    isImageLoading = false
-                    onImageLoaded()
-                }
-            )
-        //}
-        Spacer(modifier = Modifier.width(10.dp))
-        Column {
-            Text(
-                text = playlist.title,
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onBackground
-            )
-            Log.d("Descripciones", playlist.description)
-            Text(
-                text = if (playlist.description != "null") {
-                    playlist.description
-                } else {
-                    "Añade aquí una descripción"
-                },
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+            Spacer(modifier = Modifier.width(12.dp))
+
+            // Información de la playlist
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(end = 8.dp)
+            ) {
+                Text(
+                    text = playlist.title,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+
+                Text(
+                    text = if (playlist.esAlbum == "album") "Álbum" else "Playlist" +
+                            if (playlist.esPublica == "public") " · Público" else " · Privado",
+                    fontSize = 14.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            // Flecha indicativa
+            Icon(
+                imageVector = Icons.Default.ArrowForwardIos,
+                contentDescription = "Ver playlist",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                modifier = Modifier.size(20.dp)
             )
         }
     }
