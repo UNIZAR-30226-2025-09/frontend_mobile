@@ -3,6 +3,7 @@ package eina.unizar.es.ui.player
 import android.content.Context
 import android.util.Log
 import androidx.compose.runtime.State
+import kotlinx.coroutines.flow.asStateFlow
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -12,6 +13,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
+import com.example.musicapp.ui.song.ShuffleMode
 import eina.unizar.es.data.model.network.ApiClient.checkIfSongIsLiked
 import eina.unizar.es.data.model.network.ApiClient.get
 import eina.unizar.es.data.model.network.ApiClient.getUserData
@@ -76,28 +78,89 @@ class MusicPlayerViewModel : ViewModel() {
     private val _isLooping = MutableStateFlow(false)
     val isLooping: StateFlow<Boolean> = _isLooping
 
-    // PARA ACTUALIZAR EL VIBRABANNER HABRIA QUE HACER ALGO ASI PARA ACTUALIZAR EL ESTADO DE ISPREMIUM
-    /*
-    // State Premium
-    private val _isPremium = mutableStateOf(false)
-    val isPremium: State<Boolean> = _isPremium
+    // State shuffle
+    private val _shuffleMode = MutableStateFlow(ShuffleMode.OFF)
+    val shuffleMode = _shuffleMode.asStateFlow()
 
-    // Función para actualizar el estado premium
-    fun updatePremiumStatus(isPremium: Boolean) {
-        _isPremium.value = isPremium
-    }
+    // Original song list
+    private var originalSongList: List<CurrentSong> = emptyList()
 
-    // Función para cargar el estado premium desde SharedPreferences
-    fun loadPremiumStatus(context: Context) {
-        viewModelScope.launch {
-            val userData = getUserData(context)
-            if (userData != null) {
-                _isPremium.value = userData["is_premium"] as Boolean
-                Log.d("Premium", "Estado premium cargado: ${_isPremium.value}")
+    // Función para cambiar el modo shuffle
+    fun toggleShuffleMode() {
+        val previousMode = _shuffleMode.value
+        _shuffleMode.value = when (previousMode) {
+            ShuffleMode.OFF -> ShuffleMode.RANDOM
+            ShuffleMode.RANDOM -> ShuffleMode.OFF
+        }
+
+        Log.d("MusicPlayer", "Modo shuffle cambiado a: ${_shuffleMode.value}")
+
+        when (_shuffleMode.value) {
+            ShuffleMode.OFF -> {
+                // Restaurar el orden original de la lista de reproducción
+                restoreOriginalPlaylist()
+            }
+            ShuffleMode.RANDOM -> {
+                // Mezclar aleatoriamente la lista de reproducción
+                shuffleOrderPlaylist()
             }
         }
     }
-     */
+
+    // Función para restaurar la lista original
+    private fun restoreOriginalPlaylist() {
+        // Solo restauramos si tenemos una lista original guardada
+        if (originalSongList.isNotEmpty()) {
+            // Guardamos el ID de la canción actual para mantenerla después de restaurar
+            val currentSongId = _currentSong.value?.id
+
+            // Restauramos la lista original
+            songList = originalSongList.toList()
+
+            // Encontramos la posición de la canción actual en la lista restaurada
+            currentIndex = songList.indexOfFirst { it.id == currentSongId }
+            if (currentIndex == -1) currentIndex = 0 // Si no se encuentra, usamos la primera canción
+
+            Log.d("MusicPlayer", "Playlist restaurada al orden original")
+        }
+    }
+
+
+    // Función para mezclar aleatoriamente la lista
+    private fun shuffleOrderPlaylist() {
+        if (songList.isEmpty()) return
+
+        // Guardamos la lista original si aún no lo hemos hecho
+        if (originalSongList.isEmpty()) {
+            originalSongList = songList.toList()
+        }
+
+        // Guardamos el ID de la canción actual
+        val currentSongId = _currentSong.value?.id
+
+        // Creamos una copia de la lista para mezclarla
+        val shuffledList = songList.toMutableList()
+
+        // Quitamos la canción actual de la lista antes de mezclar (si existe)
+        val currentSong = shuffledList.find { it.id == currentSongId }
+        if (currentSong != null) {
+            shuffledList.remove(currentSong)
+        }
+
+        // Mezclamos el resto de canciones
+        shuffledList.shuffle()
+
+        // Volvemos a añadir la canción actual al principio (para mantenerla en reproducción)
+        if (currentSong != null) {
+            shuffledList.add(0, currentSong)
+        }
+
+        // Actualizamos la lista de canciones y el índice actual
+        songList = shuffledList
+        currentIndex = if (currentSong != null) 0 else currentIndex
+
+        Log.d("MusicPlayer", "Playlist mezclada aleatoriamente")
+    }
 
     // Function to get the liked songs
     fun getLikedSongs(): Set<String> {
@@ -252,6 +315,7 @@ class MusicPlayerViewModel : ViewModel() {
                         )
                     }
                     songList = fetched
+                    originalSongList = fetched
                     currentIndex = songList.indexOfFirst { it.id == songId }
                     idCurrentPlaylist = ""
                 }
@@ -270,6 +334,7 @@ class MusicPlayerViewModel : ViewModel() {
         }
 
         songList = playlistSongs
+        originalSongList = playlistSongs
         currentIndex = songList.indexOfFirst { it.id == songId } // Find the index of the song in the playlist
         idCurrentPlaylist = idPlaylist
 

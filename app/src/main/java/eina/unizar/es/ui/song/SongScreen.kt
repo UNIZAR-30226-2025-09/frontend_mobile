@@ -36,11 +36,18 @@ import com.example.musicapp.ui.theme.VibraDarkGrey
 import com.example.musicapp.ui.theme.VibraLightGrey
 import com.example.musicapp.ui.theme.VibraMediumGrey
 import eina.unizar.es.data.model.network.ApiClient.getImageUrl
+import eina.unizar.es.ui.artist.SongOptionsBottomSheetContent
 import eina.unizar.es.ui.navbar.BottomNavigationBar
 import eina.unizar.es.ui.playlist.getArtistName
 import eina.unizar.es.ui.song.Song
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+
+// Añade este enum class para manejar los estados del shuffle
+enum class ShuffleMode {
+    OFF,       // Reproducción normal
+    RANDOM     // Reproducción aleatoria
+}
 
 @SuppressLint("StateFlowValueCalledInComposition")
 @OptIn(ExperimentalMaterial3Api::class)
@@ -50,9 +57,13 @@ fun SongScreen(navController: NavController, playerViewModel: MusicPlayerViewMod
     val currentSong by playerViewModel.currentSong.collectAsState()
     val isPlaying = currentSong?.isPlaying ?: false
     val scaffoldState = rememberBottomSheetScaffoldState()
+
+    val shuffleMode by playerViewModel.shuffleMode.collectAsState()
     val isLooping by playerViewModel.isLooping.collectAsState()
+
     val scrollState = rememberScrollState()
     var artista by remember { mutableStateOf<String?>(null) }
+    var showSongOptionsBottomSheet by remember { mutableStateOf(false) }
 
     LaunchedEffect(currentSong?.id){
         if (currentSong?.id != null) {
@@ -111,7 +122,7 @@ fun SongScreen(navController: NavController, playerViewModel: MusicPlayerViewMod
                     }
 
                     IconButton(
-                        onClick = { /* Acción para menú */ },
+                        onClick = { showSongOptionsBottomSheet = true },
                         modifier = Modifier.align(Alignment.CenterEnd)
                     ) {
                         Icon(
@@ -119,6 +130,24 @@ fun SongScreen(navController: NavController, playerViewModel: MusicPlayerViewMod
                             contentDescription = "Más opciones",
                             tint = Color.White
                         )
+                    }
+
+                    // BottomSheet para opciones de la canción
+                    if (showSongOptionsBottomSheet && currentSong != null) {
+                        // Usamos el artista ya cargado previamente
+                        val artistName = artista ?: "Artista desconocido"
+
+                        ModalBottomSheet(
+                            onDismissRequest = { showSongOptionsBottomSheet = false },
+                            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+                        ) {
+                            SongOptionsBottomSheetContent(
+                                songId = currentSong?.id.toString(),
+                                viewModel = playerViewModel,
+                                songTitle = currentSong?.title ?: "",
+                                artistName = artistName
+                            )
+                        }
                     }
                 }
 
@@ -161,20 +190,6 @@ fun SongScreen(navController: NavController, playerViewModel: MusicPlayerViewMod
                                 )
                             }
                         }
-
-                        Spacer(modifier = Modifier.width(45.dp))
-
-                        IconButton(
-                            onClick = { /* Acción compartir */ },
-                            modifier = Modifier.align(Alignment.CenterEnd)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Share,
-                                contentDescription = "Compartir",
-                                tint = Color.White.copy(alpha = 0.7f)
-                            )
-                        }
-
                     }
 
                     Spacer(modifier = Modifier.height(20.dp))
@@ -229,11 +244,22 @@ fun SongScreen(navController: NavController, playerViewModel: MusicPlayerViewMod
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        IconButton(onClick = { /* Acción shuffle */ }) {
+                        IconButton(
+                            onClick = { playerViewModel.toggleShuffleMode() }
+                        ) {
                             Icon(
-                                imageVector = Icons.Filled.Shuffle,
-                                contentDescription = "Aleatorio",
-                                tint = Color.White.copy(alpha = 0.7f),
+                                imageVector = when (shuffleMode) {
+                                    ShuffleMode.OFF -> Icons.Filled.Shuffle
+                                    ShuffleMode.RANDOM -> Icons.Filled.ShuffleOn
+                                },
+                                contentDescription = when (shuffleMode) {
+                                    ShuffleMode.OFF -> "Activar reproducción"
+                                    ShuffleMode.RANDOM -> "Desactivar aleatorio"
+                                },
+                                tint = when (shuffleMode) {
+                                    ShuffleMode.OFF -> Color.White.copy(alpha = 0.7f)
+                                    ShuffleMode.RANDOM -> VibraBlue
+                                },
                                 modifier = Modifier.size(24.dp)
                             )
                         }
