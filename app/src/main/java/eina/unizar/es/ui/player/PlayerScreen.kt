@@ -1,5 +1,6 @@
 package eina.unizar.es.ui.player
 
+import android.annotation.SuppressLint
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
@@ -63,6 +64,7 @@ import eina.unizar.es.ui.playlist.getArtistName
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 
+@SuppressLint("UseOfNonLambdaOffsetOverload")
 @Composable
 fun FloatingMusicPlayer(navController: NavController, viewModel: MusicPlayerViewModel, onLikeToggle: (() -> Unit) = {}) {
     val currentSong by viewModel.currentSong.collectAsState()
@@ -104,8 +106,6 @@ fun FloatingMusicPlayer(navController: NavController, viewModel: MusicPlayerView
     }
 
     currentSong?.let { song ->
-        // Mantener solo los cálculos necesarios para la funcionalidad básica
-        val swipeFactor = (offsetX / maxOffset).coerceIn(-1f, 1f)
 
         Box(
             modifier = Modifier

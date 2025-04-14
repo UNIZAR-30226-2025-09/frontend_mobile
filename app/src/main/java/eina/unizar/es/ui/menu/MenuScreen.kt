@@ -249,29 +249,39 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
             )
         }
     ) { innerPadding ->
-        Column(modifier = Modifier.fillMaxSize()) {
-            Spacer(modifier = Modifier.height(16.dp))
-            Box(
+        // Envolver todo con verticalScroll
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+        ) {
+            Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(innerPadding)
-                    .background(MaterialTheme.colorScheme.background)
-                    .padding(horizontal = 16.dp, vertical = 0.dp)
+                    .verticalScroll(rememberScrollState()) // Añadir scroll vertical
             ) {
-                // Indicador de carga global mientras se cargan todas las imágenes
-                if (isLoading) {
-                    // Mostrar solo el indicador de carga
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(30.dp),
-                            color = VibraBlue
-                        )
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth() // No usar fillMaxSize para permitir scroll
+                        .background(MaterialTheme.colorScheme.background)
+                        .padding(horizontal = 16.dp, vertical = 0.dp)
+                ) {
+                    // Contenido existente...
+                    if (isLoading) {
+                        // Mostrar indicador de carga...
+                        Box(
+                            modifier = Modifier.fillMaxWidth().height(500.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(30.dp),
+                                color = VibraBlue
+                            )
+                        }
                     }
-                }
-                else {
+                    else {
 
                     Column(
                         modifier = Modifier.fillMaxSize()
@@ -490,6 +500,7 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
                 )
             }
         }
+    }
     }
 }
     /**
