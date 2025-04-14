@@ -27,9 +27,14 @@ import androidx.navigation.NavController
 import eina.unizar.es.R
 import eina.unizar.es.ui.player.MusicPlayerViewModel
 import androidx.compose.animation.*
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.musicapp.ui.theme.VibraBlue
+import com.example.musicapp.ui.theme.VibraDarkGrey
+import com.example.musicapp.ui.theme.VibraLightGrey
+import com.example.musicapp.ui.theme.VibraMediumGrey
 import eina.unizar.es.data.model.network.ApiClient.getImageUrl
 import eina.unizar.es.ui.navbar.BottomNavigationBar
 import eina.unizar.es.ui.playlist.getArtistName
@@ -42,13 +47,11 @@ import kotlinx.coroutines.launch
 @Composable
 fun SongScreen(navController: NavController, playerViewModel: MusicPlayerViewModel) {
     val context = LocalContext.current
-
     val currentSong by playerViewModel.currentSong.collectAsState()
     val isPlaying = currentSong?.isPlaying ?: false
     val scaffoldState = rememberBottomSheetScaffoldState()
     val isLooping by playerViewModel.isLooping.collectAsState()
     val scrollState = rememberScrollState()
-
     var artista by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(currentSong?.id){
@@ -60,7 +63,7 @@ fun SongScreen(navController: NavController, playerViewModel: MusicPlayerViewMod
 
     BottomSheetScaffold(
         scaffoldState = scaffoldState,
-        sheetPeekHeight = 70.dp,
+        sheetPeekHeight = 50.dp,
         sheetContainerColor = Color(0xFF1E1E1E),
         sheetContentColor = Color.White,
         sheetShape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
@@ -69,138 +72,224 @@ fun SongScreen(navController: NavController, playerViewModel: MusicPlayerViewMod
             EnhancedLyricsSheet(lyrics = currentSong?.lyrics)
         }
     ) { innerPadding ->
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
-                .background(MaterialTheme.colorScheme.background)
-                .verticalScroll(scrollState),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Botón para cerrar
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.Start
-            ) {
-                IconButton(onClick = { navController.popBackStack() }) {
-                    Icon(
-                        imageVector = Icons.Default.ExpandMore,
-                        contentDescription = "Cerrar",
-                        tint = MaterialTheme.colorScheme.onBackground,
-                        modifier = Modifier.size(32.dp)
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            VibraMediumGrey,
+                            VibraMediumGrey,
+                            VibraDarkGrey
+                        )
                     )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(74.dp))
-
-            AsyncImage(
-                model = getImageUrl(playerViewModel.currentSong.value?.photo, "default-song.jpg"),
-                contentDescription = "Portada",
-                modifier = Modifier
-                    .size(320.dp)
-                    .clip(RoundedCornerShape(16.dp))
-            )
-
-
-            Spacer(modifier = Modifier.height(72.dp))
-
-            currentSong?.let { song ->
-                Text(
-                    text = song.title,
-                    style = MaterialTheme.typography.titleLarge,
-                    color = MaterialTheme.colorScheme.onBackground
                 )
-                Spacer(modifier = Modifier.height(4.dp))
-                artista?.let {
-                    Text(
-                        text = it,
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                    )
-                    Log.d("Nombre", "Nombre despues: " + it)
-                }
-
-
-                Spacer(modifier = Modifier.height(15.dp))
-
-                SongProgressBar(viewModel = playerViewModel)
-
-                // Controles
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .verticalScroll(scrollState),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // Barra superior con información
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 16.dp, start = 16.dp, end = 16.dp)
                 ) {
-                    IconButton(onClick = { playerViewModel.previousSong(context) }) {
-                        Icon(Icons.Filled.FastRewind, contentDescription = "Anterior", tint = MaterialTheme.colorScheme.onBackground)
-                    }
-
-                    Spacer(modifier = Modifier.width(16.dp))
-
-                    FloatingActionButton(
-                        onClick = { playerViewModel.togglePlayPause() },
-                        containerColor = MaterialTheme.colorScheme.primary
+                    IconButton(
+                        onClick = { navController.popBackStack() },
+                        modifier = Modifier.align(Alignment.CenterStart)
                     ) {
                         Icon(
-                            imageVector = if (!isPlaying) Icons.Filled.PlayArrow else Icons.Filled.Pause,
-                            contentDescription = if (!isPlaying) "Reproducir" else "Pausar",
+                            imageVector = Icons.Default.KeyboardArrowDown,
+                            contentDescription = "Cerrar",
+                            tint = Color.White,
+                            modifier = Modifier.size(32.dp)
+                        )
+                    }
+
+                    IconButton(
+                        onClick = { /* Acción para menú */ },
+                        modifier = Modifier.align(Alignment.CenterEnd)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.MoreVert,
+                            contentDescription = "Más opciones",
                             tint = Color.White
                         )
                     }
+                }
 
-                    Spacer(modifier = Modifier.width(16.dp))
+                Spacer(modifier = Modifier.height(40.dp))
 
-                    IconButton(onClick = { playerViewModel.nextSong(context) }) {
-                        Icon(Icons.Default.FastForward, contentDescription = "Siguiente")
+                // Portada del álbum
+                AsyncImage(
+                    model = getImageUrl(playerViewModel.currentSong.value?.photo, "default-song.jpg"),
+                    contentDescription = "Portada",
+                    modifier = Modifier
+                        .size(320.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                )
+
+                Spacer(modifier = Modifier.height(48.dp))
+
+                // Información de la canción
+                currentSong?.let { song ->
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 24.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.align(Alignment.CenterStart)
+                        ) {
+                            Text(
+                                text = song.title,
+                                style = MaterialTheme.typography.headlineMedium,
+                                color = Color.White,
+                                fontSize = 24.sp,
+                                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            artista?.let {
+                                Text(
+                                    text = it,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = Color.White.copy(alpha = 0.7f)
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.width(45.dp))
+
+                        IconButton(
+                            onClick = { /* Acción compartir */ },
+                            modifier = Modifier.align(Alignment.CenterEnd)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Share,
+                                contentDescription = "Compartir",
+                                tint = Color.White.copy(alpha = 0.7f)
+                            )
+                        }
+
                     }
 
-                    IconButton(onClick = { playerViewModel.loopSong() }) {
-                        Icon(
-                            imageVector = if (isLooping) Icons.Filled.RepeatOne else Icons.Filled.Repeat,
-                            contentDescription = if (isLooping) "Desactivar repetición" else "Activar repetición",
-                            tint = if (isLooping) VibraBlue else MaterialTheme.colorScheme.onBackground
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    // Barra de progreso
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 24.dp)
+                    ) {
+                        Slider(
+                            value = currentSong?.progress ?: 0f,
+                            onValueChange = { playerViewModel.seekTo(it) },
+                            colors = SliderDefaults.colors(
+                                thumbColor = Color.White,
+                                activeTrackColor = Color.White,
+                                inactiveTrackColor = Color.White.copy(alpha = 0.3f)
+                            ),
+                            modifier = Modifier.fillMaxWidth()
                         )
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            val currentTime = remember(currentSong?.progress) {
+                                (currentSong?.progress ?: 0f) * (playerViewModel.getDuration() ?: 0L)
+                            }
+                            val duration = playerViewModel.getDuration() ?: 0L
+
+                            Text(
+                                text = formatDuration(currentTime.toLong()),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = Color.White.copy(alpha = 0.7f)
+                            )
+
+                            Text(
+                                text = formatDuration(duration),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = Color.White.copy(alpha = 0.7f)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Controles de reproducción
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 24.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        IconButton(onClick = { /* Acción shuffle */ }) {
+                            Icon(
+                                imageVector = Icons.Filled.Shuffle,
+                                contentDescription = "Aleatorio",
+                                tint = Color.White.copy(alpha = 0.7f),
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+
+                        IconButton(
+                            onClick = { playerViewModel.previousSong(context) },
+                            modifier = Modifier.size(48.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.SkipPrevious,
+                                contentDescription = "Anterior",
+                                tint = Color.White,
+                                modifier = Modifier.size(48.dp)
+                            )
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .size(64.dp)
+                                .background(Color.White, CircleShape)
+                                .clickable { playerViewModel.togglePlayPause() },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = if (!isPlaying) Icons.Filled.PlayArrow else Icons.Filled.Pause,
+                                contentDescription = if (!isPlaying) "Reproducir" else "Pausar",
+                                tint = Color.Black,
+                                modifier = Modifier.size(32.dp)
+                            )
+                        }
+
+                        IconButton(
+                            onClick = { playerViewModel.nextSong(context) },
+                            modifier = Modifier.size(48.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.SkipNext,
+                                contentDescription = "Siguiente",
+                                tint = Color.White,
+                                modifier = Modifier.size(48.dp)
+                            )
+                        }
+
+                        IconButton(onClick = { playerViewModel.loopSong() }) {
+                            Icon(
+                                imageVector = if (isLooping) Icons.Filled.RepeatOne else Icons.Filled.Repeat,
+                                contentDescription = if (isLooping) "Desactivar repetición" else "Activar repetición",
+                                tint = if (isLooping) VibraBlue else Color.White.copy(alpha = 0.7f),
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
                     }
                 }
+
+                Spacer(modifier = Modifier.height(16.dp))
             }
-        }
-    }
-}
-
-
-@Composable
-fun SongProgressBar(viewModel: MusicPlayerViewModel) {
-    val currentSong by viewModel.currentSong.collectAsState()
-    val progress = currentSong?.progress ?: 0f
-
-    val currentTime = remember(progress) {
-        (progress * (viewModel.getDuration() ?: 0L)).toLong()
-    }
-    val duration = viewModel.getDuration() ?: 0L
-
-    Column(
-        modifier = Modifier
-            .fillMaxWidth(0.85f)
-            .padding(horizontal = 16.dp)
-    ) {
-        Slider(
-            value = progress,
-            onValueChange = {
-                viewModel.seekTo(it)
-            },
-            modifier = Modifier.fillMaxWidth()
-        )
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(text = formatDuration(currentTime), style = MaterialTheme.typography.labelMedium)
-            Text(text = formatDuration(duration), style = MaterialTheme.typography.labelMedium)
         }
     }
 }
@@ -219,7 +308,7 @@ fun EnhancedLyricsSheet(lyrics: String?) {
     Column(
         Modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 4.dp)
+            .padding(horizontal = 12.dp, vertical = 2.dp)
             .verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
