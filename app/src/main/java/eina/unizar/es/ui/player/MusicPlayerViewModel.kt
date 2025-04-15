@@ -218,6 +218,41 @@ class MusicPlayerViewModel : ViewModel() {
     }
 
     // Function to toggle like/unlike a song
+    fun toggleSongLike(songId: String, userId: String) {
+        viewModelScope.launch {
+            try {
+                // Determine the new like state based on the _likedSongs set
+                val currentLikeState = songId in _likedSongs.value
+                val newLikeState = !currentLikeState
+
+                // Make API call to like/unlike the song
+                val response = likeUnlikeSong(songId, userId, newLikeState)
+
+                if (response != null) {
+                    // Update local state only if API call is successful
+                    _likedSongs.value = if (newLikeState) {
+                        _likedSongs.value + songId
+                    } else {
+                        _likedSongs.value - songId
+                    }
+
+                    // Log the update
+                    Log.d("MusicPlayerViewModel", "Song $songId like status updated to: $newLikeState")
+                } else {
+                    // Handle error case
+                    Log.e("MusicPlayerViewModel", "Error updating song like status")
+                }
+
+                // Reload liked status to ensure UI consistency
+                loadLikedStatus(songId)
+
+            } catch (e: Exception) {
+                Log.e("MusicPlayerViewModel", "Exception in toggleSongLike: ${e.message}")
+            }
+        }
+    }
+
+    // Function to toggle like/unlike a song
     fun toggleLike(context: Context) {
         val currentSongId = _currentSong.value?.id ?: return
 
