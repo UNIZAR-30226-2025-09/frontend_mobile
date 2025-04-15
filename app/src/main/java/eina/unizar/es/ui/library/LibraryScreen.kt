@@ -1,8 +1,9 @@
 package eina.unizar.es.ui.library
 
-import android.annotation.SuppressLint
-import android.content.Context
-import android.content.SharedPreferences
+import androidx.compose.material.icons.filled.PushPin
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.items
 import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -119,6 +120,7 @@ fun LibraryScreen(navController: NavController, playerViewModel: MusicPlayerView
             response?.let {
                 val jsonArray = JSONArray(it)
                 val fetchedPlaylists = mutableListOf<Playlist>()
+                val likedSongsPlaylist = mutableListOf<Playlist>()
 
                 for (i in 0 until jsonArray.length()) {
                     val jsonObject = jsonArray.getJSONObject(i)
@@ -126,21 +128,28 @@ fun LibraryScreen(navController: NavController, playerViewModel: MusicPlayerView
 
                     // Solo añadir playlists que coincidan con el userId
                     if (playlistUserId == userId) {
-                        fetchedPlaylists.add(
-                            Playlist(
-                                id = jsonObject.getString("id"),
-                                title = jsonObject.getString("name"),
-                                idAutor = jsonObject.getString("user_id"),
-                                idArtista = jsonObject.getString("artist_id"),
-                                description = jsonObject.getString("description"),
-                                esPublica = jsonObject.getString("type"),
-                                esAlbum = jsonObject.getString("typeP"),
-                                imageUrl = jsonObject.getString("front_page")
-                            )
+                        val playlist = Playlist(
+                            id = jsonObject.getString("id"),
+                            title = jsonObject.getString("name"),
+                            idAutor = jsonObject.getString("user_id"),
+                            idArtista = jsonObject.getString("artist_id"),
+                            description = jsonObject.getString("description"),
+                            esPublica = jsonObject.getString("type"),
+                            esAlbum = jsonObject.getString("typeP"),
+                            imageUrl = jsonObject.getString("front_page")
                         )
+
+                        // Separar la playlist de "me gusta" del resto
+                        if (playlist.esAlbum == "Vibra_likedSong") {
+                            likedSongsPlaylist.add(playlist)
+                        } else {
+                            fetchedPlaylists.add(playlist)
+                        }
                     }
                 }
-                playlists = fetchedPlaylists
+
+                // Combinar las listas con la playlist "me gusta" al principio
+                playlists = likedSongsPlaylist + fetchedPlaylists
             }
         }
 
@@ -290,17 +299,18 @@ fun LibraryScreen(navController: NavController, playerViewModel: MusicPlayerView
                 }
                 else {
                     // Playlists Creadas section
+                    // Playlists Creadas section
                     if (playlists.isNotEmpty()) {
                         item {
                             Text(
                                 text = "Tus Playlists",
                                 style = MaterialTheme.typography.titleSmall,
                                 color = MaterialTheme.colorScheme.onBackground,
-                                //fontFamily = Rubik,
                                 modifier = Modifier.padding(vertical = 8.dp, horizontal = 16.dp)
                             )
                         }
-                        items(playlists) { item ->
+
+                        itemsIndexed(playlists) { index, item ->
                             LibraryItem(item, navController)
                         }
                     }
