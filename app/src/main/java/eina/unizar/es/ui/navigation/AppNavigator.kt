@@ -59,7 +59,7 @@ fun AppNavigator(navController: NavHostController, paymentSheet: PaymentSheet, i
 
     // Rutas que no deben mostrar bottomBar
     val routesWithoutBottomBar = listOf(
-        "login", "register", "perfilEdit", "settings", "plans", "main", "song"
+        "login", "register", "perfilEdit", "plans", "main", "song"
     )
 
     // Extrae el prefijo de la ruta para detectar dinámicas como "song/{id}" => "song"
