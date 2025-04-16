@@ -3,6 +3,7 @@ package eina.unizar.es.ui.playlist
 import android.annotation.SuppressLint
 import android.util.Log
 import android.widget.Space
+import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateDpAsState
@@ -14,6 +15,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -49,6 +51,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
@@ -414,6 +417,30 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                                 style = TextStyle(fontSize = 16.sp)
                             )
                         }
+                        // Añadir descripción de la playlist al final
+                        playlistInfo?.description?.takeIf { it.isNotBlank() }?.let { description ->
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(start = 16.dp, end = 16.dp, top = 50.dp, bottom = 2.dp)
+                            ) {
+                                Text(
+                                    text = "Descripción",
+                                    style = MaterialTheme.typography.titleMedium.copy(
+                                        color = textColor,
+                                        fontWeight = FontWeight.SemiBold
+                                    ),
+                                    modifier = Modifier.padding(bottom = 6.dp)
+                                )
+                                Text(
+                                    text = description,
+                                    style = MaterialTheme.typography.bodyMedium.copy(
+                                        color = secondaryTextColor,
+                                        lineHeight = 20.sp
+                                    )
+                                )
+                            }
+                        }
                     }
                 }
 
@@ -772,14 +799,20 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                     playlistInfo?.let {
                         if (playlistAuthor != null) {
                             BottomSheetContent(
+                                playlistInfo = it,
                                 playlistImage = playlistImage,
                                 playlistTitle = playlistInfo!!.title, // Reemplaza con el título
                                 playlistAuthor = playlistAuthor,
+                                isLikedPlaylist = isLikedPlaylist,
                                 onDismiss = { showBottomSheet = false },
                                 navController = navController,
                                 playlistId = playlistId,
                                 playlistMeGusta = playlistInfo!!.esAlbum,
-                                onRateClick = { showRatingDialog = true }
+                                onRateClick = { showRatingDialog = true },
+                                onLikeUpdate = { newState ->
+                                    // Actualiza el estado en el componente padre
+                                    isLikedPlaylist = newState
+                                }
                             )
                         }
                     }
@@ -795,14 +828,17 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
  */
 @Composable
 fun BottomSheetContent(
+    playlistInfo: Playlist,
     playlistImage: String,
     playlistTitle: String,
     playlistAuthor: String,
+    isLikedPlaylist: Boolean,
     navController: NavController,
     playlistId: String?,
     onRateClick: () -> Unit,
     onDismiss: () -> Unit,  // Llamar a esta función para cerrar
-    playlistMeGusta: String
+    playlistMeGusta: String,
+    onLikeUpdate: (Boolean) -> Unit
 ) {
     val scope = rememberCoroutineScope()  // Para lanzar corrutinas en Compose
     val textColor = Color.White
@@ -896,18 +932,98 @@ fun BottomSheetContent(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Spacer(modifier = Modifier.height(15.dp))
-                    SongOptionItem("Añadir a la biblioteca", onClick = dismiss)
-                    Spacer(modifier = Modifier.height(8.dp))
                     SongOptionItem("Compartir", onClick = dismiss)
-                    Spacer(modifier = Modifier.height(8.dp))
-                    SongOptionItem("Valorar Playlist", onClick = {
-                        onRateClick()  // Esto activará el diálogo
-                        onDismiss() // Cierra el BottomSheet
-                    })
-                    Spacer(modifier = Modifier.height(8.dp))
+                    if(playlistMeGusta != "Vibra_likedSong" && !soyPropietario) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        SongOptionItem("Valorar Playlist", onClick = {
+                            onRateClick()  // Esto activará el diálogo
+                            onDismiss() // Cierra el BottomSheet
+                        })
+                    }
+                    if (!soyPropietario){
+                        Spacer(modifier = Modifier.height(8.dp))
+                        SongOptionItem(
+                            text = if (isLikedPlaylist) "Eliminar de la biblioteca" else "Añadir a la biblioteca",
+                            textColor = if (isLikedPlaylist) Color(0xFFFF6B6B) else Color.White,
+                            onClick = {
+                                coroutineScope.launch {
+                                    if (playlistId != null) {
+                                        try {
+                                            // Invertir el estado actual
+                                            val newLikedState = !isLikedPlaylist
+
+                                            val response = likeUnlikePlaylist(
+                                                playlistId,
+                                                userId,
+                                                newLikedState
+                                            )
+
+                                            // Actualizar el estado en el componente padre
+                                            onLikeUpdate(newLikedState)
+
+                                            // Mostrar feedback al usuario
+                                            Toast.makeText(
+                                                context,
+                                                if (newLikedState) "Añadido a tu biblioteca" else "Eliminado de tu biblioteca",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
+
+                                            // Cerrar el bottom sheet
+                                            onDismiss()
+                                        } catch (e: Exception) {
+                                            Log.e("BottomSheetContent", "Error: ${e.message}")
+                                            Toast.makeText(
+                                                context,
+                                                "Error al actualizar la biblioteca",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
+                                        }
+                                    }
+                                }
+                            }
+                        )
+                    }
 
                     if(playlistMeGusta != "Vibra_likedSong" && soyPropietario) {
-                        // Opción "Eliminar Playlist" con estilo personalizado
+                        Spacer(modifier = Modifier.height(8.dp))
+                        SongOptionItem(
+                            text = if (playlistInfo?.esPublica == "private") "Convertir a pública" else "Convertir a privada",
+                            onClick = {
+                                coroutineScope.launch {
+                                    if (playlistId != null) {
+                                        try {
+                                            // Determinar el nuevo estado basado en el estado actual
+                                            val newState = if (playlistInfo?.esPublica == "private") "public" else "private"
+
+                                            // Llamar a la API para cambiar el estado
+                                            //val response = togglePlaylistPrivacy(playlistId, newState)
+
+                                            if (true) {
+                                                // Actualizar el estado local si es necesario
+                                                //playlistInfo = playlistInfo?.copy(esPublica = newState)
+
+                                                Toast.makeText(
+                                                    context,
+                                                    if (newState == "public") "La playlist ahora es pública" else "La playlist ahora es privada",
+                                                    Toast.LENGTH_SHORT
+                                                ).show()
+                                            }
+                                            onDismiss()
+                                        } catch (e: Exception) {
+                                            Log.e("BottomSheetContent", "Error al cambiar la privacidad: ${e.message}")
+                                            Toast.makeText(
+                                                context,
+                                                "Error al cambiar la privacidad de la playlist",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
+                                        }
+                                    }
+                                }
+                            }
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        SongOptionItem("Editar colaboradores", onClick = dismiss)
+                        Spacer(modifier = Modifier.height(8.dp))
                         SongOptionItem("Editar Playlist", onClick = dismiss)
                         Spacer(modifier = Modifier.height(8.dp))
                         SongOptionItem(
