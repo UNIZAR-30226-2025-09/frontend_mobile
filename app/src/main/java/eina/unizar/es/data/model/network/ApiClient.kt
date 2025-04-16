@@ -1218,50 +1218,54 @@ object ApiClient {
 
     /**
      * Actualiza los datos del usuario autenticado.
+     * @param currentPassword Contraseña actual (obligatorio)
      * @param nickname Nuevo nickname (opcional)
      * @param email Nuevo correo electrónico (opcional)
      * @param password Nueva contraseña (opcional)
      * @return Pair<Código de respuesta, Mensaje del servidor>
      */
     suspend fun updateUserProfile(
+        currentPassword: String,
         nickname: String?,
         email: String?,
         password: String?,
         context: Context
     ): Pair<Int, String?> = withContext(Dispatchers.IO) {
         try {
-            // Obtener token de autenticación
             val sharedPreferences = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
             val token = sharedPreferences.getString("auth_token", null)
                 ?: return@withContext Pair(401, "No autenticado")
 
-            // Construir cuerpo JSON
+            // Validar al menos un campo opcional
+            if (nickname.isNullOrBlank() && email.isNullOrBlank() && password.isNullOrBlank()) {
+                return@withContext Pair(422, "Debes proporcionar al menos un campo para actualizar")
+            }
+
             val jsonBody = JSONObject().apply {
+                put("currentPassword", currentPassword)
                 nickname?.takeIf { it.isNotBlank() }?.let { put("nickname", it) }
-                email?.takeIf { it.isNotBlank() }?.let { put("main", it) }
+                email?.takeIf { it.isNotBlank() }?.let { put("mail", it) }
                 password?.takeIf { it.isNotBlank() }?.let { put("password", it) }
             }
 
-            // Configurar petición
             val client = OkHttpClient()
             val mediaType = "application/json; charset=utf-8".toMediaTypeOrNull()
             val body = jsonBody.toString().toRequestBody(mediaType)
 
             val request = Request.Builder()
                 .url("$BASE_URL/user/update")
-                .put(body)
+                .post(body)
                 .addHeader("Content-Type", "application/json")
                 .addHeader("Authorization", "Bearer $token")
                 .build()
 
-            // Ejecutar petición
             client.newCall(request).execute().use { response ->
                 val responseBody = response.body?.string()
-                Log.d("Actualizar", "Actualizar usuario codigo: " + response.code)
+                Log.d("UpdateProfile", "Código: ${response.code}, Respuesta: $responseBody")
                 return@withContext Pair(response.code, responseBody)
             }
         } catch (e: Exception) {
-            Log.e("UpdateProfile", "Error: ${e.javaClass.simpleName} - ${e.message}")
+            Log.e("UpdateProfile", "Error: ${e.message}")
             Pair(500, "Error de conexión")
         }
     }
@@ -1319,6 +1323,60 @@ object ApiClient {
                 Log.e("ResetPassword", "Error: ${e.message}")
                 false
             }
+        }
+    }
+
+    /**
+     * Actualiza los datos de una playlist existente
+     * @param id Identificador único de la playlist a actualizar
+     * @param name Nuevo nombre de la playlist (opcional)
+     * @param description Nueva descripción (opcional)
+     * @param type Nuevo tipo de contenido (opcional)
+     * @param frontPage Nueva imagen de portada (opcional)
+     * @return Pair<Código de respuesta HTTP, Mensaje de respuesta>
+     */
+    suspend fun updatePlaylist(
+        id: Int,
+        name: String? = null,
+        description: String? = null,
+        type: String? = null,
+        frontPage: String? = null,
+        context: Context
+    ): Pair<Int, String?> = withContext(Dispatchers.IO) {
+        try {
+            if (id <= 0) {
+                Log.e("UpdatePlaylist", "ID inválido: $id")
+                return@withContext Pair(400, "ID inválido")
+            }
+            val sharedPreferences = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+            val token = sharedPreferences.getString("auth_token", null)
+                ?: return@withContext Pair(401, "No autenticado")
+
+            val jsonBody = JSONObject().apply {
+                name?.takeIf { it.isNotBlank() }?.let { put("name", it) }
+                description?.takeIf { it.isNotBlank() }?.let { put("description", it) }
+                type?.takeIf { it.isNotBlank() }?.let { put("type", it) }
+                frontPage?.takeIf { it.isNotBlank() }?.let { put("front_page", it) }
+            }
+
+            val client = OkHttpClient()
+            val mediaType = "application/json; charset=utf-8".toMediaTypeOrNull()
+            val body = jsonBody.toString().toRequestBody(mediaType)
+
+            val request = Request.Builder()
+                .url("${BASE_URL}/playlists/$id")
+                .put(body)
+                .addHeader("Content-Type", "application/json")
+                .addHeader("Authorization", "Bearer $token")
+                .build()
+
+            client.newCall(request).execute().use { response ->
+                val responseBody = response.body?.string()
+                return@withContext Pair(response.code, responseBody)
+            }
+        } catch (e: Exception) {
+            Log.e("UpdatePlaylist", "Error: ${e.message}")
+            Pair(500, "Error de conexión")
         }
     }
 
