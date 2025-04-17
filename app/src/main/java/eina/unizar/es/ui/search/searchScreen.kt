@@ -330,18 +330,21 @@ fun SearchScreen(navController: NavController, playerViewModel: MusicPlayerViewM
 
             for (i in 0 until jsonArray.length()) {
                 val jsonObject = jsonArray.getJSONObject(i)
-                playlists.add(
-                    Playlist(
-                        id = jsonObject.getString("id"),
-                        title = jsonObject.getString("name"),
-                        imageUrl = jsonObject.getString("front_page"),
-                        idAutor = jsonObject.getString("user_id"),
-                        idArtista = jsonObject.getString("artist_id"),
-                        description = jsonObject.getString("description"),
-                        esPublica = jsonObject.getString("type"),
-                        esAlbum = jsonObject.getString("typeP"),
+                val playlistType = jsonObject.getString("type")
+                if (playlistType == "public") {
+                    playlists.add(
+                        Playlist(
+                            id = jsonObject.getString("id"),
+                            title = jsonObject.getString("name"),
+                            imageUrl = jsonObject.getString("front_page"),
+                            idAutor = jsonObject.getString("user_id"),
+                            idArtista = jsonObject.getString("artist_id"),
+                            description = jsonObject.getString("description"),
+                            esPublica = jsonObject.getString("type"),
+                            esAlbum = jsonObject.getString("typeP"),
+                        )
                     )
-                )
+                }
             }
             playlists
         } catch (e: Exception) {
@@ -451,7 +454,7 @@ fun SearchBar(
                     ) {
                         if (searchQuery.isEmpty()) {
                             Text(
-                                text = "Buscar...",
+                                text = "Buscar ...",
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 fontSize = 16.sp
                             )
@@ -546,16 +549,16 @@ fun SongItem(
             .clip(RoundedCornerShape(10.dp))
             .clickable {
                 if (isSencillo) {
-                    viewModel.loadSongsFromApi(songId = song.id.toString(), context = context, albumArtResId = R.drawable.kanyeperfil)
+                    viewModel.loadSongsFromApi(songId = song.id.toString(), context = context, albumArtResId = R.drawable.defaultx)
                 } else if (isPlaylist) {
                     viewModel.loadSongsFromPlaylist(
-                        playlistSongs = convertSongsToCurrentSongs(playlistSongs, R.drawable.kanyeperfil),
+                        playlistSongs = convertSongsToCurrentSongs(playlistSongs, R.drawable.defaultplaylist),
                         songId = song.id.toString(),
                         context,
                         idPlaylist = idPlaylist
                     )
                 } else {
-                    viewModel.loadSongsFromApi(songId = song.id.toString(), context = context, albumArtResId = R.drawable.kanyeperfil)
+                    viewModel.loadSongsFromApi(songId = song.id.toString(), context = context, albumArtResId = R.drawable.defaultx)
                 }
             },
         color = cardBackgroundColor,
