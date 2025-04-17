@@ -19,12 +19,14 @@ import androidx.compose.material.icons.filled.ArrowForwardIos
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Menu
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -38,6 +40,7 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.musicapp.ui.theme.VibraBlack
 import com.example.musicapp.ui.theme.VibraBlue
+import com.example.musicapp.ui.theme.VibraDarkGrey
 import com.example.musicapp.ui.theme.VibraLightGrey
 import com.example.musicapp.ui.theme.VibraWhite
 import eina.unizar.es.R
@@ -184,6 +187,7 @@ fun LibraryScreen(navController: NavController, playerViewModel: MusicPlayerView
             put("name", playlistName)
             put("user_id", userId) // Agregar el ID del usuario
             put("description", playlistDescription)
+            put("type", "private")
         }
 
         coroutineScope  { // Lanza una corrutina en el scope
@@ -238,22 +242,19 @@ fun LibraryScreen(navController: NavController, playerViewModel: MusicPlayerView
             TopAppBar(
                 title = {
                     Row (verticalAlignment = Alignment.CenterVertically) {
-                        Spacer(modifier = Modifier.width(215.dp))
+                        Spacer(modifier = Modifier.width(220.dp))
 
                         IconButton(
                             onClick = { showCreatePlaylistDialog = true },
                             modifier = Modifier
                                 .padding(start = 64.dp, top = 10.dp)
-                                .size(30.dp)
-                                .background(VibraBlue, CircleShape) // Forma circular
-                                .clip(CircleShape) // Asegura el recorte
-
+                                .size(40.dp)
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Add,
+                                imageVector = Icons.Rounded.Add,
                                 contentDescription = "Crear Playlist",
-                                tint = VibraBlack,
-                                modifier = Modifier.size(20.dp)
+                                tint = Color.White,
+                                modifier = Modifier.size(24.dp)
                             )
                         }
                         Spacer(modifier = Modifier.width(8.dp))

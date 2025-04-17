@@ -86,6 +86,7 @@ import eina.unizar.es.data.model.network.ApiClient.getUserData
 import eina.unizar.es.data.model.network.ApiClient.isPlaylistOwner
 import eina.unizar.es.data.model.network.ApiClient.likeUnlikePlaylist
 import eina.unizar.es.data.model.network.ApiClient.likeUnlikeSong
+import eina.unizar.es.data.model.network.ApiClient.togglePlaylistType
 import eina.unizar.es.ui.artist.SongOptionItem
 import eina.unizar.es.ui.navbar.BottomNavigationBar
 import eina.unizar.es.ui.player.FloatingMusicPlayer
@@ -418,20 +419,12 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                             )
                         }
                         // Añadir descripción de la playlist al final
-                        playlistInfo?.description?.takeIf { it.isNotBlank() }?.let { description ->
+                        playlistInfo?.description?.takeIf { it.isNotBlank() && it != "Sencillo" && it != "null"}?.let { description ->
                             Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(start = 16.dp, end = 16.dp, top = 50.dp, bottom = 2.dp)
                             ) {
-                                Text(
-                                    text = "Descripción",
-                                    style = MaterialTheme.typography.titleMedium.copy(
-                                        color = textColor,
-                                        fontWeight = FontWeight.SemiBold
-                                    ),
-                                    modifier = Modifier.padding(bottom = 6.dp)
-                                )
                                 Text(
                                     text = description,
                                     style = MaterialTheme.typography.bodyMedium.copy(
@@ -812,6 +805,10 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                                 onLikeUpdate = { newState ->
                                     // Actualiza el estado en el componente padre
                                     isLikedPlaylist = newState
+                                },
+                                onPlaylistUpdated = {
+                                    // Actualiza la playlist en el componente padre
+                                    playlistInfo = it
                                 }
                             )
                         }
@@ -838,7 +835,8 @@ fun BottomSheetContent(
     onRateClick: () -> Unit,
     onDismiss: () -> Unit,  // Llamar a esta función para cerrar
     playlistMeGusta: String,
-    onLikeUpdate: (Boolean) -> Unit
+    onLikeUpdate: (Boolean) -> Unit,
+    onPlaylistUpdated: (Playlist) -> Unit
 ) {
     val scope = rememberCoroutineScope()  // Para lanzar corrutinas en Compose
     val textColor = Color.White
@@ -986,31 +984,34 @@ fun BottomSheetContent(
 
                     if(playlistMeGusta != "Vibra_likedSong" && soyPropietario) {
                         Spacer(modifier = Modifier.height(8.dp))
+                        Log.d("PlaylistPrivacy", "Estado actual: ${playlistInfo?.esPublica}")
                         SongOptionItem(
-                            text = if (playlistInfo?.esPublica == "private") "Convertir a pública" else "Convertir a privada",
+                            // Cambiamos la condición aquí para mostrar el texto correcto
+                            text = if (playlistInfo?.esPublica == "public") "Convertir a privada" else "Convertir a pública",
                             onClick = {
                                 coroutineScope.launch {
-                                    if (playlistId != null) {
+                                    if (playlistId != null && playlistInfo != null) {
                                         try {
-                                            // Determinar el nuevo estado basado en el estado actual
-                                            val newState = if (playlistInfo?.esPublica == "private") "public" else "private"
-
+                                            // Invertir el estado actual
                                             // Llamar a la API para cambiar el estado
-                                            //val response = togglePlaylistPrivacy(playlistId, newState)
+                                            val response = togglePlaylistType(playlistId, playlistInfo)
 
-                                            if (true) {
-                                                // Actualizar el estado local si es necesario
-                                                //playlistInfo = playlistInfo?.copy(esPublica = newState)
+                                            if (response != null) {
+                                                // Actualizar el estado de la playlist localmente
+                                                playlistInfo.esPublica = response
 
+                                                Log.d("PlaylistPrivacy", "Nuevo estado: ${playlistInfo.esPublica}")
+
+                                                // Mostrar mensaje de confirmación
                                                 Toast.makeText(
                                                     context,
-                                                    if (newState == "public") "La playlist ahora es pública" else "La playlist ahora es privada",
+                                                    if (response == "public") "La playlist ahora es pública" else "La playlist ahora es privada",
                                                     Toast.LENGTH_SHORT
                                                 ).show()
+                                                onPlaylistUpdated(playlistInfo)
                                             }
                                             onDismiss()
                                         } catch (e: Exception) {
-                                            Log.e("BottomSheetContent", "Error al cambiar la privacidad: ${e.message}")
                                             Toast.makeText(
                                                 context,
                                                 "Error al cambiar la privacidad de la playlist",
