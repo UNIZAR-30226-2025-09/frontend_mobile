@@ -1,8 +1,9 @@
 package eina.unizar.es.ui.library
 
-import android.annotation.SuppressLint
-import android.content.Context
-import android.content.SharedPreferences
+import androidx.compose.material.icons.filled.PushPin
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.items
 import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -14,19 +15,24 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowForwardIos
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Menu
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -34,6 +40,7 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.musicapp.ui.theme.VibraBlack
 import com.example.musicapp.ui.theme.VibraBlue
+import com.example.musicapp.ui.theme.VibraDarkGrey
 import com.example.musicapp.ui.theme.VibraLightGrey
 import com.example.musicapp.ui.theme.VibraWhite
 import eina.unizar.es.R
@@ -116,6 +123,7 @@ fun LibraryScreen(navController: NavController, playerViewModel: MusicPlayerView
             response?.let {
                 val jsonArray = JSONArray(it)
                 val fetchedPlaylists = mutableListOf<Playlist>()
+                val likedSongsPlaylist = mutableListOf<Playlist>()
 
                 for (i in 0 until jsonArray.length()) {
                     val jsonObject = jsonArray.getJSONObject(i)
@@ -123,21 +131,28 @@ fun LibraryScreen(navController: NavController, playerViewModel: MusicPlayerView
 
                     // Solo añadir playlists que coincidan con el userId
                     if (playlistUserId == userId) {
-                        fetchedPlaylists.add(
-                            Playlist(
-                                id = jsonObject.getString("id"),
-                                title = jsonObject.getString("name"),
-                                idAutor = jsonObject.getString("user_id"),
-                                idArtista = jsonObject.getString("artist_id"),
-                                description = jsonObject.getString("description"),
-                                esPublica = jsonObject.getString("type"),
-                                esAlbum = jsonObject.getString("typeP"),
-                                imageUrl = jsonObject.getString("front_page")
-                            )
+                        val playlist = Playlist(
+                            id = jsonObject.getString("id"),
+                            title = jsonObject.getString("name"),
+                            idAutor = jsonObject.getString("user_id"),
+                            idArtista = jsonObject.getString("artist_id"),
+                            description = jsonObject.getString("description"),
+                            esPublica = jsonObject.getString("type"),
+                            esAlbum = jsonObject.getString("typeP"),
+                            imageUrl = jsonObject.getString("front_page")
                         )
+
+                        // Separar la playlist de "me gusta" del resto
+                        if (playlist.esAlbum == "Vibra_likedSong") {
+                            likedSongsPlaylist.add(playlist)
+                        } else {
+                            fetchedPlaylists.add(playlist)
+                        }
                     }
                 }
-                playlists = fetchedPlaylists
+
+                // Combinar las listas con la playlist "me gusta" al principio
+                playlists = likedSongsPlaylist + fetchedPlaylists
             }
         }
 
@@ -172,6 +187,7 @@ fun LibraryScreen(navController: NavController, playerViewModel: MusicPlayerView
             put("name", playlistName)
             put("user_id", userId) // Agregar el ID del usuario
             put("description", playlistDescription)
+            put("type", "private")
         }
 
         coroutineScope  { // Lanza una corrutina en el scope
@@ -226,25 +242,19 @@ fun LibraryScreen(navController: NavController, playerViewModel: MusicPlayerView
             TopAppBar(
                 title = {
                     Row (verticalAlignment = Alignment.CenterVertically) {
-                        Spacer(modifier = Modifier.width(15.dp))
-                        Text("Tu biblioteca", color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.titleLarge, fontFamily = Rubik, fontSize = 25.sp)
-
-                        Spacer(modifier = Modifier.width(70.dp))
+                        Spacer(modifier = Modifier.width(220.dp))
 
                         IconButton(
                             onClick = { showCreatePlaylistDialog = true },
                             modifier = Modifier
                                 .padding(start = 64.dp, top = 10.dp)
-                                .size(30.dp)
-                                .background(VibraBlue, CircleShape) // Forma circular
-                                .clip(CircleShape) // Asegura el recorte
-
+                                .size(40.dp)
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Add,
+                                imageVector = Icons.Rounded.Add,
                                 contentDescription = "Crear Playlist",
-                                tint = VibraBlack,
-                                modifier = Modifier.size(20.dp)
+                                tint = Color.White,
+                                modifier = Modifier.size(24.dp)
                             )
                         }
                         Spacer(modifier = Modifier.width(8.dp))
@@ -290,18 +300,19 @@ fun LibraryScreen(navController: NavController, playerViewModel: MusicPlayerView
                 }
                 else {
                     // Playlists Creadas section
+                    // Playlists Creadas section
                     if (playlists.isNotEmpty()) {
                         item {
                             Text(
                                 text = "Tus Playlists",
                                 style = MaterialTheme.typography.titleSmall,
                                 color = MaterialTheme.colorScheme.onBackground,
-                                //fontFamily = Rubik,
                                 modifier = Modifier.padding(vertical = 8.dp, horizontal = 16.dp)
                             )
                         }
-                        items(playlists) { item ->
-                            LibraryItem(item, navController, onImageLoaded)
+
+                        itemsIndexed(playlists) { index, item ->
+                            LibraryItem(item, navController)
                         }
                     }
 
@@ -317,7 +328,7 @@ fun LibraryScreen(navController: NavController, playerViewModel: MusicPlayerView
                             )
                         }
                         items(playlistsLike) { item2 ->
-                            LibraryItem(item2, navController, onImageLoaded)
+                            LibraryItem(item2, navController)
                         }
                     }
 
@@ -433,57 +444,75 @@ fun LibraryScreen(navController: NavController, playerViewModel: MusicPlayerView
 
 
 @Composable
-fun LibraryItem(playlist: Playlist, navController: NavController, onImageLoaded: () -> Unit = {}) {
-    var path = ""
-    var isImageLoading by remember { mutableStateOf(true) }
-
-    Row(
+fun LibraryItem(
+    playlist: Playlist,
+    navController: NavController
+) {
+    Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(8.dp)
+            .padding(horizontal = 16.dp, vertical = 6.dp)
+            .clip(RoundedCornerShape(12.dp))
             .clickable {
-                // Navegar a la lista de canciones
-                navController.navigate("playlist/${playlist.id}") // Usamos el id de la playlist
+                navController.navigate("playlist/${playlist.id}")
             },
-        verticalAlignment = Alignment.CenterVertically
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
+        tonalElevation = 1.dp
     ) {
-        if (playlist?.esAlbum == "Vibra_likedSong"){path = "playlist_images/meGusta.png"} else {path = playlist.imageUrl}
-        val playlistImage = getImageUrl(path, "default-playlist.jpg")
-        Log.d("ImageURL", "URL final: $playlistImage")
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Imagen de la playlist
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(RoundedCornerShape(8.dp))
+            ) {
+                AsyncImage(
+                    model = getImageUrl(playlist.imageUrl, "defaultplaylist.jpg"),
+                    placeholder = painterResource(R.drawable.defaultplaylist),
+                    error = painterResource(R.drawable.defaultplaylist),
+                    contentDescription = "Portada de playlist",
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
 
-            AsyncImage(
-                model = getImageUrl(path, "defaultplaylist.jpg"),
-                contentDescription = "Imagen",
-                modifier = Modifier.size(50.dp),
-                placeholder = painterResource(R.drawable.defaultplaylist), // Fallback local
-                error = painterResource(R.drawable.defaultplaylist),
-                onLoading = { isImageLoading = true },
-                onSuccess = {
-                    isImageLoading = false
-                    onImageLoaded()
-                },
-                onError = {
-                    isImageLoading = false
-                    onImageLoaded()
-                }
-            )
-        //}
-        Spacer(modifier = Modifier.width(10.dp))
-        Column {
-            Text(
-                text = playlist.title,
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onBackground
-            )
-            Log.d("Descripciones", playlist.description)
-            Text(
-                text = if (playlist.description != "null") {
-                    playlist.description
-                } else {
-                    "Añade aquí una descripción"
-                },
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+            Spacer(modifier = Modifier.width(12.dp))
+
+            // Información de la playlist
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(end = 8.dp)
+            ) {
+                Text(
+                    text = playlist.title,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+
+                Text(
+                    text = if (playlist.esAlbum == "album") "Álbum" else "Playlist" +
+                            if (playlist.esPublica == "public") " · Público" else " · Privado",
+                    fontSize = 14.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            // Flecha indicativa
+            Icon(
+                imageVector = Icons.Default.ArrowForwardIos,
+                contentDescription = "Ver playlist",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                modifier = Modifier.size(20.dp)
             )
         }
     }
