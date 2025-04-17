@@ -423,7 +423,7 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                             Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(start = 16.dp, end = 16.dp, top = 50.dp, bottom = 2.dp)
+                                    .padding(start = 16.dp, end = 16.dp, top = 30.dp, bottom = 2.dp)
                             ) {
                                 Text(
                                     text = description,
@@ -613,14 +613,15 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                                 // Botón de play principal
                                 IconButton(
                                     onClick = {
-                                        if (isPlaying && currentIdPlaylist == playlistId) {
+                                        if (currentIdPlaylist == playlistId) {
+                                            // Si ya está reproduciendo esta playlist, solo pausar/reanudar
                                             playerViewModel.togglePlayPause()
                                         } else {
-                                            if (isSencillo && playlistId != null) {
+                                            // Si es otra playlist o no está reproduciendo nada, cargar las canciones
+                                            if (playlistId != null && filteredSongs.isNotEmpty()) {
                                                 playerViewModel.loadSongsFromPlaylist(
-                                                    convertSongsToCurrentSongs(filteredSongs, 1),
-                                                    filteredSongs.firstOrNull()?.id.toString()
-                                                        ?: "",
+                                                    convertSongsToCurrentSongs(filteredSongs, filteredSongs.size),
+                                                    filteredSongs.firstOrNull()?.id.toString() ?: "",
                                                     context,
                                                     playlistId
                                                 )
@@ -636,7 +637,8 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                                     Icon(
                                         imageVector = if (isPlaying && currentIdPlaylist == playlistId)
                                             Icons.Default.Pause else Icons.Default.PlayArrow,
-                                        contentDescription = if (isPlaying) "Pausar" else "Reproducir",
+                                        contentDescription = if (isPlaying && currentIdPlaylist == playlistId)
+                                            "Pausar" else "Reproducir",
                                         tint = Color.Black,
                                         modifier = Modifier.size(24.dp)
                                     )
