@@ -86,6 +86,7 @@ import eina.unizar.es.data.model.network.ApiClient.getUserData
 import eina.unizar.es.data.model.network.ApiClient.isPlaylistOwner
 import eina.unizar.es.data.model.network.ApiClient.likeUnlikePlaylist
 import eina.unizar.es.data.model.network.ApiClient.likeUnlikeSong
+import eina.unizar.es.data.model.network.ApiClient.updatePlaylist
 import eina.unizar.es.data.model.network.ApiClient.togglePlaylistType
 import eina.unizar.es.ui.artist.SongOptionItem
 import eina.unizar.es.ui.navbar.BottomNavigationBar
@@ -798,6 +799,7 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                                 playlistImage = playlistImage,
                                 playlistTitle = playlistInfo!!.title, // Reemplaza con el título
                                 playlistAuthor = playlistAuthor,
+                                playlistDescription = playlistInfo!!.description,
                                 isLikedPlaylist = isLikedPlaylist,
                                 onDismiss = { showBottomSheet = false },
                                 navController = navController,
@@ -825,12 +827,14 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
 /**
  * Contenido del Bottom Sheet con las opciones de la playlist.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BottomSheetContent(
     playlistInfo: Playlist,
     playlistImage: String,
     playlistTitle: String,
     playlistAuthor: String,
+    playlistDescription: String,
     isLikedPlaylist: Boolean,
     navController: NavController,
     playlistId: String?,
@@ -856,6 +860,10 @@ fun BottomSheetContent(
         showAlertDialog = false
     }
     Log.d("BottomSheetContent", "Playlist ID: $playlistId")
+
+    var showEditPlaylistDialog by remember { mutableStateOf(false) } //Editar playlist
+    var newPlaylistName by remember { mutableStateOf(playlistTitle) }
+    var newPlaylistDescription by remember { mutableStateOf("") }
 
     LaunchedEffect(Unit) {
         coroutineScope.launch  {
@@ -1027,7 +1035,14 @@ fun BottomSheetContent(
                         Spacer(modifier = Modifier.height(8.dp))
                         SongOptionItem("Editar colaboradores", onClick = dismiss)
                         Spacer(modifier = Modifier.height(8.dp))
-                        SongOptionItem("Editar Playlist", onClick = dismiss)
+                        // Opción "Eliminar Playlist" con estilo personalizado
+                        SongOptionItem("Editar Playlist",
+                            onClick = {
+                                newPlaylistName = playlistTitle
+                                newPlaylistDescription = playlistDescription ?: ""
+                                showEditPlaylistDialog = true
+                                //onDismiss()
+                            })
                         Spacer(modifier = Modifier.height(8.dp))
                         SongOptionItem(
                             text = "Eliminar Playlist",
@@ -1052,6 +1067,100 @@ fun BottomSheetContent(
                     Spacer(modifier = Modifier.height(38.dp))
                 }
             }
+        }
+        if (showEditPlaylistDialog) {
+            AlertDialog(
+                onDismissRequest = { showEditPlaylistDialog = false },
+                title = { Text("Editar playlist", color = MaterialTheme.colorScheme.onBackground) },
+                text = {
+                    Column {
+                        OutlinedTextField(
+                            value = newPlaylistName,
+                            onValueChange = { newPlaylistName = it },
+                            label = { Text("Nombre", color = MaterialTheme.colorScheme.onSurface) },
+                            singleLine = true,
+                            colors = TextFieldDefaults.outlinedTextFieldColors( // Añadir colores
+                                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                unfocusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                            ),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 8.dp)
+                        )
+
+                        OutlinedTextField(
+                            value = newPlaylistDescription,
+                            onValueChange = { newPlaylistDescription = it },
+                            label = { Text("Descripción", color = MaterialTheme.colorScheme.onSurface) },
+                            singleLine = false,
+                            minLines = 2,
+                            colors = TextFieldDefaults.outlinedTextFieldColors( // Añadir colores
+                                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                unfocusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            if (newPlaylistName.isNotEmpty() && newPlaylistDescription.isNotEmpty()) {
+                                CoroutineScope(Dispatchers.IO).launch {
+                                    try {
+                                        // Manejo seguro del ID
+                                        val id = playlistId?.toInt() ?: throw NumberFormatException("ID inválido")
+
+                                        // Validación de la URL de imagen
+                                        val safeImageUrl = if (playlistImage.isNullOrBlank()) {
+                                            "defaultplaylist.jpg"
+                                        } else {
+                                            playlistImage
+                                        }
+                                        Log.d("Error", "Id de la lista editada: " + id)
+                                        val (code, message) = updatePlaylist(
+                                            id = id,
+                                            name = newPlaylistName,
+                                            description = newPlaylistDescription,
+                                            frontPage = safeImageUrl,
+                                            context = context
+                                        )
+
+                                        withContext(Dispatchers.Main) {
+                                            when (code) {
+                                                200 -> Toast.makeText(context, "Playlist actualizada", Toast.LENGTH_SHORT).show()
+                                                404 -> Toast.makeText(context, "Playlist no encontrada", Toast.LENGTH_LONG).show()
+                                                else -> Toast.makeText(context, "Error: ${message ?: "Código $code"}", Toast.LENGTH_LONG).show()
+                                            }
+                                            showEditPlaylistDialog = false
+                                        }
+                                    } catch (e: NumberFormatException) {
+                                        withContext(Dispatchers.Main) {
+                                            Toast.makeText(context, "ID de playlist inválido", Toast.LENGTH_LONG).show()
+                                        }
+                                    } catch (e: Exception) {
+                                        withContext(Dispatchers.Main) {
+                                            Toast.makeText(context, "Error de conexión", Toast.LENGTH_LONG).show()
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        enabled = newPlaylistName.isNotEmpty() && newPlaylistDescription.isNotEmpty(),
+                        colors = ButtonDefaults.buttonColors(containerColor = VibraBlue)
+                    ) {
+                        Text("Guardar", color = VibraBlack)
+                    }
+                },
+                dismissButton = {
+                    Button(
+                        onClick = { showEditPlaylistDialog = false },
+                        colors = ButtonDefaults.buttonColors(containerColor = VibraLightGrey)
+                    ) {
+                        Text("Cancelar", color = VibraBlack)
+                    }
+                }
+            )
         }
     }
 }
