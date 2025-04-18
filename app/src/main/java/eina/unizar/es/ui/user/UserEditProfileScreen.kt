@@ -203,25 +203,55 @@ fun EditProfileScreen(navController: NavController) {
                     onClick = {
                         showDialog = false
                         coroutineScope.launch {
-                            val jsonBody = JSONObject().apply {
-                                put("nickname", username)
-                                put("mail", email)
-                                if (newPassword.isNotBlank()) put("password", newPassword)
-                            }
-
-                            val response = postTokenPremium("user/update", jsonBody, context)
-
-                            if (response != null) {
-                                Toast.makeText(
+                            val (code, message) = updateUserProfile(
+                                currentPassword = currentPassword,
+                                nickname = username,
+                                email = email,
+                                password = newPassword,
+                                context = context
+                            )
+                            when (code) {
+                                200 -> {
+                                    Toast.makeText(
+                                        context,
+                                        "Perfil actualizado",
+                                        Toast.LENGTH_LONG
+                                    ).show()
+                                    showDialog = false
+                                    navController.popBackStack()
+                                }
+                                401 -> Toast.makeText(
                                     context,
-                                    "Perfil actualizado correctamente",
+                                    "Contraseña incorrecta",
                                     Toast.LENGTH_LONG
                                 ).show()
-                                navController.popBackStack()
-                            } else {
-                                Toast.makeText(
+                                400 -> Toast.makeText(
                                     context,
-                                    "Error al actualizar el perfil",
+                                    "Correo ya registrado",
+                                    Toast.LENGTH_LONG
+                                ).show()
+
+                                404 -> Toast.makeText(
+                                    context,
+                                    "Usuario no encontrado",
+                                    Toast.LENGTH_LONG
+                                ).show()
+
+                                409 -> Toast.makeText(
+                                    context,
+                                    "Nombre en uso",
+                                    Toast.LENGTH_LONG
+                                ).show()
+
+                                500 -> Toast.makeText(
+                                    context,
+                                    "Error del servidor",
+                                    Toast.LENGTH_LONG
+                                ).show()
+
+                                else -> Toast.makeText(
+                                    context,
+                                    "Error inesperado",
                                     Toast.LENGTH_LONG
                                 ).show()
                             }
@@ -402,55 +432,7 @@ fun EditProfileScreen(navController: NavController) {
                             currentPasswordError = currentPassword.isEmpty()
 
                             if (!usernameError && !emailError && !currentPasswordError) {
-                                coroutineScope.launch {
-                                    val (code, message) = updateUserProfile(
-                                        currentPassword = currentPassword,
-                                        nickname = username,
-                                        email = email,
-                                        password = newPassword,
-                                        context = context
-                                    )
-                                    when (code) {
-                                        200 -> {
-                                            Toast.makeText(
-                                                context,
-                                                "Perfil actualizado",
-                                                Toast.LENGTH_LONG
-                                            ).show()
-                                            showDialog = false
-                                        }
-
-                                        400 -> Toast.makeText(
-                                            context,
-                                            "Correo ya registrado",
-                                            Toast.LENGTH_LONG
-                                        ).show()
-
-                                        404 -> Toast.makeText(
-                                            context,
-                                            "Usuario no encontrado",
-                                            Toast.LENGTH_LONG
-                                        ).show()
-
-                                        409 -> Toast.makeText(
-                                            context,
-                                            "Nombre en uso",
-                                            Toast.LENGTH_LONG
-                                        ).show()
-
-                                        500 -> Toast.makeText(
-                                            context,
-                                            "Error del servidor",
-                                            Toast.LENGTH_LONG
-                                        ).show()
-
-                                        else -> Toast.makeText(
-                                            context,
-                                            "Error inesperado",
-                                            Toast.LENGTH_LONG
-                                        ).show()
-                                    }
-                                }
+                                showDialog = true
                             } else {
                                 Toast.makeText(
                                     context,
