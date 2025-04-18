@@ -1,6 +1,11 @@
 package eina.unizar.es.ui.playlist
 
 import android.annotation.SuppressLint
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import android.util.Log
 import android.widget.Space
 import android.widget.Toast
@@ -57,6 +62,7 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import eina.unizar.es.R
@@ -855,6 +861,47 @@ fun BottomSheetContent(
     val dismiss = {
         showAlertDialog = false
     }
+
+
+    // Estado para controlar si mostrar las opciones de compartir
+    var showShareOptions by remember { mutableStateOf(false) }
+
+    // URL base para compartir
+    val baseShareUrl = "https://vibra.eina.unizar.es/playlist/" // Usa HTTPS para compatibilidad universal
+    val vibraDeepLink = "vibra://playlist/" // Para abrir directamente en la app si está instalada
+    val fullShareUrl = playlistId?.let { "$baseShareUrl$it" } ?: ""
+    val fullDeepLink = playlistId?.let { "$vibraDeepLink$it" } ?: ""
+
+    // Función para copiar al portapapeles
+    fun copyToClipboard() {
+        val clipboardManager = ContextCompat.getSystemService(context, ClipboardManager::class.java)
+        val clipData = ClipData.newPlainText("Enlace a playlist", fullShareUrl)
+        clipboardManager?.setPrimaryClip(clipData)
+        Toast.makeText(context, "Enlace copiado al portapapeles", Toast.LENGTH_SHORT).show()
+        onDismiss()
+    }
+
+    // Modifica tu función de compartir para incluir enlaces que funcionen en navegadores
+    fun sharePlaylist(playlistId: String, playlistTitle: String, context: Context) {
+        // URL con formato clickable universal
+        val webUrl = "https://vibra.eina.unizar.es/playlist/$playlistId"
+        val deepLink = "vibra://playlist/$playlistId"
+
+        val shareIntent = Intent().apply {
+            action = Intent.ACTION_SEND
+            putExtra(Intent.EXTRA_TEXT, """
+            ¡Escucha "$playlistTitle" en Vibra App!
+            
+            $webUrl
+            
+            También puedes usar: $deepLink
+        """.trimIndent())
+            type = "text/plain"
+        }
+
+        context.startActivity(Intent.createChooser(shareIntent, "Compartir playlist"))
+    }
+
     Log.d("BottomSheetContent", "Playlist ID: $playlistId")
 
     LaunchedEffect(Unit) {
@@ -905,6 +952,15 @@ fun BottomSheetContent(
                 Text(playlistTitle, color = textColor, fontSize = 16.sp)
                 Text("de $playlistAuthor", color = Color.Gray, fontSize = 12.sp)
             }
+
+            Button(
+                onClick = {
+                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("vibra://playlist/3"))
+                    context.startActivity(intent)
+                }
+            ) {
+                Text("Abrir Vibra App")
+            }
         }
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -932,14 +988,35 @@ fun BottomSheetContent(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Spacer(modifier = Modifier.height(15.dp))
-                    SongOptionItem("Compartir", onClick = dismiss)
-                    if(playlistMeGusta != "Vibra_likedSong" && !soyPropietario) {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        SongOptionItem("Valorar Playlist", onClick = {
-                            onRateClick()  // Esto activará el diálogo
-                            onDismiss() // Cierra el BottomSheet
+                    // Si showShareOptions es false, mostrar la opción "Compartir"
+                    if (!showShareOptions) {
+                        SongOptionItem("Compartir", onClick = {
+                            showShareOptions = true
                         })
+                    } else {
+                        // Si showShareOptions es true, mostrar las opciones de compartir
+                        SongOptionItem("Copiar enlace", onClick = { copyToClipboard() })
+                        Spacer(modifier = Modifier.height(8.dp))
+                        SongOptionItem(
+                            text = "Compartir",
+                            onClick = {
+                                if (!playlistId.isNullOrEmpty() && !playlistTitle.isNullOrEmpty()) {
+                                    sharePlaylist(playlistId, playlistTitle, context)
+                                }
+                                onDismiss()
+                            }
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        SongOptionItem("Cancelar", onClick = { showShareOptions = false })
                     }
+                    if (!showShareOptions) {
+                        if(playlistMeGusta != "Vibra_likedSong" && !soyPropietario) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            SongOptionItem("Valorar Playlist", onClick = {
+                                onRateClick()
+                                onDismiss()
+                            })
+                        }
                     if (!soyPropietario){
                         Spacer(modifier = Modifier.height(8.dp))
                         SongOptionItem(
@@ -1048,6 +1125,7 @@ fun BottomSheetContent(
                                 }
                             }
                         )
+                    }
                     }
                     Spacer(modifier = Modifier.height(38.dp))
                 }
