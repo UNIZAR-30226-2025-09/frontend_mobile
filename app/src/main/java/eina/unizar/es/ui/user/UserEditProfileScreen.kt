@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.media3.common.util.Log
 import androidx.navigation.NavController
+import com.example.musicapp.ui.theme.VibraDarkGrey
 import eina.unizar.es.data.model.network.ApiClient.getUserData
 import eina.unizar.es.data.model.network.ApiClient.postTokenPremium
 import eina.unizar.es.data.model.network.ApiClient.updateUserProfile
@@ -294,7 +295,7 @@ fun EditProfileScreen(navController: NavController) {
             Canvas(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(backgroundColor)
+                    .background(VibraDarkGrey)
             ) {
                 val width = size.width
                 val height = size.height
@@ -422,7 +423,7 @@ fun EditProfileScreen(navController: NavController) {
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     TextButton(onClick = { navController.popBackStack() }) {
-                        Text("Cancelar", color = Color.White, fontFamily = Rubik)
+                        Text("Cancelar", color = Color.White)
                     }
                     Button(
                         onClick = {
@@ -447,8 +448,7 @@ fun EditProfileScreen(navController: NavController) {
                         Text(
                             "Guardar perfil",
                             color = Color.Black,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = Rubik
+                            fontWeight = FontWeight.Bold
                         )
                     }
                 }

@@ -94,7 +94,7 @@ fun UserLoginScreen(navController: NavController) {
         ) {
             Card(
                 shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E1E).copy(alpha = 0.9f)),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E1E)),
                 modifier = Modifier
                     .fillMaxWidth(0.85f)
                     .padding(16.dp)
