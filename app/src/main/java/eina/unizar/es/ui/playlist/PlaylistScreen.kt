@@ -15,6 +15,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -42,12 +43,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathSegment
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -82,6 +87,7 @@ import eina.unizar.es.data.model.network.ApiClient.isPlaylistOwner
 import eina.unizar.es.data.model.network.ApiClient.likeUnlikePlaylist
 import eina.unizar.es.data.model.network.ApiClient.likeUnlikeSong
 import eina.unizar.es.data.model.network.ApiClient.updatePlaylist
+import eina.unizar.es.data.model.network.ApiClient.togglePlaylistType
 import eina.unizar.es.ui.artist.SongOptionItem
 import eina.unizar.es.ui.navbar.BottomNavigationBar
 import eina.unizar.es.ui.player.FloatingMusicPlayer
@@ -108,54 +114,33 @@ enum class SortOption {
 fun PlaylistScreen(navController: NavController, playlistId: String?, playerViewModel: MusicPlayerViewModel,
                    isSencillo: Boolean = false, singleId: String?) {
 
+    // Colores y estilos mejorados
+    val backgroundColor = Color(0xFF121212) // Negro más suave
+    val textColor = Color.White
+    val secondaryTextColor = Color(0xFFB3B3B3) // Gris claro para textos secundarios
+    val accentColor = Color(0xFF1DB954) // Verde Spotify
+    val dividerColor = Color(0xFF2A2A2A) // Color sutil para divisores
 
+    // Estado para diálogo de valoración
     var showRatingDialog by remember { mutableStateOf(false) }
     var currentRating by remember { mutableStateOf(0) }
 
-    // Colores básicos
-    val backgroundColor = MaterialTheme.colorScheme.background // Negro
-    val textColor = MaterialTheme.colorScheme.onBackground // Blanco
-    val buttonColor = MaterialTheme.colorScheme.primary
-
-    //Gestion del ViewModel
+    // Gestion del ViewModel
     val currentSong by playerViewModel.currentSong.collectAsState()
     var currentIdPlaylist = playerViewModel.idCurrentPlaylist
     val isPlaying = currentSong?.isPlaying ?: false
 
-
     // Estados para búsqueda y orden
     var searchText by remember { mutableStateOf(TextFieldValue("")) }
     var sortOption by remember { mutableStateOf(SortOption.TITULO) }
-
-    // Variable para poder saber si se ha dado like desde el viewModel
     val likedSongsSet by playerViewModel.likedSongs.collectAsState()
-
-    // Estado para mostrar/ocultar la barra de búsqueda
     var showSearch by remember { mutableStateOf(false) }
 
     // Animation states
     val searchFieldWidth by animateDpAsState(
-        targetValue = if (showSearch) 280.dp else 0.dp,
+        targetValue = if (showSearch) 200.dp else 0.dp,
         animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing),
         label = "searchFieldWidth"
-    )
-
-    val searchIconRotation by animateFloatAsState(
-        targetValue = if (showSearch) 90f else 0f,
-        animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing),
-        label = "searchIconRotation"
-    )
-
-    val searchIconAlpha by animateFloatAsState(
-        targetValue = if (showSearch) 0f else 1f,
-        animationSpec = tween(durationMillis = 150),
-        label = "searchIconAlpha"
-    )
-
-    val closeIconAlpha by animateFloatAsState(
-        targetValue = if (showSearch) 1f else 0f,
-        animationSpec = tween(durationMillis = 150),
-        label = "closeIconAlpha"
     )
 
     // Estado del LazyColumn para detectar scroll y aplicar efecto en el header
@@ -166,7 +151,7 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
     val collapseFraction = (scrollOffset / maxOffset).coerceIn(0f, 1f)
 
     // Ajustamos solo la opacidad (sin escala) con Modifier.alpha
-    val imageAlpha = 1f - collapseFraction
+    val imageAlpha = 1f - collapseFraction * 0.6f
 
     // Estado para controlar la visibilidad del BottomSheet
     var showBottomSheet by remember { mutableStateOf(false) }
@@ -174,7 +159,6 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
 
     // Reproducir la musica
     val context = LocalContext.current
-
 
     // Alpha para el título en el TopAppBar: aparece gradualmente conforme se hace scroll
     val topTitleAlpha = if (lazyListState.firstVisibleItemIndex > 0) {
@@ -186,46 +170,30 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
     // Estado para me gusta o no de la playlist
     var isLikedPlaylist by remember { mutableStateOf(false) }
 
-    // Estado para almacenar la información de la playlist y sus canciones
+    // Estado para almacenar información de la playlist y sus canciones
     var playlistInfo by remember { mutableStateOf<Playlist?>(null) }
     var songs by remember { mutableStateOf<List<Song>>(emptyList()) }
-
-    // Usamos un Map para manejar el estado de "me gusta" por canción usando el índice o algún identificador único
     var songLikes by remember { mutableStateOf<Map<Int, Boolean>>(emptyMap()) }
-
-    // Para poder realizar el post del like/unlike
     val coroutineScope = rememberCoroutineScope()
-
-    // Id del usuario a guardar al darle like
-    var userId by remember { mutableStateOf("") }  // Estado inicial
+    var userId by remember { mutableStateOf("") }
 
     // Función para cambiar el estado de "me gusta" de una canción
     fun toggleSongLike(songId: Int, userId: String) {
         coroutineScope.launch {
             try {
-                // Determine the new like state
                 val currentLikeState = songLikes[songId] ?: false
                 val newLikeState = !currentLikeState
-
-                // Make API call to like/unlike the song
                 val response = likeUnlikeSong(songId.toString(), userId, newLikeState)
                 val responseCheck = checkIfSongIsLiked(songId.toString(), userId)
 
                 if (response != null) {
-                    // Update local state only if API call is successful
                     songLikes = songLikes.toMutableMap().apply {
                         this[songId] = newLikeState
                     }
-                } else {
-                    // Handle error case (e.g., show error message)
-                    println("Error updating song like status")
                 }
 
                 if (responseCheck != null) {
                     playerViewModel.loadLikedStatus(songId.toString())
-                } else {
-                    // Handle error case (e.g., show error message)
-                    println("Error updating song check like status")
                 }
             } catch (e: Exception) {
                 println("Exception in toggleSongLike: ${e.message}")
@@ -239,28 +207,23 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
         }
     }
 
-
-    //Logica si es un sencillo
-    if(isSencillo){
+    // Cargar datos de la API
+    if (isSencillo) {
         LaunchedEffect(Unit) {
             val response = withContext(Dispatchers.IO) { get("player/details/$singleId") }
             response?.let {
                 val songObject = JSONObject(it)
-                //val songObject = jsonObject.getJSONObject("song")
-
-                // Crear un objeto Playlist que simula ser un sencillo
                 playlistInfo = Playlist(
                     id = songObject.getString("id"),
                     title = songObject.getString("name"),
                     imageUrl = songObject.getString("photo_video"),
-                    idAutor = "",//jsonObject.getJSONArray("artists").getJSONObject(0).getString("id"),
-                    idArtista = "",//jsonObject.getJSONArray("artists").getJSONObject(0).getString("id"),
+                    idAutor = "",
+                    idArtista = "",
                     description = "Sencillo",
                     esPublica = "public",
                     esAlbum = "single"
                 )
 
-                // Crear lista con una sola canción
                 songs = mutableListOf(
                     Song(
                         id = songObject.getInt("id"),
@@ -272,10 +235,8 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                     )
                 )
             }
-            Log.d("Sencillo", "Datos del backend: ${songs.first().name}")
         }
-    } else { //Logica si es una playlist
-        // Llamar a la API para obtener los datos de la playlist seleccionada
+    } else {
         LaunchedEffect(playlistId) {
             playlistId?.let { id ->
                 val response = withContext(Dispatchers.IO) { get("playlists/$id") }
@@ -292,7 +253,6 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                         esAlbum = jsonObject.getString("typeP"),
                     )
 
-                    // Extraer las canciones del array "songs"
                     val songsArray = jsonObject.getJSONArray("songs")
                     val fetchedSongs = mutableListOf<Song>()
                     for (i in 0 until songsArray.length()) {
@@ -314,41 +274,29 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
         }
     }
 
-    LaunchedEffect(Unit){
+    LaunchedEffect(Unit) {
         val userData = getUserData(context)
         if (userData != null) {
-            userId =
-                (userData["id"]
-                    ?: "Id").toString()  // Si no hay nickname, usa "Usuario"
+            userId = (userData["id"] ?: "Id").toString()
         }
-        // Consultar si el usuario ya le ha dado like a esta playlist (para poder guardar el like)
+
         val likedPlaylistsResponse = getLikedPlaylists(userId)
         likedPlaylistsResponse?.let { playlists ->
-            // Verificamos si la playlist actual está en la lista de "liked" del usuario
             isLikedPlaylist = playlists.any { it.id == playlistId }
         }
 
-
-        // Consultar si el usuario ya le ha dado like a alguna cancion (para poder guardar el like)
         val likedSongsResponse = getLikedSongsPlaylist(userId)
         likedSongsResponse?.let { likedSongs ->
-            // Create a map of song IDs to their liked status
             val likedSongIds = likedSongs.map { it.id }.toSet()
-
-            // Update song likes based on the fetched liked songs
             songLikes = songs.associate { song ->
                 song.id to likedSongIds.contains(song.id)
             }
         }
     }
 
-    val playlistAuthor = playlistInfo?.let { getPlaylistAuthor(it) };
-
-    // Mapa para almacenar el nombre del artista por canción
+    val playlistAuthor = playlistInfo?.let { getPlaylistAuthor(it) }
     var songArtistMap by remember { mutableStateOf<Map<Song, String>>(emptyMap()) }
 
-
-    // Obtener los nombres de los artistas para cada canción
     LaunchedEffect(songs) {
         val artistNames = mutableMapOf<Song, String>()
         songs.forEach { song ->
@@ -358,36 +306,31 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
         songArtistMap = artistNames
     }
 
-
+    // Ordenar y filtrar canciones
     val sortedSongs = remember(songs, sortOption) {
         when (sortOption) {
-            SortOption.TITULO -> songs.sortedBy { it.name } // Ordenar por título
-            SortOption.DURACION -> songs.sortedBy { it.duration } // Ordenar por duración
+            SortOption.TITULO -> songs.sortedBy { it.name }
+            SortOption.DURACION -> songs.sortedBy { it.duration }
             SortOption.ARTISTA -> songs.sortedBy { song ->
-                songArtistMap[song] ?: "Artista Desconocido" } // Ordenar por artista
+                songArtistMap[song] ?: "Artista Desconocido" }
         }
     }
 
-    // Primero filtramos por búsqueda
-    val filteredSongs = remember(songs, searchText.text) {
+    val filteredSongs = remember(sortedSongs, searchText.text) {
         if (searchText.text.isEmpty()) {
             sortedSongs
         } else {
-            songs.filter { song ->
+            sortedSongs.filter { song ->
                 song.name.contains(searchText.text, ignoreCase = true)
             }
         }
     }
 
-    // Luego ordenamos las canciones filtradas
-    val sortedAndFilteredSongs = remember(filteredSongs, sortOption) {
-        when (sortOption) {
-            SortOption.TITULO -> filteredSongs.sortedBy { it.name }
-            SortOption.DURACION -> filteredSongs.sortedBy { it.duration }
-            SortOption.ARTISTA -> songs.sortedBy { song ->
-                songArtistMap[song] ?: "Artista Desconocido" } // Ordenar por artista
-        }
-    }
+    // Crea un gradiente de fondo basado en la portada
+    val gradientColors = listOf(
+        Color(0xFF121212).copy(alpha = 0.9f),
+        Color(0xFF121212)
+    )
 
     Scaffold(
         topBar = {
@@ -415,307 +358,356 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
         },
         containerColor = backgroundColor
     ) { innerPadding ->
-        LazyColumn(
-            state = lazyListState,
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
-                .background(backgroundColor)
+                .background(
+                    Brush.verticalGradient(gradientColors)
+                )
         ) {
-            // Header: Portada, título y autor
-            item {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    playlistInfo?.let { Log.d("URL antes", "URL antes: " + it.imageUrl) }
-                    // Cargar la imagen desde la URL
-                    val urlAntes = playlistInfo?.imageUrl
-                    AsyncImage(
-                        model = getImageUrl(urlAntes, "/defaultplaylist.jpg"),
-                        contentDescription = "Portada de la playlist",
-                        placeholder = painterResource(R.drawable.defaultplaylist), // Fallback local
-                        error = painterResource(R.drawable.defaultplaylist),
+            LazyColumn(
+                state = lazyListState,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+            ) {
+                item {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
                         modifier = Modifier
-                            .size(250.dp)
-                            .alpha(imageAlpha)
-                            .clip(RoundedCornerShape(8.dp)) // Opcional: añade esquinas redondeadas
-                    )
-
-                    Spacer(modifier = Modifier.height(8.dp))
-                    playlistInfo?.let {
-                        Text(
-                            text = it.title,
-                            color = textColor,
-                            style = TextStyle(fontSize = 20.sp)
-                        )
-                    }
-                    if (playlistAuthor != null && playlistInfo?.esAlbum != "album") {
-                        Text(
-                            text = "Autor: " + playlistAuthor,
-                            color = textColor,
-                            style = TextStyle(fontSize = 14.sp)
-                        )
-                    }
-                }
-            }
-            // Fila para la búsqueda: si showSearch es true, se muestra la barra de búsqueda que deja espacio para el icono de reproducir
-            item {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    AnimatedVisibility(
-                        visible = showSearch,
-                        enter = expandHorizontally(
-                            animationSpec = tween(
-                                durationMillis = 300,
-                                easing = FastOutSlowInEasing
-                            )
-                        ) + fadeIn(animationSpec = tween(durationMillis = 300)),
-                        exit = shrinkHorizontally(
-                            animationSpec = tween(
-                                durationMillis = 300,
-                                easing = FastOutSlowInEasing
-                            )
-                        ) + fadeOut(animationSpec = tween(durationMillis = 150))
+                            .fillMaxWidth()
+                            .padding(top = 16.dp, bottom = 24.dp)
                     ) {
-                        OutlinedTextField(
-                            value = searchText,
-                            onValueChange = { searchText = it },
-                            label = { Text("Buscar en playlist", color = textColor) },
+                        Box(
                             modifier = Modifier
-                                .weight(1f)
-                                .padding(top = 12.dp, bottom = 12.dp),  // Separación de 12.dp arriba y abajo
-                            shape = RoundedCornerShape(16.dp),
-                            textStyle = TextStyle(color = textColor),
-                            colors = TextFieldDefaults.outlinedTextFieldColors(
-                                focusedBorderColor = buttonColor,
-                                unfocusedBorderColor = textColor,
-                                cursorColor = textColor
-                            )
-                        )
-                    }
-
-                    if (!showSearch) {
-                        Spacer(modifier = Modifier.weight(1f))
-                    }
-
-                    Spacer(modifier = Modifier.width(8.dp))
-
-                    IconButton(
-                        onClick = {
-                            showSearch = !showSearch
-                            // Si estamos ocultando la búsqueda, limpiamos el texto
-                            if (!showSearch) {
-                                searchText = TextFieldValue("")
-                            }
-                        },
-                        modifier = Modifier
-                            .size(48.dp)
-                    ) {
-                        Box {
-                            Icon(
-                                imageVector = Icons.Default.Search,
-                                contentDescription = "Buscar",
-                                tint = if (showSearch) Color.Black else textColor,
+                                .size(275.dp)
+                                .padding(16.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .shadow(8.dp)
+                        ) {
+                            val urlAntes = playlistInfo?.imageUrl
+                            AsyncImage(
+                                model = getImageUrl(urlAntes, "/defaultplaylist.jpg"),
+                                contentDescription = "Portada",
+                                placeholder = painterResource(R.drawable.defaultplaylist),
+                                error = painterResource(R.drawable.defaultplaylist),
                                 modifier = Modifier
-                                    .rotate(searchIconRotation)
-                                    .alpha(searchIconAlpha)
+                                    .fillMaxSize()
+                                    .alpha(imageAlpha)
                             )
-                            Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = "Cerrar búsqueda",
-                                tint = Color.White,
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        playlistInfo?.let {
+                            Text(
+                                text = it.title,
+                                color = textColor,
+                                style = TextStyle(
+                                    fontSize = 24.sp,
+                                    fontWeight = FontWeight.Bold
+                                ),
+                                textAlign = TextAlign.Center
+                            )
+                        }
+
+                        if (playlistAuthor != null && playlistInfo?.esAlbum != "album") {
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = playlistAuthor,
+                                color = secondaryTextColor,
+                                style = TextStyle(fontSize = 16.sp)
+                            )
+                        }
+                        // Añadir descripción de la playlist al final
+                        playlistInfo?.description?.takeIf { it.isNotBlank() && it != "Sencillo" && it != "null"}?.let { description ->
+                            Column(
                                 modifier = Modifier
-                                    .alpha(closeIconAlpha)
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.width(8.dp))
-
-                    // Your existing play/pause button
-                    IconButton(
-                        onClick = {
-                            if (isPlaying && currentIdPlaylist == playlistId) {
-                                playerViewModel.togglePlayPause()
-                            } else {
-                                if (isSencillo) {
-                                    if (playlistId != null) {
-                                        playerViewModel.loadSongsFromPlaylist(
-                                            convertSongsToCurrentSongs(sortedAndFilteredSongs, 1),
-                                            sortedAndFilteredSongs.first().id.toString(), context,
-                                            playlistId
-                                        )
-                                    }
-                                }
-                            }
-                        },
-                        modifier = Modifier
-                            .size(48.dp)
-                            .clip(CircleShape)
-                            .background(buttonColor)
-                    ) {
-                        Icon(
-                            imageVector = if (isPlaying) {
-                                Icons.Default.Pause
-                            } else {
-                                Icons.Default.PlayArrow
-                            },
-                            contentDescription = if (isPlaying) "Pausar" else "Reproducir",
-                            tint = Color.Black
-                        )
-                    }
-                }
-            }
-            // Fila con dropdown para ordenar y botón de like
-            item {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(horizontal = 16.dp)
-                        .padding(start = 12.dp)
-                ) {
-                    Text("Ordenar por:", color = textColor)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    var expandirMenu by remember { mutableStateOf(false) }
-                    Box {
-                        Button(
-                            onClick = { expandirMenu = true },
-                            colors = ButtonDefaults.buttonColors(containerColor = buttonColor)
-                        ) {
-                            Text(sortOption.toString(), color = Color.Black)
-                        }
-                        DropdownMenu(
-                            expanded = expandirMenu,
-                            onDismissRequest = { expandirMenu = false }
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text("Título") },
-                                onClick = {
-                                    sortOption = SortOption.TITULO
-                                    expandirMenu = false
-                                }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Artista") },
-                                onClick = {
-                                    sortOption = SortOption.ARTISTA
-                                    expandirMenu = false
-                                }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Duración") },
-                                onClick = {
-                                    sortOption = SortOption.DURACION
-                                    expandirMenu = false
-                                }
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.width(8.dp))
-                    if (playlistInfo?.esPublica != "private" && playlistInfo?.idAutor != userId && !isSencillo) {
-                        IconButton(
-                            onClick = {
-                                coroutineScope.launch {
-                                    // Invertir el estado local de "me gusta"
-                                    isLikedPlaylist = !isLikedPlaylist
-                                    // Hacer el POST al backend para actualizar el "me gusta"
-                                    val response = playlistInfo?.let {
-                                        likeUnlikePlaylist(
-                                            playlistInfo!!.id,
-                                            userId,
-                                            isLikedPlaylist
-                                        )
-                                    }
-                                    if (response != null) {
-                                        // Aquí puedes manejar la respuesta, como mostrar un mensaje o cambiar algo en UI
-                                        println("Respuesta del backend: $response")
-                                    } else {
-                                        // En caso de que falle la solicitud, revertir el cambio en el estado
-                                        isLikedPlaylist = !isLikedPlaylist
-                                        println("Error al hacer el POST en el backend")
-                                    }
-                                }
-                            },
-                            modifier = Modifier.size(48.dp)
-                        ) {
-                            if (!isSencillo){
-                                Icon(
-                                    imageVector = Icons.Default.Favorite, // Usamos el ícono de "me gusta"
-                                    contentDescription = "Me gusta",
-                                    tint = if (isLikedPlaylist) Color.Red else Color.Gray // Si está seleccionado, se colorea rojo, si no es gris
+                                    .fillMaxWidth()
+                                    .padding(start = 16.dp, end = 16.dp, top = 30.dp, bottom = 2.dp)
+                            ) {
+                                Text(
+                                    text = description,
+                                    style = MaterialTheme.typography.bodyMedium.copy(
+                                        color = secondaryTextColor,
+                                        lineHeight = 20.sp
+                                    )
                                 )
                             }
                         }
-                        Spacer(modifier = Modifier.width(2.dp)) // Espacio entre iconos
                     }
-                    IconButton(
-                        onClick = {
-                            showBottomSheet = true // Mostrar el BottomSheet al hacer clic
-                        },
-                        modifier = Modifier.size(25.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.MoreVert,
-                            contentDescription = "Más opciones",
-                            tint = textColor
-                        )
-                    }
-
                 }
-            }
 
-            item { Spacer(modifier = Modifier.height(26.dp)) }
-
-            // Lista de canciones: Cada banner con imagen a la izquierda y título/artista a la derecha
-            if (songs.isNullOrEmpty()) {
-                // Mostrar mensaje cuando no hay canciones
+                // Barra de búsqueda y controles
                 item {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(16.dp),
-                        contentAlignment = Alignment.Center
+                            .padding(horizontal = 16.dp, vertical = 8.dp)
                     ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Center
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            modifier = Modifier.fillMaxWidth()
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.MusicOff, // Puedes usar otro icono si prefieres
-                                contentDescription = "No hay canciones",
-                                modifier = Modifier.size(48.dp),
-                                tint = textColor.copy(alpha = 0.6f)
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = "No hay canciones en esta playlist",
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = textColor.copy(alpha = 0.6f),
-                                textAlign = TextAlign.Center
-                            )
+                            // Sección izquierda: búsqueda y ordenamiento juntos
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Start,
+                                modifier = Modifier.wrapContentWidth()
+                            ) {
+                                // Animación de búsqueda
+                                AnimatedVisibility(
+                                    visible = showSearch,
+                                    enter = expandHorizontally() + fadeIn(),
+                                    exit = shrinkHorizontally() + fadeOut()
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        OutlinedTextField(
+                                            value = searchText,
+                                            onValueChange = { searchText = it },
+                                            label = { Text("Buscar", color = Color.White) },
+                                            modifier = Modifier
+                                                .width(180.dp)
+                                                .height(60.dp),
+                                            shape = RoundedCornerShape(24.dp),
+                                            colors = TextFieldDefaults.outlinedTextFieldColors(
+                                                focusedBorderColor = VibraBlue,
+                                                unfocusedBorderColor = Color(0xFF3E3E3E),
+                                                cursorColor = VibraBlue,
+                                                containerColor = Color(0xFF2A2A2A)
+                                            ),
+                                            singleLine = true,
+                                            textStyle = TextStyle(
+                                                fontSize = 14.sp,
+                                                textAlign = TextAlign.Center
+                                            )
+                                        )
+
+                                        IconButton(
+                                            onClick = {
+                                                showSearch = false
+                                                searchText = TextFieldValue("")
+                                            }
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Close,
+                                                contentDescription = "Cerrar búsqueda",
+                                                tint = secondaryTextColor
+                                            )
+                                        }
+                                    }
+                                }
+
+                                // Icono de búsqueda (cuando no está mostrando el campo)
+                                if (!showSearch) {
+                                    IconButton(
+                                        onClick = { showSearch = true }
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Search,
+                                            contentDescription = "Buscar",
+                                            tint = secondaryTextColor
+                                        )
+                                    }
+                                }
+
+                                // Dropdown para ordenar (sin espaciado)
+                                Box(
+                                    modifier = Modifier.padding(start = 0.dp) // Reduce o elimina el espaciado
+                                ) {
+                                    var expandirMenu by remember { mutableStateOf(false) }
+                                    TextButton(
+                                        onClick = { expandirMenu = true },
+                                        colors = ButtonDefaults.textButtonColors(
+                                            contentColor = secondaryTextColor
+                                        ),
+                                        contentPadding = PaddingValues(
+                                            start = 4.dp, // Reduce el padding interno del botón
+                                            end = 8.dp,
+                                            top = 8.dp,
+                                            bottom = 8.dp
+                                        )
+                                    ) {
+                                        Text(
+                                            text = when (sortOption) {
+                                                SortOption.TITULO -> "Título"
+                                                SortOption.DURACION -> "Duración"
+                                                SortOption.ARTISTA -> "Artista"
+                                            },
+                                            style = TextStyle(fontSize = 14.sp)
+                                        )
+                                    }
+
+                                    DropdownMenu(
+                                        expanded = expandirMenu,
+                                        onDismissRequest = { expandirMenu = false },
+                                        modifier = Modifier.background(Color(0xFF282828))
+                                    ) {
+                                        DropdownMenuItem(
+                                            text = { Text("Título", color = textColor) },
+                                            onClick = {
+                                                sortOption = SortOption.TITULO
+                                                expandirMenu = false
+                                            }
+                                        )
+                                        DropdownMenuItem(
+                                            text = { Text("Artista", color = textColor) },
+                                            onClick = {
+                                                sortOption = SortOption.ARTISTA
+                                                expandirMenu = false
+                                            }
+                                        )
+                                        DropdownMenuItem(
+                                            text = { Text("Duración", color = textColor) },
+                                            onClick = {
+                                                sortOption = SortOption.DURACION
+                                                expandirMenu = false
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+
+                            // Botones de la derecha
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                // Botón "Me gusta" para la playlist
+                                if (playlistInfo?.esPublica != "private" && playlistInfo?.idAutor != userId && !isSencillo) {
+                                    IconButton(
+                                        onClick = {
+                                            coroutineScope.launch {
+                                                isLikedPlaylist = !isLikedPlaylist
+                                                val response = playlistInfo?.let {
+                                                    likeUnlikePlaylist(
+                                                        it.id,
+                                                        userId,
+                                                        isLikedPlaylist
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Favorite,
+                                            contentDescription = "Me gusta",
+                                            tint = if (isLikedPlaylist) Color(0xFFFF6B6B) else secondaryTextColor,
+                                            modifier = Modifier.size(24.dp)
+                                        )
+                                    }
+                                }
+
+                                // Botón de opciones
+                                IconButton(
+                                    onClick = { showBottomSheet = true }
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.MoreVert,
+                                        contentDescription = "Más opciones",
+                                        tint = secondaryTextColor
+                                    )
+                                }
+
+                                // Botón de play principal
+                                IconButton(
+                                    onClick = {
+                                        if (currentIdPlaylist == playlistId) {
+                                            // Si ya está reproduciendo esta playlist, solo pausar/reanudar
+                                            playerViewModel.togglePlayPause()
+                                        } else {
+                                            // Si es otra playlist o no está reproduciendo nada, cargar las canciones
+                                            if (playlistId != null && filteredSongs.isNotEmpty()) {
+                                                playerViewModel.loadSongsFromPlaylist(
+                                                    convertSongsToCurrentSongs(filteredSongs, filteredSongs.size),
+                                                    filteredSongs.firstOrNull()?.id.toString() ?: "",
+                                                    context,
+                                                    playlistId
+                                                )
+                                            }
+                                        }
+                                    },
+                                    modifier = Modifier
+                                        .size(48.dp)
+                                        .clip(CircleShape)
+                                        .background(VibraBlue)
+                                        .padding(4.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = if (isPlaying && currentIdPlaylist == playlistId)
+                                            Icons.Default.Pause else Icons.Default.PlayArrow,
+                                        contentDescription = if (isPlaying && currentIdPlaylist == playlistId)
+                                            "Pausar" else "Reproducir",
+                                        tint = Color.Black,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
+                            }
                         }
                     }
                 }
-            } else {
-                items(sortedAndFilteredSongs) { song ->
-                    //val artist = songArtistMap[song] ?: "Artista Desconocido"
-                    var showSongOptionsBottomSheet by remember { mutableStateOf(false) } // Estado para mostrar el BottomSheet de opciones de la canción
-                    var songArtists by remember { mutableStateOf<List<Map<String, String>>>(emptyList()) }
 
-                    LaunchedEffect(song.id) {
-                        val songDetails = getSongDetails(song.id.toString())
-                        songDetails?.let { details ->
-                            @Suppress("UNCHECKED_CAST")
-                            songArtists = details["artists"] as? List<Map<String, String>> ?: emptyList()
+                // Divisor
+                item {
+                    Divider(
+                        color = dividerColor,
+                        thickness = 1.dp,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                    )
+                }
+
+                // Lista de canciones: Cada banner con imagen a la izquierda y título/artista a la derecha
+                if (songs.isNullOrEmpty()) {
+                    // Mostrar mensaje cuando no hay canciones
+                    item {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.MusicOff, // Puedes usar otro icono si prefieres
+                                    contentDescription = "No hay canciones",
+                                    modifier = Modifier.size(48.dp),
+                                    tint = textColor.copy(alpha = 0.6f)
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = "No hay canciones en esta playlist",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = textColor.copy(alpha = 0.6f),
+                                    textAlign = TextAlign.Center
+                                )
+                            }
                         }
                     }
+                } else {
+                    items(filteredSongs) { song ->
+                        //val artist = songArtistMap[song] ?: "Artista Desconocido"
+                        var showSongOptionsBottomSheet by remember { mutableStateOf(false) } // Estado para mostrar el BottomSheet de opciones de la canción
+                        var songArtists by remember {
+                            mutableStateOf<List<Map<String, String>>>(
+                                emptyList()
+                            )
+                        }
 
-                    if (playlistId != null) {
+                        LaunchedEffect(song.id) {
+                            val songDetails = getSongDetails(song.id.toString())
+                            songDetails?.let { details ->
+                                @Suppress("UNCHECKED_CAST")
+                                songArtists =
+                                    details["artists"] as? List<Map<String, String>> ?: emptyList()
+                            }
+                        }
+
+                        if (playlistId != null) {
                             SongItem(
                                 song = song,
                                 showHeartIcon = true,
@@ -735,89 +727,100 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                                 idPlaylist = playlistId
                             )
                             Log.d("Sencillo", "Canción cargada: ${song.name}")
-                    } else {
-                        SongItem(
-                            song = song,
-                            showHeartIcon = true,
-                            isSencillo = true,
-                            showMoreVertIcon = true,
-                            isLiked = songLikes[song.id] ?: false,
-                            onLikeToggle = {
-                                // Lógica para manejar el like
-                                toggleSongLike(song.id, userId)
-                            },
-                            onMoreVertClick = {
-                                // Mostrar opciones de la canción
-                                showSongOptionsBottomSheet = true
-                            },
-                            viewModel = playerViewModel,
-                            isPlaylist = true,
-                            playlistSongs = sortedSongs,
-                            idPlaylist = "1"
-                        )
-                        Log.d("Sencillo", "Canción cargada: ${song.name}")
-                    }
-                    // BottomSheet para opciones de la canción (dentro del items)
-                    if (showSongOptionsBottomSheet) {
-                        val artistName = if (songArtists.isNotEmpty()) {
-                            songArtists.joinToString(", ") { it["name"] ?: "" }
                         } else {
-                            "Artista desconocido"
-                        }
-                        ModalBottomSheet(
-                            onDismissRequest = { showSongOptionsBottomSheet = false },
-                            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-                        ) {
-                            SongOptionsBottomSheetContent(
-                                songId = song.id.toString(),
+                            SongItem(
+                                song = song,
+                                showHeartIcon = true,
+                                isSencillo = true,
+                                showMoreVertIcon = true,
+                                isLiked = songLikes[song.id] ?: false,
+                                onLikeToggle = {
+                                    // Lógica para manejar el like
+                                    toggleSongLike(song.id, userId)
+                                },
+                                onMoreVertClick = {
+                                    // Mostrar opciones de la canción
+                                    showSongOptionsBottomSheet = true
+                                },
                                 viewModel = playerViewModel,
-                                songTitle = song.name, // Pasa el título de la canción
-                                artistName = artistName // Pasa el nombre del artista
+                                isPlaylist = true,
+                                playlistSongs = sortedSongs,
+                                idPlaylist = "1"
+                            )
+                            Log.d("Sencillo", "Canción cargada: ${song.name}")
+                        }
+                        // BottomSheet para opciones de la canción (dentro del items)
+                        if (showSongOptionsBottomSheet) {
+                            val artistName = if (songArtists.isNotEmpty()) {
+                                songArtists.joinToString(", ") { it["name"] ?: "" }
+                            } else {
+                                "Artista desconocido"
+                            }
+                            ModalBottomSheet(
+                                onDismissRequest = { showSongOptionsBottomSheet = false },
+                                sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+                            ) {
+                                SongOptionsBottomSheetContent(
+                                    songId = song.id.toString(),
+                                    viewModel = playerViewModel,
+                                    songTitle = song.name, // Pasa el título de la canción
+                                    artistName = artistName // Pasa el nombre del artista
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+            StarRatingDialog(
+                showDialog = showRatingDialog,
+                onDismiss = { showRatingDialog = false },
+                onConfirm = { stars ->
+                    currentRating = stars
+                    // Lógica para guardar la valoración
+                    CoroutineScope(Dispatchers.IO).launch {
+                        playlistId?.let {
+                            //savePlaylistRating(it, stars, LocalContext.current)
+                        }
+                    }
+                }
+            )
+            // Mostrar el BottomSheet de la playlist (fuera del items)
+            if (showBottomSheet) {
+                ModalBottomSheet(
+                    onDismissRequest = { showBottomSheet = false },
+                    sheetState = sheetState
+                ) {
+                    var urlAntes = playlistInfo?.imageUrl
+                    val playlistImage = getImageUrl(urlAntes, "defaultplaylist.jpg")
+                    playlistInfo?.let {
+                        if (playlistAuthor != null) {
+                            BottomSheetContent(
+                                playlistInfo = it,
+                                playlistImage = playlistImage,
+                                playlistTitle = playlistInfo!!.title, // Reemplaza con el título
+                                playlistAuthor = playlistAuthor,
+                                playlistDescription = playlistInfo!!.description,
+                                isLikedPlaylist = isLikedPlaylist,
+                                onDismiss = { showBottomSheet = false },
+                                navController = navController,
+                                playlistId = playlistId,
+                                playlistMeGusta = playlistInfo!!.esAlbum,
+                                onRateClick = { showRatingDialog = true },
+                                onLikeUpdate = { newState ->
+                                    // Actualiza el estado en el componente padre
+                                    isLikedPlaylist = newState
+                                },
+                                onPlaylistUpdated = {
+                                    // Actualiza la playlist en el componente padre
+                                    playlistInfo = it
+                                }
                             )
                         }
                     }
                 }
             }
-        }
-        StarRatingDialog(
-            showDialog = showRatingDialog,
-            onDismiss = { showRatingDialog = false },
-            onConfirm = { stars ->
-                currentRating = stars
-                // Lógica para guardar la valoración
-                CoroutineScope(Dispatchers.IO).launch {
-                    playlistId?.let {
-                        //savePlaylistRating(it, stars, LocalContext.current)
-                    }
-                }
-            }
-        )
-        // Mostrar el BottomSheet de la playlist (fuera del items)
-        if (showBottomSheet) {
-            ModalBottomSheet(
-                onDismissRequest = { showBottomSheet = false },
-                sheetState = sheetState
-            ) {
-                var urlAntes = playlistInfo?.imageUrl
-                val playlistImage = getImageUrl(urlAntes, "defaultplaylist.jpg")
-                playlistInfo?.let {
-                    if (playlistAuthor != null) {
-                        BottomSheetContent(
-                            playlistImage = playlistImage,
-                            playlistTitle = playlistInfo!!.title, // Reemplaza con el título
-                            playlistAuthor = playlistAuthor,
-                            playlistDescription = playlistInfo!!.description,
-                            onDismiss = { showBottomSheet = false },
-                            navController = navController,
-                            playlistId = playlistId,
-                            playlistMeGusta = playlistInfo!!.esAlbum,
-                            onRateClick = { showRatingDialog = true }
-                        )
-                    }
-                }
-            }
-        }
 
+        }
     }
 }
 
@@ -827,15 +830,19 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BottomSheetContent(
+    playlistInfo: Playlist,
     playlistImage: String,
     playlistTitle: String,
     playlistAuthor: String,
     playlistDescription: String,
+    isLikedPlaylist: Boolean,
     navController: NavController,
     playlistId: String?,
     onRateClick: () -> Unit,
     onDismiss: () -> Unit,  // Llamar a esta función para cerrar
-    playlistMeGusta: String
+    playlistMeGusta: String,
+    onLikeUpdate: (Boolean) -> Unit,
+    onPlaylistUpdated: (Playlist) -> Unit
 ) {
     val scope = rememberCoroutineScope()  // Para lanzar corrutinas en Compose
     val textColor = Color.White
@@ -933,17 +940,101 @@ fun BottomSheetContent(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Spacer(modifier = Modifier.height(15.dp))
-                    SongOptionItem("Añadir a la biblioteca", onClick = dismiss)
-                    Spacer(modifier = Modifier.height(8.dp))
                     SongOptionItem("Compartir", onClick = dismiss)
-                    Spacer(modifier = Modifier.height(8.dp))
-                    SongOptionItem("Valorar Playlist", onClick = {
-                        onRateClick()  // Esto activará el diálogo
-                        onDismiss() // Cierra el BottomSheet
-                    })
-                    Spacer(modifier = Modifier.height(8.dp))
+                    if(playlistMeGusta != "Vibra_likedSong" && !soyPropietario) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        SongOptionItem("Valorar Playlist", onClick = {
+                            onRateClick()  // Esto activará el diálogo
+                            onDismiss() // Cierra el BottomSheet
+                        })
+                    }
+                    if (!soyPropietario){
+                        Spacer(modifier = Modifier.height(8.dp))
+                        SongOptionItem(
+                            text = if (isLikedPlaylist) "Eliminar de la biblioteca" else "Añadir a la biblioteca",
+                            textColor = if (isLikedPlaylist) Color(0xFFFF6B6B) else Color.White,
+                            onClick = {
+                                coroutineScope.launch {
+                                    if (playlistId != null) {
+                                        try {
+                                            // Invertir el estado actual
+                                            val newLikedState = !isLikedPlaylist
+
+                                            val response = likeUnlikePlaylist(
+                                                playlistId,
+                                                userId,
+                                                newLikedState
+                                            )
+
+                                            // Actualizar el estado en el componente padre
+                                            onLikeUpdate(newLikedState)
+
+                                            // Mostrar feedback al usuario
+                                            Toast.makeText(
+                                                context,
+                                                if (newLikedState) "Añadido a tu biblioteca" else "Eliminado de tu biblioteca",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
+
+                                            // Cerrar el bottom sheet
+                                            onDismiss()
+                                        } catch (e: Exception) {
+                                            Log.e("BottomSheetContent", "Error: ${e.message}")
+                                            Toast.makeText(
+                                                context,
+                                                "Error al actualizar la biblioteca",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
+                                        }
+                                    }
+                                }
+                            }
+                        )
+                    }
 
                     if(playlistMeGusta != "Vibra_likedSong" && soyPropietario) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Log.d("PlaylistPrivacy", "Estado actual: ${playlistInfo?.esPublica}")
+                        SongOptionItem(
+                            // Cambiamos la condición aquí para mostrar el texto correcto
+                            text = if (playlistInfo?.esPublica == "public") "Convertir a privada" else "Convertir a pública",
+                            onClick = {
+                                coroutineScope.launch {
+                                    if (playlistId != null && playlistInfo != null) {
+                                        try {
+                                            // Invertir el estado actual
+                                            // Llamar a la API para cambiar el estado
+                                            val response = togglePlaylistType(playlistId, playlistInfo)
+
+                                            if (response != null) {
+                                                // Actualizar el estado de la playlist localmente
+                                                playlistInfo.esPublica = response
+
+                                                Log.d("PlaylistPrivacy", "Nuevo estado: ${playlistInfo.esPublica}")
+
+                                                // Mostrar mensaje de confirmación
+                                                Toast.makeText(
+                                                    context,
+                                                    if (response == "public") "La playlist ahora es pública" else "La playlist ahora es privada",
+                                                    Toast.LENGTH_SHORT
+                                                ).show()
+                                                onPlaylistUpdated(playlistInfo)
+                                            }
+                                            onDismiss()
+                                        } catch (e: Exception) {
+                                            Toast.makeText(
+                                                context,
+                                                "Error al cambiar la privacidad de la playlist",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
+                                        }
+                                    }
+                                }
+                            }
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        SongOptionItem("Editar colaboradores", onClick = dismiss)
+                        Spacer(modifier = Modifier.height(8.dp))
                         // Opción "Eliminar Playlist" con estilo personalizado
                         SongOptionItem("Editar Playlist",
                             onClick = {

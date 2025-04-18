@@ -257,7 +257,7 @@ fun ArtistScreen(navController: NavController, playerViewModel: MusicPlayerViewM
                             )
                     )
 
-                    // Botón de volver (ahora encima de la imagen)
+                    // Botón de volver
                     IconButton(
                         onClick = { navController.popBackStack() },
                         modifier = Modifier
@@ -309,7 +309,7 @@ fun ArtistScreen(navController: NavController, playerViewModel: MusicPlayerViewM
                             Text(
                                 text = it.name,
                                 color = Color.White,
-                                fontSize = 48.sp,
+                                fontSize = 40.sp,
                                 fontWeight = FontWeight.Bold,
                                 style = TextStyle(
                                     fontFamily = Rubik,

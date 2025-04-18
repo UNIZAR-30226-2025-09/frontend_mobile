@@ -17,6 +17,7 @@ import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
+import java.io.DataOutputStream
 
 object ApiClient {
     //const val BASE_URL = "http://10.0.2.2/request/api" // Usa la IP local del backend
@@ -1211,6 +1212,83 @@ object ApiClient {
                 }
             } catch (e: Exception) {
                 Log.e("isPlaylistOwner", "Excepción al verificar propiedad de playlist", e)
+                null
+            }
+        }
+    }
+
+    /**
+     * Cambia el tipo de una playlist entre 'public' y 'private'.
+     *
+     * @param playlistId El ID de la playlist a modificar
+     * @param currentPlaylist La playlist actual para obtener su tipo
+     * @return El nuevo tipo de la playlist ('public' o 'private'), o null si hay un error
+     */
+    suspend fun togglePlaylistType(playlistId: String, playlistInfo: Playlist): String? {
+        return withContext(Dispatchers.IO) {
+            try {
+                // Validar parámetro
+                if (playlistId.isBlank()) {
+                    Log.e("togglePlaylistType", "ID de playlist inválido")
+                    return@withContext null
+                }
+
+                // Determinamos el nuevo tipo
+                val currentType = playlistInfo.esPublica
+                val newType = if (currentType == "private") "public" else "private"
+
+                val url = URL("$BASE_URL/playlists/$playlistId")
+                val connection = url.openConnection() as HttpURLConnection
+                connection.apply {
+                    requestMethod = "PUT"
+                    setRequestProperty("Content-Type", "application/json")
+                    setRequestProperty("Accept", "application/json")
+                    connectTimeout = 10000 // 10 segundos
+                    readTimeout = 10000 // 10 segundos
+                    doOutput = true
+                }
+
+                // Creamos el cuerpo de la petición, manteniendo los valores actuales excepto el tipo
+                val requestBody = JSONObject().apply {
+                    put("name", playlistInfo.title)
+                    put("description", playlistInfo.description)
+                    put("type", newType)
+                    put("front_page", playlistInfo.imageUrl)
+                }
+
+                // Enviamos los datos en el cuerpo de la petición
+                val outputStream = DataOutputStream(connection.outputStream)
+                outputStream.writeBytes(requestBody.toString())
+                outputStream.flush()
+                outputStream.close()
+
+                when (val responseCode = connection.responseCode) {
+                    HttpURLConnection.HTTP_OK -> {
+                        val response = connection.inputStream.bufferedReader().use { it.readText() }
+                        Log.d("togglePlaylistType", "Respuesta: $response")
+
+                        val jsonObject = JSONObject(response)
+
+                        // Actualizamos la información de la playlist en memoria
+                        playlistInfo.esPublica = newType
+
+                        return@withContext newType
+                    }
+
+                    HttpURLConnection.HTTP_NOT_FOUND -> {
+                        Log.e("togglePlaylistType", "La playlist especificada no existe")
+                        null
+                    }
+
+                    else -> {
+                        Log.e("togglePlaylistType", "Código de respuesta de error: $responseCode")
+                        val errorResponse = connection.errorStream?.bufferedReader()?.use { it.readText() }
+                        Log.e("togglePlaylistType", "Respuesta de error: $errorResponse")
+                        null
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("togglePlaylistType", "Excepción al cambiar el tipo de la playlist", e)
                 null
             }
         }

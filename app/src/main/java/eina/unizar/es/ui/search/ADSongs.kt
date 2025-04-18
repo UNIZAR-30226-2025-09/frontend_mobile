@@ -238,30 +238,43 @@ fun ADSongs(
                                                 isProcessingAction = true
                                                 viewModel.viewModelScope.launch {
                                                     try {
-                                                        // Llamamos a la función del ApiClient
-                                                        val result = handleSongToPlaylist(
-                                                            songId = songId,
-                                                            playlistId = playlist.id,
-                                                            operation = !isInPlaylist // Si no está en la playlist, añadir; si está, eliminar
-                                                        )
-                                                        val success = result != null
-                                                        if (success) {
-                                                            // Actualizamos el estado local
-                                                            songPlaylistIds = if (isInPlaylist) {
-                                                                val newSet = songPlaylistIds.minus(playlist.id)
-                                                                Log.d("ADSongs", "Canción eliminada de ${playlist.title}. Playlists restantes: ${newSet.size}")
-                                                                newSet
-                                                            } else {
-                                                                val newSet = songPlaylistIds.plus(playlist.id)
-                                                                Log.d("ADSongs", "Canción añadida a ${playlist.title}. Total playlists: ${newSet.size}")
-                                                                newSet
-                                                            }
+                                                        // Check if this is the "liked songs" playlist
+                                                        if (playlist.esAlbum == "Vibra_likedSong") {
+                                                            // Use the toggleSongLike function for liked songs playlist
+                                                            viewModel.toggleSongLike(songId, userId)
 
-                                                            // Mostrar todas las playlists donde está la canción después de la operación
-                                                            Log.d("ADSongs", "Playlists actuales con esta canción:")
-                                                            songPlaylistIds.forEach { playlistId ->
-                                                                val playlistName = playlists.find { it.id == playlistId }?.title ?: "Playlist desconocida"
-                                                                Log.d("ADSongs", "- ID: $playlistId, Nombre: $playlistName")
+                                                            // Update the UI state immediately for better feedback
+                                                            songPlaylistIds = if (isInPlaylist) {
+                                                                songPlaylistIds.minus(playlist.id)
+                                                            } else {
+                                                                songPlaylistIds.plus(playlist.id)
+                                                            }
+                                                        } else {
+                                                            // Regular playlist handling (existing code)
+                                                            val result = handleSongToPlaylist(
+                                                                songId = songId,
+                                                                playlistId = playlist.id,
+                                                                operation = !isInPlaylist
+                                                            )
+                                                            val success = result != null
+                                                            if (success) {
+                                                                // Actualizamos el estado local
+                                                                songPlaylistIds = if (isInPlaylist) {
+                                                                    val newSet = songPlaylistIds.minus(playlist.id)
+                                                                    Log.d("ADSongs", "Canción eliminada de ${playlist.title}. Playlists restantes: ${newSet.size}")
+                                                                    newSet
+                                                                } else {
+                                                                    val newSet = songPlaylistIds.plus(playlist.id)
+                                                                    Log.d("ADSongs", "Canción añadida a ${playlist.title}. Total playlists: ${newSet.size}")
+                                                                    newSet
+                                                                }
+
+                                                                // Mostrar todas las playlists donde está la canción después de la operación
+                                                                Log.d("ADSongs", "Playlists actuales con esta canción:")
+                                                                songPlaylistIds.forEach { playlistId ->
+                                                                    val playlistName = playlists.find { it.id == playlistId }?.title ?: "Playlist desconocida"
+                                                                    Log.d("ADSongs", "- ID: $playlistId, Nombre: $playlistName")
+                                                                }
                                                             }
                                                         }
                                                     } catch (e: Exception) {
