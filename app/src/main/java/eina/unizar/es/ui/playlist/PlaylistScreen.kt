@@ -770,7 +770,13 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                                     songId = song.id.toString(),
                                     viewModel = playerViewModel,
                                     songTitle = song.name, // Pasa el título de la canción
-                                    artistName = artistName // Pasa el nombre del artista
+                                    artistName = artistName, // Pasa el nombre del artista
+                                    onClick = {
+                                        // Aquí puedes manejar la acción de añadir a la cola
+                                        // Por ejemplo, puedes usar el ViewModel para añadir la canción a la cola
+                                        playerViewModel.addToQueue(song.id.toString())
+                                        Toast.makeText(context, "Añadido a la cola", Toast.LENGTH_SHORT).show()
+                                    }
                                 )
                             }
                         }

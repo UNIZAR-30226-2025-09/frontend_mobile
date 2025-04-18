@@ -2,6 +2,7 @@ package eina.unizar.es.ui.search
 
 import android.annotation.SuppressLint
 import android.util.Log
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -241,7 +242,13 @@ fun SearchScreen(navController: NavController, playerViewModel: MusicPlayerViewM
                                         songId = song.id.toString(),
                                         viewModel = playerViewModel,
                                         songTitle = song.name,
-                                        artistName = artistName
+                                        artistName = artistName,
+                                        onClick = {
+                                            // Aquí puedes manejar la acción de añadir a la cola
+                                            // Por ejemplo, puedes usar el ViewModel para añadir la canción a la cola
+                                            playerViewModel.addToQueue(song.id.toString())
+                                            Toast.makeText(context, "Añadido a la cola", Toast.LENGTH_SHORT).show()
+                                        }
                                     )
                                 }
                             }
