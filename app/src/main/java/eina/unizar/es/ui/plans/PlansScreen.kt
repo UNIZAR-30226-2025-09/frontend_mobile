@@ -36,10 +36,15 @@ import org.json.JSONObject
 import kotlin.math.min
 
 @Composable
-fun PlansScreen(paymentSheet: PaymentSheet, navController: NavController, isPremium: Boolean, playerViewModel: MusicPlayerViewModel) {
+fun PlansScreen(paymentSheet: PaymentSheet, navController: NavController,
+                isPremium: Boolean, playerViewModel: MusicPlayerViewModel,
+                isViewOnly: Boolean) {
+
+
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     var isPremium by remember { mutableStateOf(isPremium) }
+    var isViewOnly by remember { mutableStateOf(isViewOnly) }
     var isPaymentReady by remember { mutableStateOf(false) }
     var showDialog by remember { mutableStateOf(false) }
     var changingToPremium by remember { mutableStateOf(false) }
@@ -93,7 +98,7 @@ fun PlansScreen(paymentSheet: PaymentSheet, navController: NavController, isPrem
                 buttonColor = Color(0xFFFFAFC1),
                 textColor = Color(0xFFFFAFC1),
                 iconResId = R.drawable.logorosa,
-                isCurrentPlan = !isPremium,
+                isCurrentPlan = !isPremium && !isViewOnly,
                 onClick = {
                     if (previousRoute == "settings") {
                         if (!isPremium) {
@@ -108,7 +113,8 @@ fun PlansScreen(paymentSheet: PaymentSheet, navController: NavController, isPrem
                     } else {
                         navController.popBackStack()
                     }
-                }
+                },
+                isViewOnly = isViewOnly
             )
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -127,7 +133,7 @@ fun PlansScreen(paymentSheet: PaymentSheet, navController: NavController, isPrem
                 buttonColor = Color(0xFFB0C4DE),
                 textColor = Color(0xFFB0C4DE),
                 iconResId = R.drawable.logoazul,
-                isCurrentPlan = isPremium,
+                isCurrentPlan = isPremium && !isViewOnly,
                 onClick = {
                     if (previousRoute == "settings") {
                         if (isPremium) {
@@ -139,7 +145,8 @@ fun PlansScreen(paymentSheet: PaymentSheet, navController: NavController, isPrem
                     } else {
                         navController.popBackStack()
                     }
-                }
+                },
+                isViewOnly = isViewOnly
             )
         }
         // Diálogo de confirmación
@@ -268,6 +275,7 @@ fun PlanCard(
     textColor: Color,
     iconResId: Int, // Se agrega el logo como parámetro
     isCurrentPlan: Boolean, //Plan actual
+    isViewOnly: Boolean,
     onClick: () -> Unit
 ) {
 
@@ -276,7 +284,7 @@ fun PlanCard(
             .padding(start = 24.dp)
     ) {
         // Cartelito "Tu plan actual" (solo visible si isCurrentPlan es true)
-        if (isCurrentPlan) {
+        if (isCurrentPlan && !isViewOnly) {
             Text(
                 text = "Tu plan actual",
                 color = Color.White,
@@ -365,7 +373,7 @@ fun PlanCard(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                if (!isCurrentPlan) { // Botón
+                if (!isCurrentPlan && !isViewOnly) { // Botón
                     Button(
                         onClick = onClick,
                         colors = ButtonDefaults.buttonColors(

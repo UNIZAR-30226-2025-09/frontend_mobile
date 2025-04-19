@@ -308,7 +308,7 @@ fun UserRegisterScreen(navController: NavController) {
                         text = subs,
                         fontSize = 12.sp,
                         textAlign = TextAlign.Center,
-                        modifier = Modifier.clickable { navController.navigate("plans") }
+                        modifier = Modifier.clickable { navController.navigate("plans?isViewOnly=true") }
                             .padding(top = 3.dp)
                     )
                 }
