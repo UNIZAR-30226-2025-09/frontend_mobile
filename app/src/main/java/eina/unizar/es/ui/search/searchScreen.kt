@@ -2,6 +2,7 @@ package eina.unizar.es.ui.search
 
 import android.annotation.SuppressLint
 import android.util.Log
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -27,6 +28,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.*
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -240,7 +242,13 @@ fun SearchScreen(navController: NavController, playerViewModel: MusicPlayerViewM
                                         songId = song.id.toString(),
                                         viewModel = playerViewModel,
                                         songTitle = song.name,
-                                        artistName = artistName
+                                        artistName = artistName,
+                                        onClick = {
+                                            // Aquí puedes manejar la acción de añadir a la cola
+                                            // Por ejemplo, puedes usar el ViewModel para añadir la canción a la cola
+                                            playerViewModel.addToQueue(song.id.toString())
+                                            Toast.makeText(context, "Añadido a la cola", Toast.LENGTH_SHORT).show()
+                                        }
                                     )
                                 }
                             }
@@ -441,6 +449,7 @@ fun SearchBar(
                 maxLines = 1,
                 singleLine = true,
                 interactionSource = interactionSource,
+                cursorBrush = SolidColor(Color.White),
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Text,
                     imeAction = ImeAction.Search
