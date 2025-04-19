@@ -11,15 +11,18 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.media3.common.MediaItem
+import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import com.example.musicapp.ui.song.ShuffleMode
 import eina.unizar.es.data.model.network.ApiClient.checkIfSongIsLiked
 import eina.unizar.es.data.model.network.ApiClient.get
+import eina.unizar.es.data.model.network.ApiClient.getSongDetails
 import eina.unizar.es.data.model.network.ApiClient.getUserData
 import eina.unizar.es.data.model.network.ApiClient.likeUnlikeSong
 import eina.unizar.es.ui.playlist.PlaylistScreen
 import eina.unizar.es.ui.playlist.getArtistName
+import eina.unizar.es.ui.song.Song
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -28,6 +31,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.update
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -84,6 +88,10 @@ class MusicPlayerViewModel : ViewModel() {
 
     // Original song list
     private var originalSongList: List<CurrentSong> = emptyList()
+
+    // Cola de reproducción
+    private val _songsQueue = MutableStateFlow<List<Song>>(emptyList())
+    val songsQueue: StateFlow<List<Song>> = _songsQueue
 
     // Función para cambiar el modo shuffle
     fun toggleShuffleMode() {
@@ -312,37 +320,43 @@ class MusicPlayerViewModel : ViewModel() {
                     val response = get("songs/$it")
                     response?.let { res ->
                         val json = JSONObject(res)
+                        val rawUrl = "http://164.90.160.181:5001/${json.getString("url_mp3").removePrefix("/")}"
+                        val formattedUrl = formatSongUrl(rawUrl)
+
                         val selectedSong = CurrentSong(
                             id = json.getInt("id").toString(),
                             title = json.getString("name"),
                             artist = "(artista)",
                             photo = json.getString("photo_video"),
                             albumArt = albumArtResId,
-                            url = "http://164.90.160.181:5001/${json.getString("url_mp3").removePrefix("/")}",
+                            url = formattedUrl, // URL ya formateada
                             lyrics = json.getString("lyrics"),
                             isPlaying = true,
                             progress = 0f
                         )
                         _currentSong.value = selectedSong
-                        initializePlayer(context, selectedSong.url)
+                        initializePlayer(context, formattedUrl)
                     }
                 }
 
-                // Load the list of songs
+                // Load the list of songs with formatted URLs
                 val listResponse = get("songs")
                 listResponse?.let {
                     val jsonArray = JSONArray(it)
                     val fetched = mutableListOf<CurrentSong>()
                     for (i in 0 until jsonArray.length()) {
                         val json = jsonArray.getJSONObject(i)
+                        val rawUrl = "http://164.90.160.181:5001/${json.getString("url_mp3").removePrefix("/")}"
+                        val formattedUrl = formatSongUrl(rawUrl)
+
                         fetched.add(
                             CurrentSong(
                                 id = json.getInt("id").toString(),
                                 title = json.getString("name"),
-                                artist ="Desconocido" ,
+                                artist = "Desconocido",
                                 photo = json.getString("photo_video"),
                                 albumArt = albumArtResId,
-                                url = "http://164.90.160.181:5001/${json.getString("url_mp3").removePrefix("/")}",
+                                url = formattedUrl, // URL ya formateada
                                 lyrics = json.getString("lyrics"),
                                 isPlaying = false,
                                 progress = 0f
@@ -356,6 +370,7 @@ class MusicPlayerViewModel : ViewModel() {
                 }
                 songId?.let { loadLikedStatus(it) }
             } catch (e: Exception) {
+                Log.e("MusicPlayerViewModel", "Error cargando canciones: ${e.message}")
                 e.printStackTrace()
             }
         }
@@ -382,29 +397,90 @@ class MusicPlayerViewModel : ViewModel() {
 
     // Function to initialize the ExoPlayer
     private fun initializePlayer(context: Context, songUri: String) {
-        // Context from the application to avoid memory leaks
-        val appContext = context.applicationContext
+        try {
+            // Context from the application to avoid memory leaks
+            val appContext = context.applicationContext
 
-        if (exoPlayer == null) {
-            exoPlayer = ExoPlayer.Builder(appContext).build()
-        }
+            // Formatear correctamente la URL
+            val formattedUri = formatSongUrl(songUri)
+            Log.d("MusicPlayerViewModel", "Intentando reproducir: $formattedUri")
 
-        // Clean up the previous media items
-        exoPlayer?.removeListener(playerListener)
+            if (exoPlayer == null) {
+                exoPlayer = ExoPlayer.Builder(appContext).build()
+            }
 
-        // Create a new MediaItem
-        val mediaItem = MediaItem.fromUri(songUri)
+            // Clean up the previous media items
+            exoPlayer?.removeListener(playerListener)
 
-        exoPlayer?.apply {
-            setMediaItem(mediaItem)
-            prepare()
-            play()
+            // Create a new MediaItem
+            val mediaItem = MediaItem.fromUri(formattedUri)
 
-            // Configure the player
-            repeatMode = if (_isLooping.value) Player.REPEAT_MODE_ONE else Player.REPEAT_MODE_OFF
+            exoPlayer?.apply {
+                setMediaItem(mediaItem)
+                prepare()
+                play()
 
-            // Add the listener to track playback state
-            addListener(playerListener)
+                // Configure the player
+                repeatMode = if (_isLooping.value) Player.REPEAT_MODE_ONE else Player.REPEAT_MODE_OFF
+
+                // Add the listener to track playback state
+                addListener(playerListener)
+
+                // Añadir un listener específico para errores
+                addListener(object : Player.Listener {
+                    override fun onPlayerError(error: PlaybackException) {
+                        Log.e("MusicPlayerViewModel", "Error de reproducción: ${error.message}")
+
+                        // Intenta cargar la siguiente canción en caso de error
+                        viewModelScope.launch {
+                            // Si hay canciones en cola, intentar con la siguiente
+                            if (_songsQueue.value.isNotEmpty()) {
+                                Log.d("MusicPlayerViewModel", "Intentando con la siguiente canción de la cola")
+                                val nextQueueSong = _songsQueue.value.first()
+                                _songsQueue.value = _songsQueue.value.drop(1)
+
+                                val nextSongUrl = formatSongUrl(nextQueueSong.url_mp3)
+                                val nextCurrentSong = CurrentSong(
+                                    id = nextQueueSong.id.toString(),
+                                    title = nextQueueSong.name,
+                                    artist = "Desconocido",
+                                    photo = nextQueueSong.photo_video,
+                                    albumArt = 0,
+                                    url = nextSongUrl,
+                                    lyrics = nextQueueSong.letra,
+                                    isPlaying = true,
+                                    progress = 0f
+                                )
+
+                                _currentSong.value = nextCurrentSong
+
+                                // Limpiar y cargar nuevo item
+                                exoPlayer?.clearMediaItems()
+                                exoPlayer?.setMediaItem(MediaItem.fromUri(nextSongUrl))
+                                exoPlayer?.prepare()
+                                exoPlayer?.play()
+                            } else if (songList.isNotEmpty()) {
+                                // Si no hay canciones en cola, pasar a la siguiente de la lista
+                                Log.d("MusicPlayerViewModel", "Intentando con la siguiente canción de la lista")
+                                val index = (currentIndex + 1) % songList.size
+                                currentIndex = index
+                                val nextSong = songList[index]
+
+                                _currentSong.value = nextSong.copy(isPlaying = true, progress = 0f)
+
+                                val nextSongUrl = formatSongUrl(nextSong.url)
+                                exoPlayer?.clearMediaItems()
+                                exoPlayer?.setMediaItem(MediaItem.fromUri(nextSongUrl))
+                                exoPlayer?.prepare()
+                                exoPlayer?.play()
+                            }
+                        }
+                    }
+                })
+            }
+        } catch (e: Exception) {
+            Log.e("MusicPlayerViewModel", "Error inicializando player: ${e.message}")
+            e.printStackTrace()
         }
     }
 
@@ -422,32 +498,84 @@ class MusicPlayerViewModel : ViewModel() {
                 startProgressTracking()
             }
             else if (playbackState == Player.STATE_ENDED) {
-                // Only manage the next song if we are not in loop mode
-                // and if we are in loop mode, the viewModel will handle it
+                // Solo gestionamos la siguiente canción si no estamos en modo bucle
                 if (!_isLooping.value) {
                     // Thread Principal
                     viewModelScope.launch {
-                        // Advance to the next song
-                        val index = (currentIndex + 1) % songList.size
-                        currentIndex = index
-                        val nextSong = songList[index]
+                        try {
+                            // Siempre dar prioridad a la cola
+                            if (_songsQueue.value.isNotEmpty()) {
+                                val nextQueueSong = _songsQueue.value.first()
 
-                        // Update the current song
-                        _currentSong.value = nextSong.copy(isPlaying = true, progress = 0f)
+                                // Actualizar la cola (eliminar la primera canción)
+                                _songsQueue.value = _songsQueue.value.drop(1)
 
-                        // Reset the player
-                        exoPlayer?.clearMediaItems()
-                        exoPlayer?.setMediaItem(MediaItem.fromUri(nextSong.url))
-                        exoPlayer?.prepare()
-                        exoPlayer?.play()
+                                // Formatear la URL correctamente
+                                val formattedUrl = formatSongUrl(nextQueueSong.url_mp3)
 
-                        // Load liked status for the next song
-                        loadLikedStatus(nextSong.id)
+                                // Intentar obtener detalles completos para tener el artista
+                                val songDetails = getSongDetails(nextQueueSong.id.toString())
+                                val artistName = songDetails?.get("artist_name") as? String ?: "Desconocido"
+
+                                // Crear una CurrentSong con todos los datos actualizados
+                                val nextCurrentSong = CurrentSong(
+                                    id = nextQueueSong.id.toString(),
+                                    title = nextQueueSong.name,
+                                    artist = artistName,
+                                    photo = nextQueueSong.photo_video,
+                                    albumArt = 0,
+                                    url = formattedUrl,
+                                    lyrics = nextQueueSong.letra,
+                                    isPlaying = true,
+                                    progress = 0f
+                                )
+
+                                // Actualizar la canción actual
+                                _currentSong.value = nextCurrentSong
+
+                                // Preparar el reproductor
+                                exoPlayer?.clearMediaItems()
+                                exoPlayer?.setMediaItem(MediaItem.fromUri(formattedUrl))
+                                exoPlayer?.prepare()
+                                exoPlayer?.play()
+
+                                // Cargar estado de like
+                                loadLikedStatus(nextCurrentSong.id)
+
+                                Log.d("MusicPlayerViewModel", "Reproduciendo siguiente de la cola: ${nextQueueSong.name} (Artista: $artistName)")
+                            } else {
+                                // Si no hay canciones en la cola, pasar a la siguiente de la lista normal
+                                val index = (currentIndex + 1) % songList.size
+                                currentIndex = index
+                                val nextSong = songList[index]
+
+                                // Formatear la URL correctamente
+                                val formattedUrl = formatSongUrl(nextSong.url)
+
+                                // Update the current song
+                                _currentSong.value = nextSong.copy(isPlaying = true, progress = 0f)
+
+                                // Reset the player
+                                exoPlayer?.clearMediaItems()
+                                exoPlayer?.setMediaItem(MediaItem.fromUri(formattedUrl))
+                                exoPlayer?.prepare()
+                                exoPlayer?.play()
+
+                                // Load liked status for the next song
+                                loadLikedStatus(nextSong.id)
+
+                                Log.d("MusicPlayerViewModel", "Reproduciendo siguiente de la lista: ${nextSong.title}")
+                            }
+                        } catch (e: Exception) {
+                            // Error handling code...
+                        }
                     }
                 }
             }
         }
     }
+
+
 
     // Function to start tracking the song progress
     private fun startProgressTracking() {
@@ -483,6 +611,7 @@ class MusicPlayerViewModel : ViewModel() {
 
         // Actualiza con el nuevo estado que sabemos es correcto
         _currentSong.value = current.copy(isPlaying = newPlayingState)
+        refreshQueueState()
     }
 
     // Function to get the current song duration
@@ -498,14 +627,59 @@ class MusicPlayerViewModel : ViewModel() {
 
     // Function to pass to the next song
     fun nextSong(context: Context) {
-        if (songList.isEmpty()) return
-        currentIndex = (currentIndex + 1) % songList.size
-        val song = songList[currentIndex]
-        _currentSong.value = song.copy(isPlaying = true, progress = 0f)
-        initializePlayer(context, song.url)
+        // Primero verificar si hay canciones en la cola
+        if (_songsQueue.value.isNotEmpty()) {
+            viewModelScope.launch {
+                try {
+                    // Obtener y remover la primera canción de la cola
+                    val nextQueueSong = _songsQueue.value.first()
+                    _songsQueue.update { it.drop(1) }
 
-        // Load liked status for the new song
-        loadLikedStatus(song.id)
+                    // Formatear la URL correctamente
+                    val formattedUrl = formatSongUrl(nextQueueSong.url_mp3)
+
+                    // Obtener detalles completos de la canción
+                    val songDetails = getSongDetails(nextQueueSong.id.toString())
+                    val artistName = songDetails?.get("artist_name") as? String ?: "Desconocido"
+
+                    // Crear el objeto CurrentSong con todos los datos
+                    val nextCurrentSong = CurrentSong(
+                        id = nextQueueSong.id.toString(),
+                        title = nextQueueSong.name,
+                        artist = artistName,
+                        photo = nextQueueSong.photo_video,
+                        albumArt = 0,
+                        url = formattedUrl,
+                        lyrics = nextQueueSong.letra,
+                        isPlaying = true,
+                        progress = 0f
+                    )
+
+                    // Actualizar el estado antes de inicializar el reproductor
+                    _currentSong.value = nextCurrentSong
+
+                    // Inicializar el reproductor con la nueva canción
+                    initializePlayer(context, formattedUrl)
+
+                    // Cargar estado de like
+                    loadLikedStatus(nextCurrentSong.id)
+
+                    Log.d("MusicPlayer", "Reproduciendo de cola: ${nextCurrentSong.title}")
+                } catch (e: Exception) {
+                    Log.e("MusicPlayer", "Error al pasar a siguiente canción de cola: ${e.message}")
+                }
+            }
+        } else {
+            // Comportamiento original si no hay cola
+            if (songList.isEmpty()) return
+            currentIndex = (currentIndex + 1) % songList.size
+            val song = songList[currentIndex]
+
+            // Actualizar el estado antes de inicializar el reproductor
+            _currentSong.value = song.copy(isPlaying = true, progress = 0f)
+            initializePlayer(context, song.url)
+            loadLikedStatus(song.id)
+        }
     }
 
     // Function to pass to the previous song
@@ -545,14 +719,77 @@ class MusicPlayerViewModel : ViewModel() {
         _likedSongs.value = emptySet()
         _userId = ""
         _isLooping.value = false
+        _songsQueue.value = emptyList()
 
         Log.d("MusicPlayerViewModel", "Todos los datos del reproductor han sido limpiados")
     }
 
-    // Function to stopp the music
-    fun stopMusic() {
-        exoPlayer?.stop()
-        _currentSong.value = _currentSong.value?.copy(isPlaying = false)
+    // Add a queue change state to force UI updates
+    private val _queueChangeCounter = MutableStateFlow(0)
+    val queueChangeCounter = _queueChangeCounter.asStateFlow()
+
+    // Function to add a song to the queue
+    fun addToQueue(songId: String, playNext: Boolean = true) {
+        viewModelScope.launch {
+            try {
+                val songDetails = getSongDetails(songId.toString())
+                songDetails?.let { details ->
+                    // Obtener la URL y formatearla correctamente
+                    val rawSongUrl = details["url_mp3"] as? String ?: return@let
+                    val formattedSongUrl = formatSongUrl(rawSongUrl)
+
+                    val newSong = Song(
+                        id = songId.toInt(),
+                        name = details["name"] as? String ?: "Desconocido",
+                        duration = (details["duration"] as? Int) ?: 0,
+                        photo_video = details["photo_video"] as? String ?: "",
+                        url_mp3 = formattedSongUrl, // URL ya formateada
+                        letra = details["lyrics"] as? String ?: ""
+                    )
+
+                    // Actualizar la cola
+                    _songsQueue.update { currentQueue ->
+                        currentQueue + newSong
+                    }
+
+                    // Notificar cambio para forzar recomposición
+                    refreshQueueState()
+                }
+            } catch (e: Exception) {
+                Log.e("MusicPlayerViewModel", "Error al añadir a la cola: ${e.message}")
+                e.printStackTrace()
+            }
+        }
+    }
+
+    // Add this function to MusicPlayerViewModel
+    fun refreshQueueState() {
+        _queueChangeCounter.value += 1
+    }
+
+    // Función para formatear correctamente la URL de una canción
+    private fun formatSongUrl(rawUrl: String): String {
+        // Verificar si la URL ya está formateada correctamente (comienza con http)
+        if (rawUrl.startsWith("http")) {
+            return rawUrl
+        }
+
+        // Si la URL contiene código JavaScript o texto extraño, extraemos solo la parte de la ruta
+        if (rawUrl.contains("function") || rawUrl.contains("{")) {
+            // Buscar un patrón que podría ser una ruta de archivo
+            val pathPattern = "/songs/.*\\.mp3".toRegex()
+            val matchResult = pathPattern.find(rawUrl)
+
+            if (matchResult != null) {
+                // Extraer solo la parte de la ruta y formatear la URL
+                val path = matchResult.value
+                return "http://164.90.160.181:5001$path"
+            }
+        }
+
+        // Si la URL es solo una ruta relativa, añadir el prefijo del servidor
+        val cleanPath = rawUrl.trim().removePrefix("/")
+        return "http://164.90.160.181:5001/$cleanPath"
     }
 
     // Función para inicializar las canciones con like

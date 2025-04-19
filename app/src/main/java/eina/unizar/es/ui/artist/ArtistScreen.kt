@@ -1,6 +1,7 @@
 package eina.unizar.es.ui.artist
 
 import android.util.Log
+import android.widget.Toast
 import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
@@ -405,7 +406,13 @@ fun ArtistScreen(navController: NavController, playerViewModel: MusicPlayerViewM
                             songId = song.id.toString(),
                             viewModel = playerViewModel,
                             songTitle = song.name, // Pasa el título de la canción
-                            artistName = artistName // Pasa el nombre del artista
+                            artistName = artistName, // Pasa el nombre del artista
+                            onClick = {
+                                // Aquí puedes manejar la acción de añadir a la cola
+                                // Por ejemplo, puedes usar el ViewModel para añadir la canción a la cola
+                                playerViewModel.addToQueue(song.id.toString())
+                                Toast.makeText(context, "Añadido a la cola", Toast.LENGTH_SHORT).show()
+                            }
                         )
                     }
                 }
@@ -605,7 +612,8 @@ fun SongOptionsBottomSheetContent(
     viewModel: MusicPlayerViewModel,
     songId: String,
     songTitle: String,
-    artistName: String
+    artistName: String,
+    onClick: () -> Unit,
 ) {
     val textColor = Color.White
     var showAddToPlaylistDialog by remember { mutableStateOf(false) }
@@ -645,7 +653,7 @@ fun SongOptionsBottomSheetContent(
         ) {
             SongOptionItem("Añadir a lista", onClick = { showAddToPlaylistDialog = true })
             Spacer(modifier = Modifier.height(8.dp))
-            SongOptionItem("Añadir a la cola", onClick = { /* Acción de añadir a la cola */ })
+            SongOptionItem("Añadir a la cola", onClick = onClick)
             Spacer(modifier = Modifier.height(8.dp))
             SongOptionItem("Compartir", onClick = { /* Acción de compartir */ })
         }

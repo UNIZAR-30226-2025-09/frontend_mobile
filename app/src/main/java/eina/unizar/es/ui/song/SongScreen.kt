@@ -2,6 +2,7 @@ package com.example.musicapp.ui.song
 
 import android.annotation.SuppressLint
 import android.util.Log
+import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -145,7 +146,13 @@ fun SongScreen(navController: NavController, playerViewModel: MusicPlayerViewMod
                                 songId = currentSong?.id.toString(),
                                 viewModel = playerViewModel,
                                 songTitle = currentSong?.title ?: "",
-                                artistName = artistName
+                                artistName = artistName,
+                                onClick = {
+                                    // Aquí puedes manejar la acción de añadir a la cola
+                                    // Por ejemplo, puedes usar el ViewModel para añadir la canción a la cola
+                                    playerViewModel.addToQueue(currentSong?.id.toString())
+                                    Toast.makeText(context, "Añadido a la cola", Toast.LENGTH_SHORT).show()
+                                }
                             )
                         }
                     }
