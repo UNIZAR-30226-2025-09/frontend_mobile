@@ -222,8 +222,9 @@ fun UserRegisterScreen(navController: NavController) {
                     Button(
                         onClick = {
                             if (username.isBlank() || email.isBlank() || password.isBlank() || confirmPassword.isBlank()) {
-                                errorMessage =
-                                    "Completa todos los campos." // Establecer mensaje de error
+                                errorMessage = "Completa todos los campos"
+                            } else if (!isEmailValid(email)) {
+                                errorMessage = "El formato de correo no es valido"
                             } else {
                                 errorMessage = null
                                 coroutineScope.launch {
@@ -375,4 +376,12 @@ suspend fun registerUser(username: String, email: String, password: String, conf
         Toast.makeText(context, "Error de conexión: ${e.message}", Toast.LENGTH_LONG).show()
         false
     }
+}
+
+/*
+* Funcion para comprobar que el formato del correo es válido
+*/
+fun isEmailValid(email: String): Boolean {
+    val emailRegex = "^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$".toRegex()
+    return emailRegex.matches(email)
 }
