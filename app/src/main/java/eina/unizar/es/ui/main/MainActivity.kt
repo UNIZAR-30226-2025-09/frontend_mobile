@@ -93,12 +93,33 @@ class MainActivity : ComponentActivity() {
                 val scheme = uri.scheme
                 val host = uri.host
                 val path = uri.pathSegments
-
+/*
                 if (scheme == "vibra" && host == "playlist" && path.isNotEmpty()) {
                     val playlistId = path[0]
                     Log.d("DeepLink", "Abriendo playlist: $playlistId")
                     navController.navigate("playlist/$playlistId")
                 }
+*/
+                when {
+                    // Enlace tipo vibra://playlist/123
+                    scheme == "vibra" && host == "playlist" && path.isNotEmpty() -> {
+                        val playlistId = path[0]
+                        Log.d("DeepLink", "Abriendo playlist desde esquema personalizado: $playlistId")
+                        navController.navigate("playlist/$playlistId")
+                    }
+
+                    // Enlace tipo https://vibra.eina.unizar.es/playlist/123
+                    (scheme == "http" || scheme == "https")
+                            && host == "vibra.eina.unizar.es"
+                            && path.size >= 2
+                            && path[0] == "playlist" -> {
+
+                        val playlistId = path[1]
+                        Log.d("DeepLink", "Abriendo playlist desde HTTPS: $playlistId")
+                        navController.navigate("playlist/$playlistId")
+                    }
+                }
+
             }
         }
     }

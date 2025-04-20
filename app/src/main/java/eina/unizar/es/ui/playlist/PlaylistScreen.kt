@@ -18,6 +18,7 @@ import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -872,6 +873,8 @@ fun BottomSheetContent(
         showAlertDialog = false
     }
 
+    //Estado para pop up de eliminar la playlist
+    var showDeleteConfirmation by remember { mutableStateOf(false) }
 
     // Estado para controlar si mostrar las opciones de compartir
     var showShareOptions by remember { mutableStateOf(false) }
@@ -1131,19 +1134,7 @@ fun BottomSheetContent(
                             text = "Eliminar Playlist",
                             textColor = Color(0xFFFF6B6B),
                             onClick = {
-                                // Llamada al backend en una corrutina
-                                scope.launch {
-                                    if (!playlistId.isNullOrEmpty()) {
-                                        try {
-                                            eliminarPlaylistEnBackend(playlistId)
-                                            // Si se elimina con éxito, realizamos un popBackStack
-                                            navController.popBackStack()
-                                            // Cierra tu bottomSheet como veas (estado local, etc.)
-                                        } catch (e: Exception) {
-                                            println("Error al eliminar la playlist: ${e.message}")
-                                        }
-                                    }
-                                }
+                                showDeleteConfirmation = true
                             }
                         )
                     }
@@ -1247,6 +1238,30 @@ fun BottomSheetContent(
             )
         }
     }
+
+    ConfirmationDialog(
+        showDialog = showDeleteConfirmation,
+        playlistName = playlistTitle,
+        onDismiss = {
+            // Se ejecuta al pulsar Cancelar o fuera del diálogo
+            showDeleteConfirmation = false
+        },
+        onConfirm = {
+            // Llamada al backend en una corrutina
+            scope.launch {
+                if (!playlistId.isNullOrEmpty()) {
+                    try {
+                        eliminarPlaylistEnBackend(playlistId)
+                        // Si se elimina con éxito, realizamos un popBackStack
+                        navController.popBackStack()
+                        // Cierra tu bottomSheet como veas (estado local, etc.)
+                    } catch (e: Exception) {
+                        println("Error al eliminar la playlist: ${e.message}")
+                    }
+                }
+            }
+        }
+    )
 }
 
 
@@ -1345,6 +1360,90 @@ fun StarRatingDialog(
                     Text("Cancelar", color = VibraBlack)
                 }
             }
+        )
+    }
+}
+
+/*
+* Pop up para confirmar si quieres eliminar la lista
+*/
+@Composable
+fun ConfirmationDialog(
+    showDialog: Boolean,
+    playlistName: String,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    if (showDialog) {
+        AlertDialog(
+            onDismissRequest = onDismiss,
+            shape = RoundedCornerShape(16.dp),  // Bordes redondeados
+            title = {
+                Box(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "¿Eliminar playlist?",
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontWeight = FontWeight.Bold
+                        ),
+                        color = Color.White,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            },
+            text = {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = "\"$playlistName\"",
+                        style = MaterialTheme.typography.bodyLarge.copy(
+                            fontWeight = FontWeight.Medium
+                        ),
+                        color = Color.White,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+
+                    Text(
+                        text = "Esta acción no se puede deshacer",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color.LightGray.copy(alpha = 0.8f),
+                        textAlign = TextAlign.Center
+                    )
+                }
+            },
+            confirmButton = {
+                OutlinedButton(
+                    onClick = onConfirm,
+                    border = BorderStroke(1.dp, Color.Red),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.padding(end = 8.dp)
+                ) {
+                    Text(
+                        text = "Eliminar",
+                        color = Color.Red,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            },
+            dismissButton = {
+                OutlinedButton(
+                    onClick = onDismiss,
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.5f)),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text(
+                        text = "Cancelar",
+                        color = Color.White,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            },
+            containerColor = Color(0xFF2A2A2A)
         )
     }
 }
