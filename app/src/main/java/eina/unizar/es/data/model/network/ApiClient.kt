@@ -20,10 +20,10 @@ import org.json.JSONArray
 import java.io.DataOutputStream
 
 object ApiClient {
-    //const val BASE_URL = "http://10.0.2.2/request/api" // Usa la IP local del backend
-    //const val BASE_URL_IMG = "http://10.0.2.2/request"
-    const val BASE_URL = "http://164.90.160.181/request/api" // Usa la IP publica (nube) del backend
-    const val BASE_URL_IMG = "http://164.90.160.181/request"
+    const val BASE_URL = "http://10.0.2.2/request/api" // Usa la IP local del backend
+    const val BASE_URL_IMG = "http://10.0.2.2/request"
+    //const val BASE_URL = "http://164.90.160.181/request/api" // Usa la IP publica (nube) del backend
+    //const val BASE_URL_IMG = "http://164.90.160.181/request"
 
 
 
@@ -302,7 +302,8 @@ object ApiClient {
                         "nickname" to jsonResponse.optString("nickname", ""),
                         "mail" to jsonResponse.optString("mail", ""),
                         "is_premium" to jsonResponse.optBoolean("is_premium", false),
-                        "user_picture" to jsonResponse.optString("user_picture", "")
+                        "user_picture" to jsonResponse.optString("user_picture", ""),
+                        "daily_skips" to jsonResponse.optInt("daily_skips", 0),
                     )
                 }
             } catch (e: Exception) {
@@ -1455,6 +1456,50 @@ object ApiClient {
         } catch (e: Exception) {
             Log.e("UpdatePlaylist", "Error: ${e.message}")
             Pair(500, "Error de conexión")
+        }
+    }
+
+    /**
+     * Función para consumir el endpoint que resta un skip diario a un usuario.
+     *
+     * @param userId ID del usuario al que se le desea restar un skip.
+     * @return JSONObject con la respuesta del servidor o `null` en caso de error.
+     */
+    suspend fun skipsLessApi(userId: String): JSONObject? {
+        return withContext(Dispatchers.IO) {
+            try {
+                val client = OkHttpClient()
+
+                val request = Request.Builder()
+                    .url("$BASE_URL/user/use-daily-skip/$userId")
+                    .post("".toRequestBody("application/json".toMediaTypeOrNull()))
+                    .addHeader("Content-Type", "application/json")
+                    .build()
+
+                client.newCall(request).execute().use { response ->
+                    val responseBody = response.body?.string()
+
+                    if (!response.isSuccessful) {
+                        Log.e("API", "Error en la respuesta: código ${response.code}, cuerpo: $responseBody")
+                        if (response.code == 400 && responseBody != null) {
+                            // Return the error response so we can handle it properly
+                            return@withContext JSONObject(responseBody)
+                        }
+                        null
+                    } else {
+                        Log.d("API", "Respuesta skip: $responseBody")
+                        if (responseBody != null) {
+                            JSONObject(responseBody)
+                        } else {
+                            null
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("ApiClient", "Error en skipsLessApi: ${e.message}")
+                e.printStackTrace()
+                null
+            }
         }
     }
 

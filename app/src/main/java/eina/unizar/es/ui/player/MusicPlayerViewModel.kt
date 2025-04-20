@@ -15,14 +15,18 @@ import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import com.example.musicapp.ui.song.ShuffleMode
+import eina.unizar.es.R
 import eina.unizar.es.data.model.network.ApiClient.checkIfSongIsLiked
 import eina.unizar.es.data.model.network.ApiClient.get
 import eina.unizar.es.data.model.network.ApiClient.getSongDetails
 import eina.unizar.es.data.model.network.ApiClient.getUserData
 import eina.unizar.es.data.model.network.ApiClient.likeUnlikeSong
+import eina.unizar.es.data.model.network.ApiClient.post
+import eina.unizar.es.data.model.network.ApiClient.skipsLessApi
 import eina.unizar.es.ui.playlist.PlaylistScreen
 import eina.unizar.es.ui.playlist.getArtistName
 import eina.unizar.es.ui.song.Song
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -92,6 +96,27 @@ class MusicPlayerViewModel : ViewModel() {
     // Cola de reproducción
     private val _songsQueue = MutableStateFlow<List<Song>>(emptyList())
     val songsQueue: StateFlow<List<Song>> = _songsQueue
+
+    private val _isPremiumUser = MutableStateFlow(false)
+    val isPremiumUser: StateFlow<Boolean> = _isPremiumUser
+
+    private val _skipsRemainingToday = MutableStateFlow(0)
+    val skipsRemainingToday: StateFlow<Int> = _skipsRemainingToday.asStateFlow()
+
+    private val maxFreeSkips = 5
+    private val _currentAd = MutableStateFlow<Ad?>(null)
+    val currentAd: StateFlow<Ad?> = _currentAd
+    private val _canSkipSongs = MutableStateFlow(true)
+    val canSkipSongs: StateFlow<Boolean> = _canSkipSongs
+
+    // Modelo para los anuncios
+    data class Ad(
+        val id: String,
+        val title: String,
+        val content: String,
+        val imageUrl: String,
+        val audioUrl: String
+    )
 
     // Función para cambiar el modo shuffle
     fun toggleShuffleMode() {
@@ -180,19 +205,68 @@ class MusicPlayerViewModel : ViewModel() {
         return _userId
     }
 
-    // Function to set the userId when context is available
+    // Function to set the userId when context is available (when we launch App)
     fun setUserId(context: Context) {
         viewModelScope.launch {
             try {
                 val userData = getUserData(context)
                 if (userData != null) {
                     _userId = (userData["id"] ?: "").toString()
+                    _isPremiumUser.value = (userData["is_premium"] as? Boolean) ?: false
+                    _skipsRemainingToday.value = (userData["daily_skips"] as? Int) ?: 0
+
+                    _currentAd.value = null
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
             }
         }
     }
+
+    // Function to set the premium user (after we launch App)
+    fun setPremiumUser(context: Context) {
+        viewModelScope.launch {
+            try {
+                val userData = getUserData(context)
+                if (userData != null) {
+                    _isPremiumUser.value = (userData["is_premium"] as? Boolean) ?: false
+                    _skipsRemainingToday.value = (userData["daily_skips"] as? Int) ?: 0
+                    Log.d("MusicPlayerViewModel", "Usuario cargado. Premium: ${_isPremiumUser.value}, Skips restantes: ${_skipsRemainingToday.value}")
+
+                    Log.d("MusicPlayerViewModel", "Usuario cargado. Premium: ${_isPremiumUser.value}")
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    // Función para cargar anuncios desde la API
+    private suspend fun loadAds(context: Context): List<Ad> {
+        return try {
+            val response = get("songs/adds") ?: return emptyList()
+            val jsonArray = JSONArray(response)
+            val ads = mutableListOf<Ad>()
+
+            for (i in 0 until jsonArray.length()) {
+                val json = jsonArray.getJSONObject(i)
+                ads.add(
+                    Ad(
+                        id = json.getInt("id").toString(),
+                        title = json.getString("name"),
+                        content = json.optString("description", ""),
+                        imageUrl = "http://164.90.160.181:5001/${json.getString("photo_video").removePrefix("/")}",
+                        audioUrl = formatSongUrl("http://164.90.160.181:5001/${json.getString("url_mp3").removePrefix("/")}")
+                    )
+                )
+            }
+            ads
+        } catch (e: Exception) {
+            Log.e("MusicPlayerViewModel", "Error cargando anuncios: ${e.message}")
+            emptyList()
+        }
+    }
+
     // Function to load initial liked status
     fun loadLikedStatus(songId: String?) {
         viewModelScope.launch {
@@ -627,6 +701,94 @@ class MusicPlayerViewModel : ViewModel() {
 
     // Function to pass to the next song
     fun nextSong(context: Context) {
+        // Verificar si el usuario es premium
+        viewModelScope.launch {
+            setPremiumUser(context)
+        }
+
+        // Si el usuario no es premium y no puede saltar canciones, no hacer nada
+        if (!_canSkipSongs.value && !_isPremiumUser.value) {
+            Log.d("MusicPlayer", "Usuario no premium ha excedido el límite de saltos")
+            return
+        }
+
+        // Si el usuario no es premium, contamos el salto
+        if (!_isPremiumUser.value) {
+            viewModelScope.launch {
+                try {
+                    // Llamar a la API
+                    val response = skipsLessApi(_userId)
+                    Log.d("MusicPlayer", "Saltos restantes actualizados: $skipsRemainingToday")
+                } catch (e: Exception) {
+                    Log.e("MusicPlayer", "Error al actualizar saltos: ${e.message}")
+                    e.printStackTrace()
+                }
+            }
+            // Si alcanzó el límite, mostrar anuncio
+            if (_skipsRemainingToday.value == 0) {
+                viewModelScope.launch {
+                    // Cargar anuncio y añadirlo a la cola
+                    val ads = loadAds(context)
+                    if (ads.isNotEmpty()) {
+                        val randomAd = ads.random()
+
+                        // Almacenar el anuncio actual para mostrar información
+                        _currentAd.value = randomAd
+
+                        // Convertir anuncio a formato Song para la cola
+                        val adAsSong = Song(
+                            id = randomAd.id.toIntOrNull() ?: -1,
+                            name = "${randomAd.title}",
+                            duration = 21, // Duración estimada del anuncio
+                            photo_video = "Vibra",
+                            url_mp3 = randomAd.audioUrl,
+                            letra = randomAd.content
+                        )
+
+                        // Añadir anuncio como próxima canción en la cola
+                        _songsQueue.update {
+                            listOf(adAsSong) + it
+                        }
+
+                        // Deshabilitar saltos adicionales hasta que se reproduzca el anuncio
+                        _canSkipSongs.value = false
+
+                        // Forzar actualización de la interfaz
+                        refreshQueueState()
+
+                        Log.d("MusicPlayer", "Anuncio añadido a la cola: ${randomAd.title}")
+
+                        // Reproducir inmediatamente el anuncio
+                        if (_songsQueue.value.isNotEmpty()) {
+                            val adSong = _songsQueue.value.first()
+                            _songsQueue.update { it.drop(1) }
+
+                            // Crear CurrentSong a partir del anuncio
+                            val adCurrentSong = CurrentSong(
+                                id = adSong.id.toString(),
+                                title = adSong.name,
+                                artist = "Vibra",
+                                photo = "defaultx.jpg",
+                                albumArt = 0,
+                                url = adSong.url_mp3,
+                                lyrics = adSong.letra,
+                                isPlaying = true,
+                                progress = 0f
+                            )
+
+                            // Actualizar estado y reproducir
+                            _currentSong.value = adCurrentSong
+                            initializePlayer(context, adSong.url_mp3)
+                        }
+                    } else {
+                        Log.d("MusicPlayer", "No hay anuncios disponibles")
+                        // Si no hay anuncios, permitir saltos adicionales
+                        _canSkipSongs.value = true
+                    }
+                }
+                return
+            }
+        }
         // Primero verificar si hay canciones en la cola
         if (_songsQueue.value.isNotEmpty()) {
             viewModelScope.launch {
@@ -726,7 +888,6 @@ class MusicPlayerViewModel : ViewModel() {
 
     // Add a queue change state to force UI updates
     private val _queueChangeCounter = MutableStateFlow(0)
-    val queueChangeCounter = _queueChangeCounter.asStateFlow()
 
     // Function to add a song to the queue
     fun addToQueue(songId: String, playNext: Boolean = true) {

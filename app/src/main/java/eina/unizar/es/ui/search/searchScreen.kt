@@ -100,6 +100,9 @@ fun SearchScreen(navController: NavController, playerViewModel: MusicPlayerViewM
     LaunchedEffect(searchQuery) {
         if (searchQuery.isNotEmpty()) {
             filteredSongs = allSongs.filter { song ->
+                if (song.name == "Anuncio Vibra") {
+                    return@filter false
+                }
                 song.name.contains(searchQuery, ignoreCase = true)
             }
             filteredPlaylists = allPlaylists.filter { playlist ->

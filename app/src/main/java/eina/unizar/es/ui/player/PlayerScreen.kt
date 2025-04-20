@@ -49,6 +49,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -59,6 +60,7 @@ import coil.compose.AsyncImage
 import com.example.musicapp.ui.theme.VibraBlue
 import com.example.musicapp.ui.theme.VibraDarkGrey
 import com.example.musicapp.ui.theme.VibraMediumGrey
+import eina.unizar.es.R
 import eina.unizar.es.data.model.network.ApiClient.checkIfSongIsLiked
 import eina.unizar.es.data.model.network.ApiClient.getImageUrl
 import eina.unizar.es.ui.playlist.getArtistName
@@ -155,9 +157,9 @@ fun FloatingMusicPlayer(navController: NavController, viewModel: MusicPlayerView
 
                                         // Cambiar canción
                                         if (isNext) {
-                                            viewModel.nextSong(context)
+                                            if (currentSong?.title != "Anuncio Vibra") {viewModel.nextSong(context)}
                                         } else {
-                                            viewModel.previousSong(context)
+                                            if (currentSong?.title != "Anuncio Vibra") {viewModel.previousSong(context)}
                                         }
 
                                         // Entrar desde el lado opuesto con una animación suave
@@ -237,7 +239,9 @@ fun FloatingMusicPlayer(navController: NavController, viewModel: MusicPlayerView
                                     color = Color.Gray.copy(alpha = 0.3f),
                                     shape = CircleShape
                                 ),
-                            contentScale = ContentScale.Crop
+                            contentScale = ContentScale.Crop,
+                            placeholder = painterResource(R.drawable.defaultx),
+                            error = painterResource(R.drawable.defaultx)
                         )
 
                         // Pequeño punto central (minimalista)
@@ -268,14 +272,16 @@ fun FloatingMusicPlayer(navController: NavController, viewModel: MusicPlayerView
                             overflow = TextOverflow.Ellipsis
                         )
                         artista?.let {
-                            Text(
-                                text = it,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Light,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                color = onSurfaceColor.copy(alpha = 0.7f)
-                            )
+                            if (it.isNotEmpty()) {
+                                Text(
+                                    text = it,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Light,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    color = onSurfaceColor.copy(alpha = 0.7f)
+                                )
+                            }
                         }
                     }
 
@@ -301,17 +307,19 @@ fun FloatingMusicPlayer(navController: NavController, viewModel: MusicPlayerView
                             )
                         }
 
-                        // Botón de like
-                        IconButton(
-                            onClick = { viewModel.toggleLike(context) },
-                            modifier = Modifier.size(40.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Favorite,
-                                contentDescription = "Me gusta",
-                                tint = if (isLiked) Color(0xFFFF6B6B) else Color.Gray,
-                                modifier = Modifier.size(28.dp)
-                            )
+                        if (currentSong?.title != "Anuncio Vibra") {
+                            // Botón de like
+                            IconButton(
+                                onClick = { viewModel.toggleLike(context) },
+                                modifier = Modifier.size(40.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Favorite,
+                                    contentDescription = "Me gusta",
+                                    tint = if (isLiked) Color(0xFFFF6B6B) else Color.Gray,
+                                    modifier = Modifier.size(28.dp)
+                                )
+                            }
                         }
 
                         // Botón de reproducción/pausa
