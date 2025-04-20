@@ -100,8 +100,8 @@ class MusicPlayerViewModel : ViewModel() {
     private val _isPremiumUser = MutableStateFlow(false)
     val isPremiumUser: StateFlow<Boolean> = _isPremiumUser
 
-    private val _skipsRemainingToday = MutableStateFlow(0)
-    val skipsRemainingToday: StateFlow<Int> = _skipsRemainingToday.asStateFlow()
+    private var _skipsRemainingToday = 0
+    val skipsRemainingToday: Int = _skipsRemainingToday
 
     private val maxFreeSkips = 5
     private val _currentAd = MutableStateFlow<Ad?>(null)
@@ -213,7 +213,7 @@ class MusicPlayerViewModel : ViewModel() {
                 if (userData != null) {
                     _userId = (userData["id"] ?: "").toString()
                     _isPremiumUser.value = (userData["is_premium"] as? Boolean) ?: false
-                    _skipsRemainingToday.value = (userData["daily_skips"] as? Int) ?: 0
+                    _skipsRemainingToday = (userData["daily_skips"] as? Int) ?: 0
 
                     _currentAd.value = null
                 }
@@ -230,8 +230,8 @@ class MusicPlayerViewModel : ViewModel() {
                 val userData = getUserData(context)
                 if (userData != null) {
                     _isPremiumUser.value = (userData["is_premium"] as? Boolean) ?: false
-                    _skipsRemainingToday.value = (userData["daily_skips"] as? Int) ?: 0
-                    Log.d("MusicPlayerViewModel", "Usuario cargado. Premium: ${_isPremiumUser.value}, Skips restantes: ${_skipsRemainingToday.value}")
+                    _skipsRemainingToday = (userData["daily_skips"] as? Int) ?: 0
+                    Log.d("MusicPlayerViewModel", "Usuario cargado. Premium: ${_isPremiumUser.value}, Skips restantes: ${_skipsRemainingToday}")
 
                     Log.d("MusicPlayerViewModel", "Usuario cargado. Premium: ${_isPremiumUser.value}")
                 }
@@ -725,7 +725,7 @@ class MusicPlayerViewModel : ViewModel() {
                 }
             }
             // Si alcanzó el límite, mostrar anuncio
-            if (_skipsRemainingToday.value == 0) {
+            if (_skipsRemainingToday == 1) {
                 viewModelScope.launch {
                     // Cargar anuncio y añadirlo a la cola
                     val ads = loadAds(context)
@@ -882,6 +882,10 @@ class MusicPlayerViewModel : ViewModel() {
         _userId = ""
         _isLooping.value = false
         _songsQueue.value = emptyList()
+        _isPremiumUser.value = false
+        _skipsRemainingToday = 0
+        _currentAd.value = null
+        _canSkipSongs.value = true
 
         Log.d("MusicPlayerViewModel", "Todos los datos del reproductor han sido limpiados")
     }

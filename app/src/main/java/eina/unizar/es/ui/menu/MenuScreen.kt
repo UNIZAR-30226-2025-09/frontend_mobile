@@ -97,6 +97,7 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
 
             // Cargar explícitamente el estado de "me gusta"
             playerViewModel.initializeLikedSongs(playerViewModel.getUserId())
+            playerViewModel.setPremiumUser(context)
         }
 
         val response = get("playlists")
