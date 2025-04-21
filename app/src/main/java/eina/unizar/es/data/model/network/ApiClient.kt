@@ -1503,4 +1503,56 @@ object ApiClient {
         }
     }
 
+    /**
+     * Función para registrar una visita a una playlist por parte de un usuario.
+     *
+     * @param playlistId ID de la playlist visitada.
+     * @param userId ID del usuario que visita la playlist.
+     * @return JSONObject con la respuesta del servidor o `null` en caso de error.
+     */
+    suspend fun recordPlaylistVisit(playlistId: String, userId: String): JSONObject? {
+        return withContext(Dispatchers.IO) {
+            try {
+                val client = OkHttpClient()
+
+                val jsonBody = JSONObject().apply {
+                    put("userId", userId)
+                }
+
+                val requestBody = jsonBody.toString()
+                    .toRequestBody("application/json".toMediaTypeOrNull())
+
+                val request = Request.Builder()
+                    .url("$BASE_URL/playlists/$playlistId/visit")
+                    .post(requestBody)
+                    .addHeader("Content-Type", "application/json")
+                    .build()
+
+                client.newCall(request).execute().use { response ->
+                    val responseBody = response.body?.string()
+
+                    if (!response.isSuccessful) {
+                        Log.e("API", "Error al registrar visita: código ${response.code}, cuerpo: $responseBody")
+                        if (response.code == 400 && responseBody != null) {
+                            // Devolver la respuesta de error para manejarla adecuadamente
+                            return@withContext JSONObject(responseBody)
+                        }
+                        null
+                    } else {
+                        Log.d("API", "Visita registrada: $responseBody")
+                        if (responseBody != null) {
+                            JSONObject(responseBody)
+                        } else {
+                            null
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("ApiClient", "Error en recordPlaylistVisit: ${e.message}")
+                e.printStackTrace()
+                null
+            }
+        }
+    }
+
 }
