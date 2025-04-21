@@ -59,8 +59,19 @@ class MainActivity : ComponentActivity() {
                 // Controlador de navegación
                 if (navigateToSettings.value) {
                     LaunchedEffect(Unit) {
+                        val previousRoute = navController.previousBackStackEntry?.destination?.route
                         navController.navigate("settings") {
-                            popUpTo("home") { inclusive = false }
+                            if (previousRoute == "settings") {
+                                // Si venimos de settings, eliminar toda la pila hasta plans
+                                popUpTo("settings") {
+                                    inclusive = true
+                                }
+                            } else {
+                                // Si venimos de otra pantalla, comportamiento normal
+                                popUpTo("settings") {
+                                    inclusive = false
+                                }
+                            }
                         }
                         navigateToSettings.value = false
                     }
