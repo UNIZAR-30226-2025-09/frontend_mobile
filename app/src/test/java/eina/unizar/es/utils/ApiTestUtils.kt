@@ -1,5 +1,6 @@
 package eina.unizar.es.utils
 
+import android.provider.ContactsContract.CommonDataKinds.Website.URL
 import androidx.test.platform.app.InstrumentationRegistry
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -10,6 +11,8 @@ import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
 import java.io.File
+import java.net.HttpURLConnection
+import java.net.URL
 import java.util.concurrent.TimeUnit
 
 class ApiTestUtils {
@@ -82,6 +85,27 @@ class ApiTestUtils {
         }
     }
 
+
+    fun get(endpoint: String, headers: Map<String, String> = emptyMap()): Pair<Int, JSONObject?> {
+        val connection = (URL(TestConfig.BASE_URL + endpoint).openConnection() as HttpURLConnection).apply {
+            requestMethod = "GET"
+            headers.forEach { (key, value) ->
+                setRequestProperty(key, value)
+            }
+        }
+
+        val responseCode = connection.responseCode
+        val responseBody = connection.inputStream.bufferedReader().use { it.readText() }
+
+        val json = try {
+            JSONObject(responseBody)
+        } catch (e: Exception) {
+            null
+        }
+
+        return Pair(responseCode, json)
+    }
+
     // Función para POST con autenticación
     fun post(endpoint: String, jsonBody: JSONObject): Pair<Int, JSONObject?> {
         val requestBody = jsonBody.toString().toRequestBody("application/json".toMediaType())
@@ -99,6 +123,31 @@ class ApiTestUtils {
                 if (body.isNullOrEmpty()) null else JSONObject(body)
             )
         }
+    }
+
+    fun post(endpoint: String, body: JSONObject, headers: Map<String, String>): Pair<Int, JSONObject?> {
+        val connection = (URL(TestConfig.BASE_URL + endpoint).openConnection() as HttpURLConnection).apply {
+            requestMethod = "POST"
+            doOutput = true
+            setRequestProperty("Content-Type", "application/json")
+            headers.forEach { (key, value) ->
+                setRequestProperty(key, value)
+            }
+        }
+
+        connection.outputStream.use { os ->
+            os.write(body.toString().toByteArray())
+        }
+
+        val responseCode = connection.responseCode
+        val responseBody = connection.inputStream.bufferedReader().use { it.readText() }
+        val json = try {
+            JSONObject(responseBody)
+        } catch (e: Exception) {
+            null
+        }
+
+        return Pair(responseCode, json)
     }
 
     // Función para PUT con autenticación

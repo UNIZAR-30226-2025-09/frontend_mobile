@@ -69,18 +69,26 @@ class UserTest {
             else -> fail("Código de respuesta inesperado: $code")
         }
     }
-
-    /* ESTE TEST NO PASA DEVUELVE CODIGO 500
+    
     @Test
     fun getUserProfileTest() {
         runBlocking {
-            val (code, response) = apiUtils.get("/user/profile") // sin headers explícitos
+            val loginBody = JSONObject()
+                .put("mail", "testuser@test.com")
+                .put("password", "password")
+
+            val (loginCode, loginResponse) = apiUtils.post("/user/login", loginBody)
+            assertEquals(200, loginCode)
+            val token = loginResponse?.getString("token")
+            assertNotNull("Token no recibido", token)
+
+            val headers = mapOf("Authorization" to "Bearer $token")
+            val (code, response) = apiUtils.get("/user/profile", headers)
 
             assertEquals(200, code)
             assertTrue("Respuesta debe ser JSONObject", response is JSONObject)
             assertTrue("Debe contener datos de usuario", (response as JSONObject).has("nickname"))
         }
     }
-    */
 
 }
