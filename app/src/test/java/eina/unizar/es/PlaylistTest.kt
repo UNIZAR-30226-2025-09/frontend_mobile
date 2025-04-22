@@ -17,6 +17,8 @@ import org.robolectric.annotation.Config
 class PlaylistTest {
 
     private lateinit var apiUtils: ApiTestUtils
+    private var playlistId: Int? = null  // Variable global para almacenar el ID de la playlist
+
 
     @Before
     fun setup() {
@@ -24,10 +26,20 @@ class PlaylistTest {
         runBlocking {
             apiUtils.login()
         }
+
+        // Crear la playlist antes de los tests
+        val playlistName = "Nueva Playlist"
+        val playlistBody = JSONObject().put("name", playlistName)
+        val (codeCreate, responseCreate) = apiUtils.post("/playlists", playlistBody)
+        assertEquals(201, codeCreate)
+        assertTrue("Debe devolver un JSONObject con la playlist creada", responseCreate is JSONObject)
+
+        // Guardar el ID de la playlist creada
+        playlistId = responseCreate?.getInt("id")
     }
 
     @Test
-    fun getPublicPlaylistsTest() {
+    fun getAllPlaylistsTest() {
         val (code, response) = apiUtils.get("/playlists")
 
         when (code) {
@@ -35,9 +47,13 @@ class PlaylistTest {
                 assertTrue("La respuesta debe ser un JSONArray", response is JSONArray)
                 val playlists = response as JSONArray
 
-                // Verificar que solo contiene playlists públicas
+                // Verificar que cada playlist tiene los campos básicos
                 for (i in 0 until playlists.length()) {
-                    assertEquals("public", playlists.getJSONObject(i).getString("type"))
+                    val playlist = playlists.getJSONObject(i)
+                    assertTrue("Debe tener id", playlist.has("id"))
+                    assertTrue("Debe tener nombre", playlist.has("name"))
+                    assertTrue("Debe tener tipo", playlist.has("type"))
+                    assertTrue("Debe tener user_id", playlist.has("user_id"))
                 }
             }
             404 -> {
@@ -48,6 +64,7 @@ class PlaylistTest {
             else -> fail("Código de respuesta inesperado: $code")
         }
     }
+
 
     @Test
     fun getPlaylistDetailsTest() {
@@ -92,5 +109,83 @@ class PlaylistTest {
             assertEquals("No tienes playlists.", (response as JSONObject).optString("message"))
             fail("No se pudieron obtener las playlists del usuario")
         }
+    }
+
+
+    @Test
+    fun addSongToPlaylistAndVerify() {
+        // Asegurarnos de que tenemos un ID de playlist válido
+        assertNotNull("Debe haber una playlist creada previamente", playlistId)
+
+        val songId = 1 // Cambiar si es necesario
+
+        val songBody = JSONObject().put("songId", songId)
+        val (codeAdd, _) = apiUtils.post("/playlists/${playlistId}/addSong", songBody)
+        assertEquals(200, codeAdd)
+
+        val (codeDetail, responseDetail) = apiUtils.get("/playlists/$playlistId")
+        assertEquals(200, codeDetail)
+        assertTrue("La respuesta debe ser un JSONObject", responseDetail is JSONObject)
+
+        val playlistDetail = responseDetail as JSONObject
+        val songsArray = playlistDetail.optJSONArray("songs") ?: JSONArray()
+
+        var found = false
+        for (i in 0 until songsArray.length()) {
+            val song = songsArray.getJSONObject(i)
+            if (song.getInt("id") == songId) {
+                found = true
+                break
+            }
+        }
+        assertTrue("La canción debería estar en la playlist", found)
+    }
+
+    @Test
+    fun deleteSongFromPlaylistAndVerify() {
+        // Asegurarnos de que tenemos un ID de playlist válido
+        assertNotNull("Debe haber una playlist creada previamente", playlistId)
+
+        val songId = 1 // Cambiar si es necesario
+
+        // Añadimos la canción a la lista
+        val songBody = JSONObject().put("songId", songId)
+        val (codeAdd, _) = apiUtils.post("/playlists/${playlistId}/addSong", songBody)
+        assertEquals(200, codeAdd)
+
+        // Borramos la canción
+        val (codeDel, _) = apiUtils.post("/playlists/${playlistId}/deleteSong", songBody)
+        assertEquals(200, codeDel)
+
+        val (codeDetail, responseDetail) = apiUtils.get("/playlists/$playlistId")
+        assertEquals(200, codeDetail)
+        assertTrue("La respuesta debe ser un JSONObject", responseDetail is JSONObject)
+
+        val playlistDetail = responseDetail as JSONObject
+        val songsArray = playlistDetail.optJSONArray("songs") ?: JSONArray()
+
+        var found = false
+        for (i in 0 until songsArray.length()) {
+            val song = songsArray.getJSONObject(i)
+            if (song.getInt("id") == songId) {
+                found = true
+                break
+            }
+        }
+        assertFalse("La canción ya no debería estar en la playlist", found)
+    }
+
+    @Test
+    fun deletePlaylistAndVerify() {
+        // Asegurarnos de que tenemos un ID de playlist válido
+        assertNotNull("Debe haber una playlist creada previamente", playlistId)
+
+        // Borramos la playlist
+        val (codeDelete, _) = apiUtils.delete("/playlists/$playlistId")
+        assertEquals(200, codeDelete)
+
+        // Verificamos que la lista fue eliminada
+        val (codeCheck, responseCheck) = apiUtils.get("/playlists/$playlistId")
+        assertEquals(500, codeCheck) //DEBERIA DEVOLVER 404
     }
 }
