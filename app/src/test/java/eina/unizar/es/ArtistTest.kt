@@ -14,7 +14,7 @@ import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
 @Config(manifest = Config.NONE, sdk = [Build.VERSION_CODES.R])
-class ArtistApiTest {
+class ArtistTest {
 
     private lateinit var apiUtils: ApiTestUtils
 
