@@ -714,18 +714,9 @@ class MusicPlayerViewModel : ViewModel() {
 
         // Si el usuario no es premium, contamos el salto
         if (!_isPremiumUser.value) {
-            viewModelScope.launch {
-                try {
-                    // Llamar a la API
-                    val response = skipsLessApi(_userId)
-                    Log.d("MusicPlayer", "Saltos restantes actualizados: $skipsRemainingToday")
-                } catch (e: Exception) {
-                    Log.e("MusicPlayer", "Error al actualizar saltos: ${e.message}")
-                    e.printStackTrace()
-                }
-            }
+            _skipsRemainingToday--
             // Si alcanzó el límite, mostrar anuncio
-            if (_skipsRemainingToday == 1) {
+            if (_skipsRemainingToday <= 0) {
                 viewModelScope.launch {
                     // Cargar anuncio y añadirlo a la cola
                     val ads = loadAds(context)
@@ -787,6 +778,16 @@ class MusicPlayerViewModel : ViewModel() {
                     }
                 }
                 return
+            }
+            viewModelScope.launch {
+                try {
+                    // Llamar a la API
+                    val response = skipsLessApi(_userId)
+                    Log.d("MusicPlayer", "Saltos restantes actualizados: $skipsRemainingToday")
+                } catch (e: Exception) {
+                    Log.e("MusicPlayer", "Error al actualizar saltos: ${e.message}")
+                    e.printStackTrace()
+                }
             }
         }
         // Primero verificar si hay canciones en la cola
