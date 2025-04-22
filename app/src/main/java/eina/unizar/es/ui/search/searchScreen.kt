@@ -60,12 +60,310 @@ import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 
+import android.content.Context
+import android.content.SharedPreferences
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.material.icons.filled.History
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
+
+// Clase para manejar el almacenamiento persistente del historial de búsqueda
+class SearchHistoryManager(private val context: Context) {
+    private val MAX_HISTORY_ITEMS = 10
+    private val HISTORY_KEY_PREFIX = "search_history_"
+
+    // Método para obtener las SharedPreferences específicas del usuario
+    private fun getUserPreferences(userId: String): SharedPreferences {
+        return context.getSharedPreferences("search_history_prefs_$userId", Context.MODE_PRIVATE)
+    }
+
+    // Método para obtener la clave específica para el usuario
+    private fun getHistoryKey(userId: String): String {
+        return HISTORY_KEY_PREFIX + userId
+    }
+
+    // Obtener el historial actual para un usuario específico
+    fun getSearchHistory(userId: String): List<String> {
+        val prefs = getUserPreferences(userId)
+        val historyJson = prefs.getString(getHistoryKey(userId), null) ?: return emptyList()
+        return historyJson.split(",").filter { it.isNotEmpty() }
+    }
+
+    // Añadir una nueva búsqueda al historial de un usuario específico
+    fun addToHistory(query: String, userId: String) {
+        if (query.isBlank()) return
+
+        val prefs = getUserPreferences(userId)
+        val currentHistory = getSearchHistory(userId).toMutableList()
+
+        // Eliminar la consulta si ya existe (para moverla al principio)
+        currentHistory.remove(query)
+
+        // Añadir la nueva consulta al principio
+        currentHistory.add(0, query)
+
+        // Limitar el tamaño del historial
+        val limitedHistory = currentHistory.take(MAX_HISTORY_ITEMS)
+
+        // Guardar el historial actualizado
+        prefs.edit().putString(getHistoryKey(userId), limitedHistory.joinToString(",")).apply()
+    }
+
+    // Eliminar una búsqueda del historial de un usuario específico
+    fun removeFromHistory(query: String, userId: String) {
+        val prefs = getUserPreferences(userId)
+        val currentHistory = getSearchHistory(userId).toMutableList()
+        currentHistory.remove(query)
+        prefs.edit().putString(getHistoryKey(userId), currentHistory.joinToString(",")).apply()
+    }
+
+    // Limpiar todo el historial de un usuario específico
+    fun clearHistory(userId: String) {
+        val prefs = getUserPreferences(userId)
+        prefs.edit().remove(getHistoryKey(userId)).apply()
+    }
+}
+
+@Composable
+fun SearchHistoryView(
+    visible: Boolean,
+    onHistoryItemClick: (String) -> Unit,
+    userId: String
+) {
+    val context = LocalContext.current
+    val searchHistoryManager = remember { SearchHistoryManager(context) }
+    val coroutineScope = rememberCoroutineScope()
+    val searchHistory = remember { mutableStateOf(searchHistoryManager.getSearchHistory(userId)) }
+
+    // Actualizar la lista de historial cuando cambie
+    LaunchedEffect(visible, userId) {
+        if (visible) {
+            searchHistory.value = searchHistoryManager.getSearchHistory(userId)
+        }
+    }
+
+    AnimatedVisibility(
+        visible = visible,
+        enter = fadeIn() + slideInVertically(),
+        exit = fadeOut() + slideOutVertically()
+    ) {
+        if (searchHistory.value.isNotEmpty()) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+                    .clip(RoundedCornerShape(12.dp)),
+                color = MaterialTheme.colorScheme.surface,
+                tonalElevation = 4.dp,
+                shadowElevation = 4.dp
+            ) {
+                Column(
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            "Búsquedas recientes",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Medium
+                        )
+
+                        TextButton(onClick = {
+                            coroutineScope.launch {
+                                searchHistoryManager.clearHistory(userId)
+                                searchHistory.value = emptyList()
+                            }
+                        }) {
+                            Text("Borrar todo")
+                        }
+                    }
+
+                    Divider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f))
+
+                    LazyColumn(
+                        modifier = Modifier.heightIn(max = 300.dp)
+                    ) {
+                        items(searchHistory.value) { historyItem ->
+                            HistoryItem(
+                                query = historyItem,
+                                onClick = { onHistoryItemClick(historyItem) },
+                                onDelete = {
+                                    coroutineScope.launch {
+                                        searchHistoryManager.removeFromHistory(historyItem, userId)
+                                        searchHistory.value = searchHistoryManager.getSearchHistory(userId)
+                                    }
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun SearchBarWithHistory(
+    searchQuery: String,
+    onSearchQueryChange: (String) -> Unit,
+    onClearClick: () -> Unit,
+    isFocused: Boolean,
+    interactionSource: MutableInteractionSource,
+    showHistory: Boolean,
+    onHistoryItemClick: (String) -> Unit,
+    userId: String
+) {
+    val searchBarUnfocusedColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.9f)
+    val searchBarFocusedColor = MaterialTheme.colorScheme.surface
+    val currentContainerColor = if (isFocused) searchBarFocusedColor else searchBarUnfocusedColor
+    val textColor = MaterialTheme.colorScheme.onSurface
+
+    Column {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp)
+                .height(56.dp)
+                .clip(RoundedCornerShape(28.dp))
+                .zIndex(1f),
+            color = currentContainerColor,
+            tonalElevation = if (isFocused) 4.dp else 0.dp,
+            shadowElevation = if (isFocused) 4.dp else 0.dp
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Search,
+                    contentDescription = "Buscar",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                BasicTextField(
+                    value = searchQuery,
+                    onValueChange = onSearchQueryChange,
+                    textStyle = TextStyle(
+                        color = textColor,
+                        fontSize = 16.sp
+                    ),
+                    maxLines = 1,
+                    singleLine = true,
+                    interactionSource = interactionSource,
+                    cursorBrush = SolidColor(Color.White),
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Text,
+                        imeAction = ImeAction.Search
+                    ),
+                    decorationBox = { innerTextField ->
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .fillMaxHeight(),
+                            contentAlignment = Alignment.CenterStart
+                        ) {
+                            if (searchQuery.isEmpty()) {
+                                Text(
+                                    text = "Buscar ...",
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    fontSize = 16.sp
+                                )
+                            }
+                            innerTextField()
+                        }
+                    },
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                )
+
+                if (searchQuery.isNotEmpty()) {
+                    IconButton(
+                        onClick = onClearClick,
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Clear,
+                            contentDescription = "Limpiar",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+        }
+
+        // Historial de búsqueda emergente
+        SearchHistoryView(
+            visible = showHistory && isFocused && searchQuery.isEmpty(),
+            onHistoryItemClick = onHistoryItemClick,
+            userId = userId
+        )
+    }
+}
+
+@Composable
+fun HistoryItem(
+    query: String,
+    onClick: () -> Unit,
+    onDelete: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = Icons.Default.History,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(20.dp)
+        )
+
+        Text(
+            text = query,
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier
+                .weight(1f)
+                .padding(horizontal = 16.dp)
+        )
+
+        IconButton(
+            onClick = onDelete,
+            modifier = Modifier.size(24.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Clear,
+                contentDescription = "Eliminar",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(18.dp)
+            )
+        }
+    }
+}
+
 @SuppressLint("UnrememberedGetBackStackEntry", "CoroutineCreationDuringComposition")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchScreen(navController: NavController, playerViewModel: MusicPlayerViewModel) {
     val backgroundColor = MaterialTheme.colorScheme.background
-    val textColor = MaterialTheme.colorScheme.onSurface
 
     var searchQuery by remember { mutableStateOf("") }
     val interactionSource = remember { MutableInteractionSource() }
@@ -84,6 +382,10 @@ fun SearchScreen(navController: NavController, playerViewModel: MusicPlayerViewM
     val likedSongs by playerViewModel.likedSongs.collectAsState()
     val context = LocalContext.current
 
+    val userId = playerViewModel.getUserId()
+    val searchHistoryManager = remember { SearchHistoryManager(context) }
+    var showHistory by remember { mutableStateOf(true) }
+
     LaunchedEffect(Unit) {
         coroutineScope.launch {
             allSongs = fetchAllSongs()
@@ -100,6 +402,9 @@ fun SearchScreen(navController: NavController, playerViewModel: MusicPlayerViewM
     LaunchedEffect(searchQuery) {
         if (searchQuery.isNotEmpty()) {
             filteredSongs = allSongs.filter { song ->
+                if (song.name == "Anuncio Vibra") {
+                    return@filter false
+                }
                 song.name.contains(searchQuery, ignoreCase = true)
             }
             filteredPlaylists = allPlaylists.filter { playlist ->
@@ -144,7 +449,7 @@ fun SearchScreen(navController: NavController, playerViewModel: MusicPlayerViewM
                 .padding(innerPadding)
                 .background(backgroundColor)
         ) {
-            SearchBar(
+            SearchBarWithHistory(
                 searchQuery = searchQuery,
                 onSearchQueryChange = { searchQuery = it },
                 onClearClick = {
@@ -152,8 +457,30 @@ fun SearchScreen(navController: NavController, playerViewModel: MusicPlayerViewM
                     focusManager.clearFocus()
                 },
                 isFocused = isFocused,
-                interactionSource = interactionSource
+                interactionSource = interactionSource,
+                showHistory = showHistory,
+                onHistoryItemClick = { historyItem ->
+                    searchQuery = historyItem
+                    // Guardar en el historial
+                    coroutineScope.launch {
+                        searchHistoryManager.addToHistory(historyItem, userId)
+                    }
+                },
+                userId = userId
             )
+
+            // Cuando se hace una búsqueda real, guardarla en el historial
+            LaunchedEffect(searchQuery) {
+                if (searchQuery.isNotEmpty()) {
+                    // Guardar la búsqueda en el historial solo cuando tiene al menos 3 caracteres
+                    if (searchQuery.length >= 3) {
+                        searchHistoryManager.addToHistory(searchQuery, userId)
+                    }
+                    showHistory = false
+                } else {
+                    showHistory = true
+                }
+            }
 
             LazyColumn(
                 modifier = Modifier
@@ -400,98 +727,6 @@ fun convertSongsToCurrentSongs(songs: List<Song>, albumArtResId: Int): List<Curr
         )
     }
 }
-
-@Composable
-fun SearchBar(
-    searchQuery: String,
-    onSearchQueryChange: (String) -> Unit,
-    onClearClick: () -> Unit,
-    isFocused: Boolean,
-    interactionSource: MutableInteractionSource
-) {
-    val backgroundColor = MaterialTheme.colorScheme.background
-    val searchBarUnfocusedColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.9f)
-    val searchBarFocusedColor = MaterialTheme.colorScheme.surface
-    val currentContainerColor = if (isFocused) searchBarFocusedColor else searchBarUnfocusedColor
-    val textColor = MaterialTheme.colorScheme.onSurface
-
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp)
-            .height(56.dp)
-            .clip(RoundedCornerShape(28.dp)),
-        color = currentContainerColor,
-        tonalElevation = if (isFocused) 4.dp else 0.dp,
-        shadowElevation = if (isFocused) 4.dp else 0.dp
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = Icons.Default.Search,
-                contentDescription = "Buscar",
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            Spacer(modifier = Modifier.width(12.dp))
-
-            BasicTextField(
-                value = searchQuery,
-                onValueChange = onSearchQueryChange,
-                textStyle = TextStyle(
-                    color = textColor,
-                    fontSize = 16.sp
-                ),
-                maxLines = 1,
-                singleLine = true,
-                interactionSource = interactionSource,
-                cursorBrush = SolidColor(Color.White),
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Text,
-                    imeAction = ImeAction.Search
-                ),
-                decorationBox = { innerTextField ->
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .fillMaxHeight(),
-                        contentAlignment = Alignment.CenterStart
-                    ) {
-                        if (searchQuery.isEmpty()) {
-                            Text(
-                                text = "Buscar ...",
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                fontSize = 16.sp
-                            )
-                        }
-                        innerTextField()
-                    }
-                },
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxHeight()
-            )
-
-            if (searchQuery.isNotEmpty()) {
-                IconButton(
-                    onClick = onClearClick,
-                    modifier = Modifier.size(32.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Clear,
-                        contentDescription = "Limpiar",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-        }
-    }
-}
-
 
 @Composable
 fun SearchResultSection(

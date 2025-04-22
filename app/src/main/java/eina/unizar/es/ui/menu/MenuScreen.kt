@@ -47,10 +47,13 @@ import kotlinx.coroutines.launch
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import com.example.musicapp.ui.theme.VibraBlue
 import com.example.musicapp.ui.theme.VibraDarkGrey
 import com.example.musicapp.ui.theme.VibraLightGrey
+import com.example.musicapp.ui.theme.VibraMediumGrey
 import com.example.musicapp.ui.theme.VibraWhite
 import eina.unizar.es.ui.artist.Artist
 import eina.unizar.es.ui.song.Song
@@ -66,7 +69,8 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
     val coroutineScope = rememberCoroutineScope()
 
     // Cambiar esta variable para controlar la visibilidad inicial
-    var isLoading by remember { mutableStateOf(true) }
+    var isLoadingMain by remember { mutableStateOf(true) }
+    var isLoadingRecent by remember { mutableStateOf(true) }
 
     // Contadores para rastrear el progreso de carga
     var totalImagesToLoad by remember { mutableStateOf(0) }
@@ -86,6 +90,42 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
     var albums by remember { mutableStateOf<List<Playlist>>(emptyList()) }
     var artists by remember { mutableStateOf<List<Artist>>(emptyList()) }
     var songs by remember { mutableStateOf<List<Song>>(emptyList()) }
+    var recentPlaylists by remember { mutableStateOf<List<Playlist>>(emptyList()) }
+
+    // Cargar las playlists recientes (en un LaunchedEffect separado)
+    LaunchedEffect(playerViewModel.getUserId()) {
+        val userId = playerViewModel.getUserId()
+        if (userId.isNotEmpty()) {
+            Log.d("RecentPlaylists", "Cargando playlists recientes para usuario: $userId")
+            val responseRecent = get("/playlists/recent/$userId")
+            responseRecent?.let {
+                val jsonArray = JSONArray(it)
+                val fetchedRecentPlaylists = mutableListOf<Playlist>()
+
+                for (i in 0 until jsonArray.length()) {
+                    val jsonObject = jsonArray.getJSONObject(i)
+                    fetchedRecentPlaylists.add(
+                        Playlist(
+                            id = jsonObject.getString("id"),
+                            title = jsonObject.getString("name"),
+                            idAutor = jsonObject.getString("user_id"),
+                            idArtista = jsonObject.getString("artist_id"),
+                            description = jsonObject.getString("description"),
+                            esPublica = jsonObject.getString("type"),
+                            esAlbum = jsonObject.getString("typeP"),
+                            imageUrl = jsonObject.getString("front_page")
+                        )
+                    )
+                }
+                recentPlaylists = fetchedRecentPlaylists
+                isLoadingRecent = false
+                Log.d("RecentPlaylists", "Cargadas ${fetchedRecentPlaylists.size} playlists recientes")
+            }
+        } else {
+            isLoadingRecent = false
+            Log.d("RecentPlaylists", "No se pudo cargar playlists recientes: userId vacío")
+        }
+    }
 
     // Cargar playlists desde el backend
     LaunchedEffect(Unit) {
@@ -97,6 +137,7 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
 
             // Cargar explícitamente el estado de "me gusta"
             playerViewModel.initializeLikedSongs(playerViewModel.getUserId())
+            playerViewModel.setPremiumUser(context)
         }
 
         val response = get("playlists")
@@ -188,8 +229,8 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
 
             // Establecer un tiempo límite para la carga
             delay(100)
-            if (isLoading) {
-                isLoading = false
+            if (isLoadingMain) {
+                isLoadingMain = false
                 Log.d("Loading", "Forced loading complete after timeout")
             }
         }
@@ -204,7 +245,7 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
         Log.d("Loading", "Image loaded: $loadedImagesCount/$totalImagesToLoad")
         // Check if all images are loaded
         if (loadedImagesCount >= totalImagesToLoad && totalImagesToLoad > 0) {
-            isLoading = false
+            isLoadingMain = false
             Log.d("Loading", "All images loaded")
         }
     }
@@ -252,27 +293,29 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
         // Envolver todo con verticalScroll
         Box(
             modifier = Modifier
-                .fillMaxSize()
+                .fillMaxWidth()
                 .padding(innerPadding)
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .verticalScroll(rememberScrollState()) // Añadir scroll vertical
+                    .verticalScroll(rememberScrollState())
             ) {
                 Spacer(modifier = Modifier.height(16.dp))
 
-                Box(
+                // Estructura corregida - usando una única Column como contenedor
+                Column(
                     modifier = Modifier
-                        .fillMaxWidth() // No usar fillMaxSize para permitir scroll
-                        .background(MaterialTheme.colorScheme.background)
-                        .padding(horizontal = 16.dp, vertical = 0.dp)
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
                 ) {
-                    // Contenido existente...
-                    if (isLoading) {
-                        // Mostrar indicador de carga...
+                    // 1. Sección de Playlists recientemente visitadas
+                    if (isLoadingRecent) {
+                        Spacer(modifier = Modifier.height(12.dp))
                         Box(
-                            modifier = Modifier.fillMaxWidth().height(500.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(130.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             CircularProgressIndicator(
@@ -280,82 +323,167 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
                                 color = VibraBlue
                             )
                         }
-                    }
-                    else {
+                    } else if (recentPlaylists.isNotEmpty()) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 2.dp)
+                        ) {
+                            Spacer(modifier = Modifier.height(8.dp))
 
-                    Column(
-                        modifier = Modifier.fillMaxSize()
-                    ) {
-                        // Artistas recomendados en Grid
-                        Column {
-                            Spacer(modifier = Modifier.height(12.dp))
+                            // Primera fila con 2 elementos
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                recentPlaylists.take(2).forEach { playlist ->
+                                    HorizontalPlaylistCard(
+                                        playlist = playlist,
+                                        modifier = Modifier.weight(1f),
+                                        onClick = { navController.navigate("playlist/${playlist.id}") }
+                                    )
+                                }
+                            }
 
-                            Text(
-                                "Artistas recomendados",
-                                color = MaterialTheme.colorScheme.onBackground,
-                                style = MaterialTheme.typography.titleLarge
-                            )
-                            Spacer(modifier = Modifier.height(12.dp))
+                            Spacer(modifier = Modifier.height(8.dp))
 
-                            LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                                items(artists) { artist ->
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                        Card(
-                                            modifier = Modifier
-                                                .size(100.dp)
-                                                .clickable { navController.navigate("artist/${artist.id}") },
-                                            colors = CardDefaults.cardColors(containerColor = Color.Transparent)
-                                        ) {
-                                            Box(
-                                                modifier = Modifier.fillMaxSize(),
-                                                contentAlignment = Alignment.Center
-                                            ) {
-                                                var isImageLoading by remember { mutableStateOf(true) }
-
-                                                if (isImageLoading) {
-                                                    CircularProgressIndicator(
-                                                        modifier = Modifier.align(Alignment.Center),
-                                                        color = VibraBlue
-                                                    )
-                                                }
-
-                                                AsyncImage(
-                                                    model = getImageUrl(
-                                                        artist.photo,
-                                                        "defaultartist.jpg"
-                                                    ),
-                                                    contentDescription = null,
-                                                    placeholder = painterResource(R.drawable.defaultartist),
-                                                    error = painterResource(R.drawable.defaultartist),
-                                                    modifier = Modifier
-                                                        .size(100.dp)
-                                                        .clip(CircleShape),
-                                                    onLoading = { isImageLoading = true },
-                                                    onSuccess = {
-                                                        isImageLoading = false
-                                                        onImageLoaded()
-                                                    },
-                                                    onError = {
-                                                        isImageLoading = false
-                                                        onImageLoaded()
-                                                    }
-                                                )
-                                            }
-                                        }
-                                        Spacer(modifier = Modifier.height(4.dp))
-                                        Text(
-                                            text = artist.name,
-                                            color = MaterialTheme.colorScheme.onSurface,
-                                            style = MaterialTheme.typography.bodyMedium
+                            // Segunda fila con 2 elementos
+                            if (recentPlaylists.size > 2) {
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    recentPlaylists.drop(2).take(2).forEach { playlist ->
+                                        HorizontalPlaylistCard(
+                                            playlist = playlist,
+                                            modifier = Modifier.weight(1f),
+                                            onClick = { navController.navigate("playlist/${playlist.id}") }
                                         )
                                     }
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            // Tercera fila con 2 elementos
+                            if (recentPlaylists.size > 4) {
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    recentPlaylists.drop(4).take(2).forEach { playlist ->
+                                        HorizontalPlaylistCard(
+                                            playlist = playlist,
+                                            modifier = Modifier.weight(1f),
+                                            onClick = { navController.navigate("playlist/${playlist.id}") }
+                                        )
+                                    }
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            // Cuarta fila con 2 elementos
+                            if (recentPlaylists.size > 6) {
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    recentPlaylists.drop(6).take(2).forEach { playlist ->
+                                        HorizontalPlaylistCard(
+                                            playlist = playlist,
+                                            modifier = Modifier.weight(1f),
+                                            onClick = { navController.navigate("playlist/${playlist.id}") }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // 2. Resto del contenido (con su propio estado de carga)
+                    if (isLoadingMain) {
+                        Spacer(modifier = Modifier.height(24.dp))
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(400.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(30.dp),
+                                color = VibraBlue
+                            )
+                        }
+                    } else {
+                        // 3. Artistas recomendados
+                        Spacer(modifier = Modifier.height(32.dp))
+                        Text(
+                            "Artistas recomendados",
+                            color = MaterialTheme.colorScheme.onBackground,
+                            style = MaterialTheme.typography.titleLarge
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                            items(artists) { artist ->
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Card(
+                                        modifier = Modifier
+                                            .size(100.dp)
+                                            .clickable { navController.navigate("artist/${artist.id}") },
+                                        colors = CardDefaults.cardColors(containerColor = Color.Transparent)
+                                    ) {
+                                        Box(
+                                            modifier = Modifier.fillMaxSize(),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            var isImageLoading by remember { mutableStateOf(true) }
+
+                                            if (isImageLoading) {
+                                                CircularProgressIndicator(
+                                                    modifier = Modifier.align(Alignment.Center),
+                                                    color = VibraBlue
+                                                )
+                                            }
+
+                                            AsyncImage(
+                                                model = getImageUrl(
+                                                    artist.photo,
+                                                    "defaultartist.jpg"
+                                                ),
+                                                contentDescription = null,
+                                                placeholder = painterResource(R.drawable.defaultartist),
+                                                error = painterResource(R.drawable.defaultartist),
+                                                modifier = Modifier
+                                                    .size(100.dp)
+                                                    .clip(CircleShape),
+                                                onLoading = { isImageLoading = true },
+                                                onSuccess = {
+                                                    isImageLoading = false
+                                                    onImageLoaded()
+                                                },
+                                                onError = {
+                                                    isImageLoading = false
+                                                    onImageLoaded()
+                                                }
+                                            )
+                                        }
+                                    }
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = artist.name,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        style = MaterialTheme.typography.bodyMedium
+                                    )
                                 }
                             }
                         }
 
                         Spacer(modifier = Modifier.height(24.dp))
 
-                        // Álbumes populares
+                        // 4. Álbumes populares
+                        Spacer(modifier = Modifier.height(24.dp))
                         Text(
                             "Álbumes populares",
                             color = MaterialTheme.colorScheme.onBackground,
@@ -423,7 +551,8 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
 
                         Spacer(modifier = Modifier.height(24.dp))
 
-                        // Listas de reproducción recomendadas
+                        // 5. Listas para ti
+                        Spacer(modifier = Modifier.height(24.dp))
                         Text(
                             "Listas para ti",
                             color = MaterialTheme.colorScheme.onBackground,
@@ -501,84 +630,149 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
             }
         }
     }
-    }
 }
-    /**
-     * Composable que dibuja un banner degradado con un logo y el texto "Vibra".
-     * El banner se muestra a la derecha. Reemplaza R.drawable.my_logo por el recurso de tu logo.
-     */
-    @Composable
-    fun VibraBanner(modifier: Modifier = Modifier, premium: Boolean, onPremiumClick: () -> Unit) {
-        val bannerWidth = 160.dp
-        val bannerHeight = 50.dp
-        val gradientBrush = Brush.horizontalGradient(
-            colors = listOf(Color(0xFF004aad), Color(0xFF00a0d7))
-        )
-        // Animación infinita para el borde
-        val infiniteTransition = rememberInfiniteTransition()
-        val animatedBorderColor by infiniteTransition.animateColor(
-            initialValue = Color(0xFFB0C4DE), // Azul claro inicial
-            targetValue = Color(0xFF00D4FF), // Azul neón vibrante
-            animationSpec = infiniteRepeatable(
-                animation = tween(
-                    durationMillis = 1200,
-                    easing = FastOutSlowInEasing
-                ), // Transición más rápida y dinámica
-                repeatMode = RepeatMode.Reverse
-            )
-        )
 
-        Box(
-            modifier = modifier
-                .size(width = bannerWidth, height = bannerHeight)
-                .clip(RoundedCornerShape(16.dp))
-                .border(3.dp, animatedBorderColor, RoundedCornerShape(16.dp))
-                .background(gradientBrush, shape = RoundedCornerShape(16.dp))
-                .padding(horizontal = 6.dp)
-                .clickable {
-                    if (!premium) {
-                        onPremiumClick() // Desplegar Pop-up
-                    }
-                },
-            contentAlignment = Alignment.Center
+/**
+ * Composable que dibuja un banner degradado con un logo y el texto "Vibra".
+ * El banner se muestra a la derecha. Reemplaza R.drawable.my_logo por el recurso de tu logo.
+ */
+@Composable
+fun VibraBanner(modifier: Modifier = Modifier, premium: Boolean, onPremiumClick: () -> Unit) {
+    val bannerWidth = 160.dp
+    val bannerHeight = 50.dp
+    val gradientBrush = Brush.horizontalGradient(
+        colors = listOf(Color(0xFF004aad), Color(0xFF00a0d7))
+    )
+    // Animación infinita para el borde
+    val infiniteTransition = rememberInfiniteTransition()
+    val animatedBorderColor by infiniteTransition.animateColor(
+        initialValue = Color(0xFFB0C4DE), // Azul claro inicial
+        targetValue = Color(0xFF00D4FF), // Azul neón vibrante
+        animationSpec = infiniteRepeatable(
+            animation = tween(
+                durationMillis = 1200,
+                easing = FastOutSlowInEasing
+            ), // Transición más rápida y dinámica
+            repeatMode = RepeatMode.Reverse
+        )
+    )
+
+    Box(
+        modifier = modifier
+            .size(width = bannerWidth, height = bannerHeight)
+            .clip(RoundedCornerShape(16.dp))
+            .border(3.dp, animatedBorderColor, RoundedCornerShape(16.dp))
+            .background(gradientBrush, shape = RoundedCornerShape(16.dp))
+            .padding(horizontal = 6.dp)
+            .clickable {
+                if (!premium) {
+                    onPremiumClick() // Desplegar Pop-up
+                }
+            },
+        contentAlignment = Alignment.Center
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .clip(RoundedCornerShape(16)),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clip(RoundedCornerShape(16)),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Image(
-                    painter = painterResource(id = R.drawable.vibrablanco),
-                    contentDescription = "Logo",
-                    modifier = Modifier.size(45.dp)
-                )
-                Text(
-                    text = if (premium) "VIBRA" else "Hacerse Premium",
-                    color = Color.White,
-                    fontSize = if (premium) 25.sp else 20.sp,
-                    modifier = Modifier.then(if (premium) Modifier.padding(end = 26.dp)
-                        else Modifier.padding(end = 6.dp)),
-                    fontFamily = Rubik
-                )
-            }
+            Image(
+                painter = painterResource(id = R.drawable.vibrablanco),
+                contentDescription = "Logo",
+                modifier = Modifier.size(45.dp)
+            )
+            Text(
+                text = if (premium) "VIBRA" else "Hacerse Premium",
+                color = Color.White,
+                fontSize = if (premium) 25.sp else 20.sp,
+                modifier = Modifier.then(if (premium) Modifier.padding(end = 26.dp)
+                    else Modifier.padding(end = 6.dp)),
+                fontFamily = Rubik
+            )
         }
     }
+}
 
-
-@Composable  // <-- No olvidar esta anotación
-private fun FeatureItem(text: String) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.padding(vertical = 4.dp)
-    ) {
-
-        Text(
-            text = text,
-            color = VibraLightGrey,
-            fontSize = 14.sp,
-            fontWeight = FontWeight.SemiBold
+@Composable
+fun HorizontalPlaylistCard(
+    playlist: Playlist,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit = {}
+) {
+    Card(
+        modifier = modifier
+            .height(60.dp)
+            .fillMaxWidth()
+            .clickable { onClick() },
+        shape = RoundedCornerShape(8.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = VibraMediumGrey
         )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Start
+        ) {
+            // Imagen pequeña (40x40)
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(RoundedCornerShape(4.dp))
+            ) {
+                var isImageLoading by remember { mutableStateOf(true) }
+
+                if (isImageLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        color = VibraBlue
+                    )
+                }
+
+                AsyncImage(
+                    model = getImageUrl(playlist.imageUrl, "/defaultplaylist.jpg"),
+                    contentDescription = "Portada de ${playlist.title}",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                    onLoading = { isImageLoading = true },
+                    onSuccess = { isImageLoading = false },
+                    onError = { isImageLoading = false }
+                )
+            }
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            // Texto de la playlist
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.Center
+            ) {
+                // Nombre principal (negrita)
+                Text(
+                    text = playlist.title,
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        fontWeight = FontWeight.Bold
+                    ),
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+
+                // Subtítulo (si existe)
+                if (playlist.description.isNotBlank()) {
+                    Text(
+                        text = playlist.description,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+        }
     }
 }

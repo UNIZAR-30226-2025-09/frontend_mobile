@@ -138,22 +138,28 @@ fun SongScreen(navController: NavController, playerViewModel: MusicPlayerViewMod
                         // Usamos el artista ya cargado previamente
                         val artistName = artista ?: "Artista desconocido"
 
-                        ModalBottomSheet(
-                            onDismissRequest = { showSongOptionsBottomSheet = false },
-                            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-                        ) {
-                            SongOptionsBottomSheetContent(
-                                songId = currentSong?.id.toString(),
-                                viewModel = playerViewModel,
-                                songTitle = currentSong?.title ?: "",
-                                artistName = artistName,
-                                onClick = {
-                                    // Aquí puedes manejar la acción de añadir a la cola
-                                    // Por ejemplo, puedes usar el ViewModel para añadir la canción a la cola
-                                    playerViewModel.addToQueue(currentSong?.id.toString())
-                                    Toast.makeText(context, "Añadido a la cola", Toast.LENGTH_SHORT).show()
-                                }
-                            )
+                        if (currentSong?.title != "Anuncio Vibra") {
+                            ModalBottomSheet(
+                                onDismissRequest = { showSongOptionsBottomSheet = false },
+                                sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+                            ) {
+                                SongOptionsBottomSheetContent(
+                                    songId = currentSong?.id.toString(),
+                                    viewModel = playerViewModel,
+                                    songTitle = currentSong?.title ?: "",
+                                    artistName = artistName,
+                                    onClick = {
+                                        // Aquí puedes manejar la acción de añadir a la cola
+                                        // Por ejemplo, puedes usar el ViewModel para añadir la canción a la cola
+                                        playerViewModel.addToQueue(currentSong?.id.toString())
+                                        Toast.makeText(
+                                            context,
+                                            "Añadido a la cola",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                    }
+                                )
+                            }
                         }
                     }
                 }
@@ -166,7 +172,9 @@ fun SongScreen(navController: NavController, playerViewModel: MusicPlayerViewMod
                     contentDescription = "Portada",
                     modifier = Modifier
                         .size(320.dp)
-                        .clip(RoundedCornerShape(8.dp))
+                        .clip(RoundedCornerShape(8.dp)),
+                    placeholder = painterResource(R.drawable.defaultx),
+                    error = painterResource(R.drawable.defaultx),
                 )
 
                 Spacer(modifier = Modifier.height(48.dp))
@@ -252,7 +260,7 @@ fun SongScreen(navController: NavController, playerViewModel: MusicPlayerViewMod
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         IconButton(
-                            onClick = { playerViewModel.toggleShuffleMode() }
+                            onClick = { if (currentSong?.title != "Anuncio Vibra") {playerViewModel.toggleShuffleMode()} }
                         ) {
                             Icon(
                                 imageVector = when (shuffleMode) {
@@ -272,7 +280,7 @@ fun SongScreen(navController: NavController, playerViewModel: MusicPlayerViewMod
                         }
 
                         IconButton(
-                            onClick = { playerViewModel.previousSong(context) },
+                            onClick = { if (currentSong?.title != "Anuncio Vibra") {playerViewModel.previousSong(context)} },
                             modifier = Modifier.size(48.dp)
                         ) {
                             Icon(
@@ -310,7 +318,7 @@ fun SongScreen(navController: NavController, playerViewModel: MusicPlayerViewMod
                             )
                         }
 
-                        IconButton(onClick = { playerViewModel.loopSong() }) {
+                        IconButton(onClick = { if (currentSong?.title != "Anuncio Vibra") {playerViewModel.loopSong() }}) {
                             Icon(
                                 imageVector = if (isLooping) Icons.Filled.RepeatOne else Icons.Filled.Repeat,
                                 contentDescription = if (isLooping) "Desactivar repetición" else "Activar repetición",
@@ -379,7 +387,7 @@ fun EnhancedLyricsSheet(lyrics: String?) {
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        text = "Lyrics not available",
+                        text = "Lryics no disponibles",
                         color = Color.Gray,
                         style = MaterialTheme.typography.bodyMedium
                     )
