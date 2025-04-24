@@ -309,6 +309,7 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp)
                 ) {
+                    /*
                     // 1. Sección de Playlists recientemente visitadas
                     if (isLoadingRecent) {
                         Spacer(modifier = Modifier.height(12.dp))
@@ -323,7 +324,8 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
                                 color = VibraBlue
                             )
                         }
-                    } else if (recentPlaylists.isNotEmpty()) {
+                    } else */
+                    if (recentPlaylists.isNotEmpty()) {
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
