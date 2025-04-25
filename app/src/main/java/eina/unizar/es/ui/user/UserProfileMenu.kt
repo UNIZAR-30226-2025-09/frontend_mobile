@@ -78,34 +78,13 @@ fun UserProfileMenu(navController: NavController, viewModel: MusicPlayerViewMode
             modifier = Modifier
                 .size(48.dp)
         ) {
-            if (userPicture.isEmpty()) { // !!! Ojo la negacion para docker!!!
-                AsyncImage(
-                    model = ImageRequest.Builder(LocalContext.current)
-                        .data(userPicture)
-                        .crossfade(true)
-                        .build(),
-                    contentDescription = "Profile Picture",
-                    modifier = Modifier
-                        .size(48.dp)
-                        .clip(CircleShape),
-                    contentScale = ContentScale.Crop
-                )
-            } else {
-                Box(
-                    modifier = Modifier
-                        .size(48.dp)
-                        .background(color = profileColor)
-                        .clip(CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = initials,
-                        color = Color.White,
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
+            ProfileImagePicker(
+                userId = userId,
+                userPicture = userPicture,
+                initials = initials,
+                profileColor = profileColor,
+                fromMenu = true
+            )
         }
 
         DropdownMenu(
