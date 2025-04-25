@@ -176,6 +176,57 @@ class PlaylistTest {
     }
 
     @Test
+    fun updatePlaylistTest() {
+        val newName = "Updated Playlist ${System.currentTimeMillis()}"
+        val (code, response) = apiUtils.put(
+            "/playlists/$playlistId",
+            JSONObject().apply {
+                put("name", newName)
+            }
+        )
+
+        assertEquals(200, code)
+    }
+
+    @Test
+    fun togglePlaylistPrivacyTest() {
+        // Obtener el estado actual
+        val (getCode, getResponse) = apiUtils.get("/playlists/$playlistId")
+        assertEquals(200, getCode)
+
+        // Si la respuesta es un String, convertirlo a JSONObject
+        val responseJson = try {
+            JSONObject(getResponse.toString())  // Intenta convertir la respuesta a JSONObject si es un String
+        } catch (e: Exception) {
+            fail("Error al convertir la respuesta en JSONObject: ${e.message}")
+            return
+        }
+
+        val currentType = responseJson.getString("type")
+
+        // Cambiar el tipo
+        val newType = if (currentType == "public") "private" else "public"
+        val (code, response) = apiUtils.put(
+            "/playlists/$playlistId",
+            JSONObject().apply {
+                put("type", newType)
+            }
+        )
+
+        assertEquals(200, code)
+
+        // Si la respuesta es un String, convertirlo a JSONObject
+        val responseJsonUpdated = try {
+            JSONObject(response.toString())  // Intentar convertir la respuesta en JSONObject
+        } catch (e: Exception) {
+            fail("Error al convertir la respuesta actualizada en JSONObject: ${e.message}")
+            return
+        }
+
+        assertEquals(newType, responseJsonUpdated.optString("type"))
+    }
+
+    @Test
     fun deletePlaylistAndVerify() {
         // Asegurarnos de que tenemos un ID de playlist válido
         assertNotNull("Debe haber una playlist creada previamente", playlistId)
@@ -188,4 +239,5 @@ class PlaylistTest {
         val (codeCheck, responseCheck) = apiUtils.get("/playlists/$playlistId")
         assertEquals(500, codeCheck) //DEBERIA DEVOLVER 404
     }
+
 }
