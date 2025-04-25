@@ -43,20 +43,18 @@ fun PlansScreen(paymentSheet: PaymentSheet, navController: NavController,
 
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
-    var isPremium by remember { mutableStateOf(isPremium) }
-    var isViewOnly by remember { mutableStateOf(isViewOnly) }
+    var isPremiumLocal by remember { mutableStateOf(isPremium) }
+    var isViewOnlyLocal by remember { mutableStateOf(isViewOnly) }
     var isPaymentReady by remember { mutableStateOf(false) }
     var showDialog by remember { mutableStateOf(false) }
     var changingToPremium by remember { mutableStateOf(false) }
     var paymentIntentClientSecret by remember { mutableStateOf<String?>(null) }
     val previousRoute = navController.previousBackStackEntry?.destination?.route
 
-    // Sincronizar `isPremium` con `SharedPreferences` cuando cambia
-    LaunchedEffect(Unit) {
-        isPremium = getPremiumStatus(context)
-        Log.d("PlansScreen", "isPremium actualizado: $isPremium")
-    }
 
+    LaunchedEffect(Unit) {
+        isPremiumLocal = getPremiumStatus(context)!!
+    }
 
     LaunchedEffect(Unit) {
         if (previousRoute == "settings") {
@@ -94,14 +92,14 @@ fun PlansScreen(paymentSheet: PaymentSheet, navController: NavController,
                     "Anuncios visuales y de audio",
                     "Podrás saltar 5 canciones al día"
                 ),
-                buttonText = if (isPremium) "Pasar a Gratuito" else "Plan Actual",
+                buttonText = if (isPremiumLocal) "Pasar a Gratuito" else "Plan Actual",
                 buttonColor = Color(0xFFFFAFC1),
                 textColor = Color(0xFFFFAFC1),
                 iconResId = R.drawable.logorosa,
-                isCurrentPlan = !isPremium && !isViewOnly,
+                isCurrentPlan = !isPremiumLocal && !isViewOnlyLocal,
                 onClick = {
                     if (previousRoute == "settings") {
-                        if (!isPremium) {
+                        if (!isPremiumLocal) {
                             Toast.makeText(context, "Ya eres usuario Gratuito", Toast.LENGTH_LONG)
                                 .show()
                         } else {
@@ -114,7 +112,7 @@ fun PlansScreen(paymentSheet: PaymentSheet, navController: NavController,
                         navController.popBackStack()
                     }
                 },
-                isViewOnly = isViewOnly
+                isViewOnly = isViewOnlyLocal
             )
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -129,14 +127,14 @@ fun PlansScreen(paymentSheet: PaymentSheet, navController: NavController,
                     "Saltar ilimitadas canciones al día",
                     "Cancela cuando quieras"
                 ),
-                buttonText = if (!isPremium) "Pasar a Premium" else "Plan Actual",
+                buttonText = if (!isPremiumLocal) "Pasar a Premium" else "Plan Actual",
                 buttonColor = Color(0xFFB0C4DE),
                 textColor = Color(0xFFB0C4DE),
                 iconResId = R.drawable.logoazul,
-                isCurrentPlan = isPremium && !isViewOnly,
+                isCurrentPlan = isPremiumLocal && !isViewOnlyLocal,
                 onClick = {
                     if (previousRoute == "settings") {
-                        if (isPremium) {
+                        if (isPremiumLocal) {
                             Toast.makeText(context, "Ya eres usuario Premium", Toast.LENGTH_LONG).show()
                         } else {
                             changingToPremium = true
@@ -146,7 +144,7 @@ fun PlansScreen(paymentSheet: PaymentSheet, navController: NavController,
                         navController.popBackStack()
                     }
                 },
-                isViewOnly = isViewOnly
+                isViewOnly = isViewOnlyLocal
             )
         }
         // Diálogo de confirmación
@@ -203,7 +201,7 @@ fun PlansScreen(paymentSheet: PaymentSheet, navController: NavController,
 
                                         if (response != null /*&& response.getBoolean("success")*/) {
                                             // Actualizar estado local y SharedPreferences
-                                            isPremium = false
+                                            isPremiumLocal = false
                                             context.getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
                                                 .edit()
                                                 .putBoolean("is_premium", false)
@@ -391,8 +389,12 @@ fun PlanCard(
     }
 }
 
-// Función para obtener `isPremium` de SharedPreferences
-fun getPremiumStatus(context: Context): Boolean {
-    val sharedPreferences = context.getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
-    return sharedPreferences.getBoolean("is_premium", false)
+// Función para determinar el plan del usuario
+suspend fun getPremiumStatus(context: Context) : Boolean? {
+    val userData = getUserData(context)
+    if (userData != null) {
+        return userData["is_premium"] as Boolean
+    } else {
+        return null
+    }
 }
