@@ -29,9 +29,12 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.media3.common.util.Log
 import androidx.navigation.NavController
+import com.example.musicapp.ui.theme.VibraDarkGrey
 import eina.unizar.es.data.model.network.ApiClient.getUserData
 import eina.unizar.es.data.model.network.ApiClient.postTokenPremium
+import eina.unizar.es.data.model.network.ApiClient.updateUserProfile
 import eina.unizar.es.ui.auth.loginUser
 import eina.unizar.es.ui.main.Rubik
 import kotlinx.coroutines.launch
@@ -201,25 +204,55 @@ fun EditProfileScreen(navController: NavController) {
                     onClick = {
                         showDialog = false
                         coroutineScope.launch {
-                            val jsonBody = JSONObject().apply {
-                                put("nickname", username)
-                                put("mail", email)
-                                if (newPassword.isNotBlank()) put("password", newPassword)
-                            }
-
-                            val response = postTokenPremium("user/update", jsonBody, context)
-
-                            if (response != null) {
-                                Toast.makeText(
+                            val (code, message) = updateUserProfile(
+                                currentPassword = currentPassword,
+                                nickname = username,
+                                email = email,
+                                password = newPassword,
+                                context = context
+                            )
+                            when (code) {
+                                200 -> {
+                                    Toast.makeText(
+                                        context,
+                                        "Perfil actualizado",
+                                        Toast.LENGTH_LONG
+                                    ).show()
+                                    showDialog = false
+                                    navController.popBackStack()
+                                }
+                                401 -> Toast.makeText(
                                     context,
-                                    "Perfil actualizado correctamente",
+                                    "Contraseña incorrecta",
                                     Toast.LENGTH_LONG
                                 ).show()
-                                navController.popBackStack()
-                            } else {
-                                Toast.makeText(
+                                400 -> Toast.makeText(
                                     context,
-                                    "Error al actualizar el perfil",
+                                    "Correo ya registrado",
+                                    Toast.LENGTH_LONG
+                                ).show()
+
+                                404 -> Toast.makeText(
+                                    context,
+                                    "Usuario no encontrado",
+                                    Toast.LENGTH_LONG
+                                ).show()
+
+                                409 -> Toast.makeText(
+                                    context,
+                                    "Nombre en uso",
+                                    Toast.LENGTH_LONG
+                                ).show()
+
+                                500 -> Toast.makeText(
+                                    context,
+                                    "Error del servidor",
+                                    Toast.LENGTH_LONG
+                                ).show()
+
+                                else -> Toast.makeText(
+                                    context,
+                                    "Error inesperado",
                                     Toast.LENGTH_LONG
                                 ).show()
                             }
@@ -262,7 +295,7 @@ fun EditProfileScreen(navController: NavController) {
             Canvas(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(backgroundColor)
+                    .background(VibraDarkGrey)
             ) {
                 val width = size.width
                 val height = size.height
@@ -390,7 +423,7 @@ fun EditProfileScreen(navController: NavController) {
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     TextButton(onClick = { navController.popBackStack() }) {
-                        Text("Cancelar", color = Color.White, fontFamily = Rubik)
+                        Text("Cancelar", color = Color.White)
                     }
                     Button(
                         onClick = {
@@ -400,19 +433,7 @@ fun EditProfileScreen(navController: NavController) {
                             currentPasswordError = currentPassword.isEmpty()
 
                             if (!usernameError && !emailError && !currentPasswordError) {
-                                coroutineScope.launch {
-                                    // Verificar contraseña actual
-                                    val isValid = loginUser(context, originalEmail, currentPassword)
-                                    if (isValid) {
-                                        showDialog = true
-                                    } else {
-                                        Toast.makeText(
-                                            context,
-                                            "Contraseña incorrecta",
-                                            Toast.LENGTH_LONG
-                                        ).show()
-                                    }
-                                }
+                                showDialog = true
                             } else {
                                 Toast.makeText(
                                     context,
@@ -422,13 +443,12 @@ fun EditProfileScreen(navController: NavController) {
                             }
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF79E2FF)),
-                        shape = RoundedCornerShape(50.dp),
+                        shape = RoundedCornerShape(50.dp)
                     ) {
                         Text(
                             "Guardar perfil",
                             color = Color.Black,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = Rubik
+                            fontWeight = FontWeight.Bold
                         )
                     }
                 }
@@ -497,45 +517,5 @@ fun TextFieldWithLabel(
         )
     }
 }
-// Composable para los campos de texto
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun TextFieldWithLabel(
-    label: String,
-    value: String,
-    onValueChange: (String) -> Unit,
-    isPassword: Boolean = false,
-    isEmail: Boolean = false,
-    isUsername: Boolean = false
-) {
-    Column {
-        Text(label, color = Color.White, fontSize = 14.sp)
-        Spacer(modifier = Modifier.height(4.dp))
-        OutlinedTextField(
-            value = value,
-            onValueChange = onValueChange,
-            placeholder = { Text(label, color = Color(0xFFBBBBBB)) },
-            singleLine = true,
-            textStyle = TextStyle(color = Color.White),
-            leadingIcon = {
-                if (isEmail) Icon(Icons.Default.Email, contentDescription = "Email Icon", tint = Color.White)
-                if (isPassword) Icon(Icons.Default.Lock, contentDescription = "Password Icon", tint = Color.White)
-                if (isUsername) Icon(Icons.Default.Person, contentDescription = "Username Icon", tint = Color.White)
-            },
-            visualTransformation = if (isPassword) PasswordVisualTransformation() else VisualTransformation.None,
-            modifier = Modifier.fillMaxWidth(),
-            colors = TextFieldDefaults.outlinedTextFieldColors(
-                cursorColor = Color.White,
-                focusedBorderColor = Color.Gray,
-                unfocusedBorderColor = Color.DarkGray
-            ),
-            keyboardOptions = KeyboardOptions(
-                keyboardType = when {
-                    isPassword -> KeyboardType.Password
-                    isEmail -> KeyboardType.Email
-                    else -> KeyboardType.Text
-                }
-            )
-        )
-    }
-}
+
+

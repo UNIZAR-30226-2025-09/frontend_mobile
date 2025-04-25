@@ -59,12 +59,14 @@ fun AppNavigator(navController: NavHostController, paymentSheet: PaymentSheet, i
 
     // Rutas que no deben mostrar bottomBar
     val routesWithoutBottomBar = listOf(
-        "login", "register", "perfilEdit", "settings", "plans", "main", "song"
+        "login", "register", "perfilEdit", "plans", "main", "song"
     )
 
     // Extrae el prefijo de la ruta para detectar dinámicas como "song/{id}" => "song"
     fun getBaseRoute(route: String): String {
-        return route.substringBefore("/")
+        return route
+            .substringBefore("/")
+            .substringBefore("?")
     }
 
     val baseRoute = getBaseRoute(currentRoute.value)
@@ -97,9 +99,26 @@ fun AppNavigator(navController: NavHostController, paymentSheet: PaymentSheet, i
                 composable("register") { UserRegisterScreen(navController) }
                 composable("perfilEdit") { EditProfileScreen(navController) }
                 composable("settings") { UserSettings(navController, isPremium, playerViewModel) }
-                composable("plans") { PlansScreen(paymentSheet,navController,isPremium, playerViewModel) }       
                 composable("friends") { FriendsScreen(navController, playerViewModel) }
-                composable("ADSongs") { ADSongs(navController, playerViewModel) }
+                composable("ADSongs") { ADSongs(playerViewModel) }
+                composable(
+                    route = "plans?isViewOnly={isViewOnly}",
+                    arguments = listOf(
+                        navArgument("isViewOnly") {
+                            type = NavType.BoolType
+                            defaultValue = false // Valor por defecto si no se pasa
+                        }
+                    )
+                ) { backStackEntry ->
+                    val isViewOnly = backStackEntry.arguments?.getBoolean("isViewOnly") ?: false
+                    PlansScreen(
+                        paymentSheet = paymentSheet,
+                        navController = navController,
+                        isPremium = isPremium,
+                        playerViewModel = playerViewModel,
+                        isViewOnly = isViewOnly // <--- Parámetro añadido
+                    )
+                }
                 composable(
                     "chat/{friendId}",
                     arguments = listOf(navArgument("friendId") { type = NavType.StringType } )

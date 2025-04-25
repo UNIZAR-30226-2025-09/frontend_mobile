@@ -1,7 +1,11 @@
 package eina.unizar.es.ui.main
 
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.navigation.compose.rememberNavController
@@ -10,7 +14,12 @@ import com.stripe.android.paymentsheet.PaymentSheet
 import com.stripe.android.paymentsheet.PaymentSheetResult
 import eina.unizar.es.ui.theme.VibraAppTheme
 import android.util.Log
+import android.webkit.WebView
 import android.widget.Toast
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.navigation.NavController
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import eina.unizar.es.data.model.network.ApiClient.postTokenPremium
 import kotlinx.coroutines.*
 import org.json.JSONObject
@@ -19,18 +28,109 @@ import org.json.JSONObject
 class MainActivity : ComponentActivity() {
     private lateinit var paymentSheet: PaymentSheet
     private val coroutineScope = CoroutineScope(Dispatchers.IO)
+    private var navigateToSettings = mutableStateOf(false)
+
+    private var pendingIntent: Intent? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // Guardar el intent inicial si contiene uri
+        if (intent?.data != null) {
+            pendingIntent = intent
+        }
+
         // Inicializar PaymentSheet
-        paymentSheet = PaymentSheet(this) { result -> handlePaymentResult(result) }
+        paymentSheet = PaymentSheet(this) { result -> handlePaymentResult(result)}
 
         setContent {
             VibraAppTheme {
                 val navController = rememberNavController()
-                val isPremium = getPremiumStatus(this)  // Obtener el estado actual
-                AppNavigator(navController, paymentSheet, isPremium) // Pasamos el estado
+                val isPremium = getPremiumStatus(this)
+
+                // Procesamos el intent pendiente una vez que navController está disponible
+                pendingIntent?.let { intent ->
+                    LaunchedEffect(navController) {
+                        handleIntent(intent, navController)
+                        pendingIntent = null
+                    }
+                }
+
+                // Controlador de navegación
+                if (navigateToSettings.value) {
+                    LaunchedEffect(Unit) {
+                        val previousRoute = navController.previousBackStackEntry?.destination?.route
+                        navController.navigate("settings") {
+                            if (previousRoute == "settings") {
+                                // Si venimos de settings, eliminar toda la pila hasta plans
+                                popUpTo("settings") {
+                                    inclusive = true
+                                }
+                            } else {
+                                // Si venimos de otra pantalla, comportamiento normal
+                                popUpTo("settings") {
+                                    inclusive = false
+                                }
+                            }
+                        }
+                        navigateToSettings.value = false
+                    }
+                }
+
+                AppNavigator(navController, paymentSheet, isPremium)
+            }
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+
+        // Procesamos inmediatamente el intent si tiene datos
+        if (intent.data != null) {
+            // En este punto, el Compose ya está configurado, por lo que debemos
+            // encontrar el NavController actual o almacenar el intent para procesarlo más tarde
+            pendingIntent = intent
+
+            // Obligamos a refrescar la actividad para que se procese el pendingIntent
+            recreate()
+        }
+    }
+
+    private fun handleIntent(intent: Intent, navController: NavController) {
+        if (intent.action == Intent.ACTION_VIEW) {
+            val uri = intent.data
+            if (uri != null) {
+                val scheme = uri.scheme
+                val host = uri.host
+                val path = uri.pathSegments
+/*
+                if (scheme == "vibra" && host == "playlist" && path.isNotEmpty()) {
+                    val playlistId = path[0]
+                    Log.d("DeepLink", "Abriendo playlist: $playlistId")
+                    navController.navigate("playlist/$playlistId")
+                }
+*/
+                when {
+                    // Enlace tipo vibra://playlist/123
+                    scheme == "vibra" && host == "playlist" && path.isNotEmpty() -> {
+                        val playlistId = path[0]
+                        Log.d("DeepLink", "Abriendo playlist desde esquema personalizado: $playlistId")
+                        navController.navigate("playlist/$playlistId")
+                    }
+
+                    // Enlace tipo https://vibra.eina.unizar.es/playlist/123
+                    (scheme == "http" || scheme == "https")
+                            && host == "vibra.eina.unizar.es"
+                            && path.size >= 2
+                            && path[0] == "playlist" -> {
+
+                        val playlistId = path[1]
+                        Log.d("DeepLink", "Abriendo playlist desde HTTPS: $playlistId")
+                        navController.navigate("playlist/$playlistId")
+                    }
+                }
+
             }
         }
     }
@@ -51,6 +151,7 @@ class MainActivity : ComponentActivity() {
                             setPremiumStatus(this@MainActivity, true) // Guardar en SharedPreferences
                             runOnUiThread {
                                 Toast.makeText(this@MainActivity, "Pago completado, disfruta de Vibra", Toast.LENGTH_LONG).show()
+                                navigateToSettings.value = true
                             }
                         } else {
                             Log.e("Payment", "Error al actualizar el estado en el servidor")

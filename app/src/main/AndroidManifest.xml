@@ -23,6 +23,31 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="vibra" />
+                <data android:host="playlist" />
+            </intent-filter>
+
+            <!-- Filtro para enlaces HTTPS (ej: https://vibra.eina.unizar.es/playlist/123) -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <!-- Corregido: Unir esquema, host y path en un solo data -->
+                <data
+                    android:scheme="https"
+                    android:host="vibra.eina.unizar.es"
+                    android:pathPrefix="/playlist/" />
+                <data
+                    android:scheme="http"
+                    android:host="vibra.eina.unizar.es"
+                    android:pathPrefix="/playlist/" />
+            </intent-filter>
+
         </activity>
 
 

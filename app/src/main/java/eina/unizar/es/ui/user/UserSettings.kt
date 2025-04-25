@@ -10,8 +10,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.KeyboardArrowRight
@@ -41,6 +43,10 @@ import androidx.compose.ui.platform.LocalContext
 import coil.compose.rememberAsyncImagePainter
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import com.example.musicapp.ui.theme.VibraBlue
+import com.example.musicapp.ui.theme.VibraDarkGrey
+import com.example.musicapp.ui.theme.VibraLightGrey
+import com.example.musicapp.ui.theme.VibraMediumGrey
 import eina.unizar.es.data.model.network.ApiClient
 import eina.unizar.es.data.model.network.ApiClient.getUserData
 import eina.unizar.es.ui.main.Rubik
@@ -72,7 +78,8 @@ fun UserSettings(navController: NavController, isPremium: Boolean, viewModel: Mu
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(backgroundColor)
+            .background(VibraDarkGrey)
+            .verticalScroll(rememberScrollState())
     ) {
         // Cabecera superior con foto de perfil y nombre
         HeaderSection()
@@ -83,9 +90,9 @@ fun UserSettings(navController: NavController, isPremium: Boolean, viewModel: Mu
             // Tarjeta del plan
             Card(
                 shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = cardColor),
+                colors = CardDefaults.cardColors(containerColor = VibraMediumGrey),
                 modifier = Modifier.fillMaxWidth()
-                    .border(1.dp, Color(0xFF79E2FF), RoundedCornerShape(16.dp))
+                    .border(1.dp, VibraBlue, RoundedCornerShape(16.dp))
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text("Tu plan", color = Color.Gray, fontSize = 14.sp)
@@ -267,7 +274,7 @@ fun HeaderSection() {
 fun ActionButton(text: String, icon: androidx.compose.ui.graphics.vector.ImageVector, onClickAction: () -> Unit) {
     Card(
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF121212)),
+        colors = CardDefaults.cardColors(containerColor = VibraMediumGrey),
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClickAction() }
@@ -291,8 +298,9 @@ fun ActionButton(text: String, icon: androidx.compose.ui.graphics.vector.ImageVe
 fun SettingsSection(title: String, items: List<Pair<String, String>>, navController: NavController) {
     Card(
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF121212)),
-        modifier = Modifier.fillMaxWidth()
+        colors = CardDefaults.cardColors(containerColor = VibraMediumGrey),
+        modifier = Modifier
+            .fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(title, color = Color.Gray, fontSize = 14.sp, fontWeight = FontWeight.Bold)
@@ -312,63 +320,6 @@ fun SettingsSection(title: String, items: List<Pair<String, String>>, navControl
         }
     }
 }
-
-/*
-// Gestion de la foto de perfil del usuario, cambiando desde la galeria
- */
-/*
-@Composable
-fun ProfileImagePicker(/*url: String*/) {
-    var imageUri by remember { mutableStateOf<Uri?>(null) }
-    val galleryLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uriSelected: Uri? ->
-        uriSelected?.let {
-            imageUri = it
-        }
-    }
-
-    val painter = if (imageUri != null) {
-        rememberAsyncImagePainter(imageUri)
-    } else {
-        painterResource(id = R.drawable.kanyeperfil)
-    }
-
-    Box(
-        modifier = Modifier.size(100.dp),
-        contentAlignment = Alignment.BottomEnd
-    ) {
-        androidx.compose.foundation.Image(
-            painter = painter,
-            contentDescription = "Imagen de perfil",
-            modifier = Modifier
-                .fillMaxSize()
-                .clip(CircleShape)
-                .background(Color.Gray),
-            contentScale = ContentScale.Crop
-        )
-
-        IconButton(
-            onClick = {
-                galleryLauncher.launch("image/*")
-            },
-            modifier = Modifier
-                .padding(4.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Default.Edit,
-                contentDescription = "Editar imagen"
-            )
-        }
-    }
-}
-*/
-/**
- * Gestion de la foto de perfil pero cambiada desde URI
- * del Backend
- */
- */
-
 
 @Composable
 fun ProfileImagePicker(

@@ -7,7 +7,7 @@ class Playlist(
     val idAutor: String,
     val idArtista: String,
     val description: String,
-    val esPublica: String,
+    var esPublica: String,
     val esAlbum: String
 ) {
 }
