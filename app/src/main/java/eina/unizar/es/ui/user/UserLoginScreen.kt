@@ -44,7 +44,7 @@ import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun UserLoginScreen(navController: NavController) {
+fun UserLoginScreen(navController: NavController, returnTo: String = "") {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var showError by remember { mutableStateOf(false) } // Nuevo estado para el error
@@ -53,6 +53,13 @@ fun UserLoginScreen(navController: NavController) {
 
     var showForgotPasswordDialog by remember { mutableStateOf(false) }
     var dialogEmail by remember { mutableStateOf("") }
+
+    val returnToRoute = navController
+        .currentBackStackEntry
+        ?.arguments
+        ?.getString("returnTo") ?: ""
+
+
 
     LaunchedEffect(Unit) {
         val sharedPreferences = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
@@ -175,11 +182,23 @@ fun UserLoginScreen(navController: NavController) {
                         coroutineScope.launch {
                             val loginSuccess = loginUser(context, email, password)
                             if (loginSuccess) {
-                                navController.navigate("menu")
-                                Toast.makeText(context, "Sesión iniciada con éxito", Toast.LENGTH_LONG).show()
+                                if (!returnToRoute.isEmpty()) {
+                                    navController.navigate(returnToRoute) {
+                                        popUpTo("login") { inclusive = true }
+                                    }
+                                } else {
+                                    navController.navigate("menu") {
+                                        popUpTo(0) { inclusive = true }
+                                    }
+                                }
+                                Toast.makeText(
+                                    context,
+                                    "Sesión iniciada con éxito",
+                                    Toast.LENGTH_LONG
+                                ).show()
                                 showError = false // Ocultar el mensaje de error si el login es correcto.
                             } else {
-                                showError = true // Mostrar el mensaje de error si el login falla.
+                                showError = true
                             }
                         }
                     },
