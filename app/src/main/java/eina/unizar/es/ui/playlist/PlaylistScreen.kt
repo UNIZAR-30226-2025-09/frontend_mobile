@@ -93,6 +93,7 @@ import eina.unizar.es.data.model.network.ApiClient.getUserData
 import eina.unizar.es.data.model.network.ApiClient.isPlaylistOwner
 import eina.unizar.es.data.model.network.ApiClient.likeUnlikePlaylist
 import eina.unizar.es.data.model.network.ApiClient.likeUnlikeSong
+import eina.unizar.es.data.model.network.ApiClient.post
 import eina.unizar.es.data.model.network.ApiClient.updatePlaylist
 import eina.unizar.es.data.model.network.ApiClient.togglePlaylistType
 import eina.unizar.es.ui.artist.SongOptionItem
@@ -131,6 +132,8 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
     // Estado para diálogo de valoración
     var showRatingDialog by remember { mutableStateOf(false) }
     var currentRating by remember { mutableStateOf(0) }
+    var averageRating by remember { mutableStateOf(0.0) }
+
 
     // Gestion del ViewModel
     val currentSong by playerViewModel.currentSong.collectAsState()
@@ -276,6 +279,15 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                         )
                     }
                     songs = fetchedSongs
+                }
+                //Obtencion de la valoracion de la lista
+                val ratingResponse = withContext(Dispatchers.IO) {
+                    get("ratingPlaylist/$playlistId/rating")
+                }
+                ratingResponse?.let {
+                    val json = JSONObject(it)
+                    val avgRating = json.optString("averageRating", "0.0")
+                    averageRating = avgRating.toDoubleOrNull() ?: 0.0
                 }
             }
         }
@@ -441,6 +453,26 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                                     )
                                 )
                             }
+                        }
+                        //Estrella para el rating
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Star,
+                                contentDescription = "Valoración promedio",
+                                tint = VibraBlue,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = String.format("%.1f", averageRating),
+                                color = VibraLightGrey,
+                                style = TextStyle(fontSize = 16.sp)
+                            )
                         }
                     }
                 }
@@ -790,9 +822,20 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                 onConfirm = { stars ->
                     currentRating = stars
                     // Lógica para guardar la valoración
-                    CoroutineScope(Dispatchers.IO).launch {
-                        playlistId?.let {
-                            //savePlaylistRating(it, stars, LocalContext.current)
+                    coroutineScope.launch {
+                        val ratingJson = JSONObject().apply {
+                            put("user_id", userId) // Aquí añadimos el user_id
+                            put("rating", currentRating)
+                        }
+                        val response = post("ratingPlaylist/${playlistId}/rate", ratingJson)
+                        if (response != null) {
+                            // Opcionalmente recargar el promedio después de valorar
+                            val ratingResponse = withContext(Dispatchers.IO) { get("ratingPlaylist/$playlistId/rating") }
+                            ratingResponse?.let {
+                                val json = JSONObject(it)
+                                val avgRating = json.optString("averageRating", "0.0")
+                                averageRating = avgRating.toDoubleOrNull() ?: 0.0 // Convertir a Double
+                            }
                         }
                     }
                 }
@@ -1309,7 +1352,7 @@ fun StarRatingDialog(
     onDismiss: () -> Unit,
     onConfirm: (Int) -> Unit
 ) {
-    var selectedRating by remember { mutableStateOf(0) }
+    var selectedRating by remember { mutableStateOf(1) }
 
     if (showDialog) {
         AlertDialog(
