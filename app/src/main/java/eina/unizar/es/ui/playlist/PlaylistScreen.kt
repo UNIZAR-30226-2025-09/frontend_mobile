@@ -61,6 +61,7 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
@@ -356,6 +357,7 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
             TopAppBar(
                 title = {
                     playlistInfo?.let {
+                        // Luego el título
                         Text(
                             text = it.title,
                             color = textColor,
@@ -439,40 +441,60 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                             )
                         }
                         // Añadir descripción de la playlist al final
-                        playlistInfo?.description?.takeIf { it.isNotBlank() && it != "Sencillo" && it != "null"}?.let { description ->
-                            Column(
+                        playlistInfo?.description?.takeIf { it.isNotBlank() && it != "Sencillo" && it != "null" }?.let { description ->
+                            Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(start = 16.dp, end = 16.dp, top = 30.dp, bottom = 2.dp)
+                                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.Bottom, // Alineación superior para mejor ajuste
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
+                                // Descripción flexible con múltiples líneas
                                 Text(
                                     text = description,
                                     style = MaterialTheme.typography.bodyMedium.copy(
                                         color = secondaryTextColor,
                                         lineHeight = 20.sp
-                                    )
+                                    ),
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .padding(start = 24.dp, end = 12.dp),
+                                    maxLines = 3, // Límite de líneas
+                                    overflow = TextOverflow.Ellipsis // Puntos suspensivos si es muy largo
                                 )
-                            }
-                        }
-                        //Estrella para el rating
-                        Spacer(modifier = Modifier.height(8.dp))
 
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Star,
-                                contentDescription = "Valoración promedio",
-                                tint = VibraBlue,
-                                modifier = Modifier.size(24.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = String.format("%.1f", averageRating),
-                                color = VibraLightGrey,
-                                style = TextStyle(fontSize = 16.sp)
-                            )
+                                // Rating con fondo redondeado
+                                Box(
+                                    modifier = Modifier
+                                        .border(
+                                            width = 1.dp,
+                                            color = VibraBlue.copy(alpha = 0.3f),
+                                            shape = RoundedCornerShape(16.dp)
+                                        )
+                                        .background(
+                                            color = VibraBlue.copy(alpha = 0.1f),
+                                            shape = RoundedCornerShape(16.dp)
+                                        )
+                                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Star,
+                                            contentDescription = "Valoración promedio",
+                                            tint = VibraBlue,
+                                            modifier = Modifier.size(24.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text(
+                                            text = String.format("%.1f", averageRating),
+                                            color = VibraLightGrey,
+                                            style = TextStyle(fontSize = 16.sp)
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
                 }

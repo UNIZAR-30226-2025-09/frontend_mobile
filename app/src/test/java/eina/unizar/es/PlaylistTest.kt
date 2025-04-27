@@ -226,6 +226,86 @@ class PlaylistTest {
         assertEquals(newType, responseJsonUpdated.optString("type"))
     }
 
+
+    @Test
+    fun getPlaylistAverageRatingTest() {
+        // Asegurarnos de que tenemos un ID de playlist válido
+        assertNotNull("Debe haber una playlist creada previamente", playlistId)
+
+        // Obtener la valoración promedio
+        val (code, response) = apiUtils.get("/ratingPlaylist/$playlistId/rating")
+
+        when (code) {
+            200 -> {
+                assertTrue("La respuesta debe ser un JSONObject", response is JSONObject)
+                val ratingResponse = response as JSONObject
+
+                // Verificar que tiene el campo 'average' y está en el rango correcto
+                assertTrue("Debe contener el campo 'averageRating'", ratingResponse.has("averageRating"))
+                val averageRating = ratingResponse.getDouble("averageRating")
+                assertTrue("El rating debe estar entre 0 y 5", averageRating in 0.0..5.0)
+
+                // Opcional: Verificar que tiene el campo 'count' si tu API lo devuelve
+                if (ratingResponse.has("count")) {
+                    assertTrue("El conteo debe ser >= 0", ratingResponse.getInt("count") >= 0)
+                }
+            }
+            404 -> {
+                assertTrue("La respuesta debe ser un JSONObject", response is JSONObject)
+                assertEquals("Playlist no encontrada", (response as JSONObject).optString("message"))
+            }
+            else -> fail("Código de respuesta inesperado: $code")
+        }
+    }
+
+    /* //NO SE AUTENTICA BIEN LA PARTE DEL USUARIO
+    @Test
+    fun ratePlaylistTest() {
+        assertNotNull("Debe haber una playlist creada previamente", playlistId)
+
+        println("DEBUG: playlistId = $playlistId")
+
+        val (profileCode, profileResponse) = apiUtils.get("/user/profile")
+        println("DEBUG: profileCode = $profileCode, profileResponse = $profileResponse")
+
+        if (profileCode != 200 || profileResponse !is JSONObject) {
+            fail("No se pudo obtener el perfil del usuario")
+            return
+        }
+
+        val userId = (profileResponse as JSONObject).optInt("id", -1)
+        if (userId == -1) {
+            fail("ID de usuario no encontrado en el perfil")
+            return
+        }
+
+        val rating = 4
+        val jsonBody = JSONObject().apply {
+            put("user_id", userId)
+            put("rating", rating)
+        }
+
+        val (code, response) = apiUtils.post("/ratingPlaylist/$playlistId/rate", jsonBody)
+
+        println("DEBUG: rate response code = $code, response = $response")
+
+        if (response is JSONObject) {
+            when (code) {
+                200 -> assertTrue("Rating realizado correctamente", true)
+                400 -> fail("Solicitud incorrecta al valorar la playlist: ${response.optString("message")}")
+                401 -> fail("No autorizado al valorar la playlist")
+                else -> fail("Código inesperado al valorar la playlist: $code")
+            }
+        } else {
+            // Si llega HTML o algo que no sea JSON
+            println("DEBUG: Respuesta no JSON, probablemente error del servidor")
+            fail("Error inesperado del servidor al valorar la playlist")
+        }
+    }
+     */
+
+
+
     @Test
     fun deletePlaylistAndVerify() {
         // Asegurarnos de que tenemos un ID de playlist válido
