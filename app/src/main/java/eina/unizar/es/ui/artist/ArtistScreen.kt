@@ -485,9 +485,20 @@ fun ArtistScreen(navController: NavController, playerViewModel: MusicPlayerViewM
                                 Spacer(modifier = Modifier.height(5.dp))
 
                                 Text(
-                                    text = album.title,
+                                    text = if (album.title.length > 20) {
+                                        val midpoint = album.title.substring(0, 20).lastIndexOf(" ").let {
+                                            if (it == -1) 20 else it
+                                        }
+                                        album.title.substring(0, midpoint) + "\n" + album.title.substring(midpoint)
+                                    } else {
+                                        album.title
+                                    },
                                     color = MaterialTheme.colorScheme.onSurface,
-                                    style = MaterialTheme.typography.bodyMedium
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.fillMaxWidth()
                                 )
                             }
                         }
