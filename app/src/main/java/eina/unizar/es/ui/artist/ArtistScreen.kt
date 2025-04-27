@@ -183,7 +183,7 @@ fun ArtistScreen(navController: NavController, playerViewModel: MusicPlayerViewM
                 }
 
                 // Parsear canciones
-                val singlesArray = jsonObject.optJSONArray("songs")
+                val singlesArray = jsonObject.optJSONArray("singles")
                 val fetchedSingles = mutableListOf<Song>()
 
                 singlesArray?.let {
@@ -205,6 +205,7 @@ fun ArtistScreen(navController: NavController, playerViewModel: MusicPlayerViewM
                         Log.d("PARSING", "Canción ${i + 1}: $song")
                     }
                     sencillos = fetchedSingles
+                    Log.d("PARSING", "Número de sencillos: ${it.length()}")
                 }
             } catch (e: JSONException) {
                 Log.e("PARSE_ERROR", "Error al parsear JSON: ${e.message}")
@@ -357,6 +358,7 @@ fun ArtistScreen(navController: NavController, playerViewModel: MusicPlayerViewM
                 var songIsLiked = song.id.toString() in likedSongs
                 var showSongOptionsBottomSheet by remember { mutableStateOf(false) } // Estado para mostrar el BottomSheet de opciones de la canción
                 var songArtists by remember { mutableStateOf<List<Map<String, String>>>(emptyList()) }
+                Log.d("LinkCancion", "Link de la canción: ${song.url_mp3}")
 
                 LaunchedEffect(song.id) {
                     val songDetails = getSongDetails(song.id.toString())
@@ -533,7 +535,7 @@ fun ArtistScreen(navController: NavController, playerViewModel: MusicPlayerViewM
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
                         contentPadding = PaddingValues(end = 8.dp)  // Padding al final para mejor scroll
                     ) {
-                        items(songsList) { single ->
+                        items(sencillos) { single ->
                             Column(
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 modifier = Modifier
