@@ -1464,6 +1464,51 @@ object ApiClient {
     }
 
     /**
+     * Obtiene la valoración promedio de una playlist específica desde el backend.
+     *
+     * @param playlistId El ID de la playlist de la que se quiere obtener la valoración.
+     * @return El valor promedio de la valoración (entre 0.0 y 5.0), o `null` si ocurre un error.
+     *
+     * @throws Exception Si hay un problema al realizar la solicitud al servidor.
+     */
+    suspend fun getPlaylistAverageRating(playlistId: String): Double? {
+        return try {
+            val response = get("ratingPlaylist/$playlistId/rating")
+            response?.let {
+                val json = JSONObject(it)
+                json.optDouble("average", 0.0)
+            }
+        } catch (e: Exception) {
+            println("Error al obtener el rating promedio: ${e.message}")
+            null
+        }
+    }
+    
+    /**
+     * Envía una valoración de un usuario para una playlist específica.
+     *
+     * @param playlistId El ID de la playlist que se desea valorar.
+     * @param userId El ID del usuario que está realizando la valoración.
+     * @param rating La puntuación dada por el usuario (normalmente de 1 a 5).
+     * @return `true` si la valoración se envió correctamente, `false` si hubo un error.
+     *
+     * @throws Exception Si ocurre un problema al comunicarse con el servidor.
+     */
+    suspend fun ratePlaylist(playlistId: String, userId: String, rating: Int): Boolean {
+        return try {
+            val jsonBody = JSONObject().apply {
+                put("user_id", userId) // Aquí añadimos el user_id
+                put("rating", rating)
+            }
+            val response = post("ratingPlaylist/$playlistId/rate", jsonBody)
+            response != null
+        } catch (e: Exception) {
+            println("Error al valorar la playlist: ${e.message}")
+            false
+        }
+    }
+          
+    /*
      * Función para consumir el endpoint que resta un skip diario a un usuario.
      *
      * @param userId ID del usuario al que se le desea restar un skip.

@@ -106,6 +106,19 @@ class ApiTestUtils {
         return Pair(responseCode, json)
     }
 
+    fun getRaw(endpoint: String): Pair<Int, String?> {
+        val request = Request.Builder()
+            .url("${TestConfig.BASE_URL}$endpoint")
+            .header("Authorization", "Bearer ${getAuthToken()}")
+            .build()
+
+        client.newCall(request).execute().use { response ->
+            val body = response.body?.string()
+            println("📦 [GET Raw] Código: ${response.code} - Cuerpo: $body")
+            return Pair(response.code, body)
+        }
+    }
+
     // Función para POST con autenticación
     fun post(endpoint: String, jsonBody: JSONObject): Pair<Int, JSONObject?> {
         val requestBody = jsonBody.toString().toRequestBody("application/json".toMediaType())
@@ -150,8 +163,23 @@ class ApiTestUtils {
         return Pair(responseCode, json)
     }
 
+    fun post(endpoint: String, headers: Map<String, String>): Pair<Int, String?> {
+        val emptyBody = "".toRequestBody("application/json".toMediaType())
+
+        val request = Request.Builder()
+            .url("${TestConfig.BASE_URL}$endpoint")
+            .headers(okhttp3.Headers.headersOf(*headers.flatMap { listOf(it.key, it.value) }.toTypedArray()))
+            .post(emptyBody)
+            .build()
+
+        client.newCall(request).execute().use { response ->
+            val body = response.body?.string()
+            return Pair(response.code, body)
+        }
+    }
+
     // Función para PUT con autenticación
-    fun put(endpoint: String, jsonBody: JSONObject): Pair<Int, JSONObject?> {
+    fun put(endpoint: String, jsonBody: JSONObject): Pair<Int, String?> {
         val requestBody = jsonBody.toString().toRequestBody("application/json".toMediaType())
 
         val request = Request.Builder()
@@ -162,12 +190,10 @@ class ApiTestUtils {
 
         client.newCall(request).execute().use { response ->
             val body = response.body?.string()
-            return Pair(
-                response.code,
-                if (body.isNullOrEmpty()) null else JSONObject(body)
-            )
+            return Pair(response.code, body)
         }
     }
+
 
     // Función para DELETE con autenticación
     fun delete(endpoint: String): Pair<Int, JSONObject?> {
