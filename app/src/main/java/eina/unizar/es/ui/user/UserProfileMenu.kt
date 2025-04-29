@@ -78,85 +78,114 @@ fun UserProfileMenu(navController: NavController, viewModel: MusicPlayerViewMode
             modifier = Modifier
                 .size(48.dp)
         ) {
-            if (userPicture.isEmpty()) { // !!! Ojo la negacion para docker!!!
-                AsyncImage(
-                    model = ImageRequest.Builder(LocalContext.current)
-                        .data(userPicture)
-                        .crossfade(true)
-                        .build(),
-                    contentDescription = "Profile Picture",
-                    modifier = Modifier
-                        .size(48.dp)
-                        .clip(CircleShape),
-                    contentScale = ContentScale.Crop
-                )
-            } else {
-                Box(
-                    modifier = Modifier
-                        .size(48.dp)
-                        .background(color = profileColor)
-                        .clip(CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = initials,
-                        color = Color.White,
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
+            ProfileImagePicker(
+                userId = userId,
+                userPicture = userPicture,
+                initials = initials,
+                profileColor = profileColor,
+                fromMenu = true
+            )
         }
 
         DropdownMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false },
             modifier = Modifier
-                .clip(RoundedCornerShape(4.dp))
-                .border(1.dp, Color(0xFFCCCCCC), RoundedCornerShape(5.dp))
-                .background(Color(0xFF1E1E1E))
+                .width(165.dp)
+                .clip(RoundedCornerShape(6.dp))
+                .background(Color(0xFF252525))
+                .border(
+                    width = 1.5.dp,
+                    color = Color(0xFF3A3A3A),
+                    shape = RoundedCornerShape(6.dp)
+                )
         ) {
+            // Items con altura compacta
+            val itemModifier = Modifier.height(40.dp)
+
+            // Ajustes
             DropdownMenuItem(
-                text = { Text("Ajustes", color = Color.White) },
+                text = {
+                    Text(
+                        "Ajustes",
+                        color = Color.White,
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontSize = 13.sp
+                    )
+                },
                 onClick = {
                     expanded = false
                     navController.navigate("settings")
                 },
                 leadingIcon = {
-                    Icon(Icons.Default.Settings, contentDescription = "Ajustes", tint = Color.White)
-                }
+                    Icon(
+                        Icons.Default.Settings,
+                        contentDescription = null,  // Más minimalista sin descripción
+                        tint = Color(0xFFA0A0A0),
+                        modifier = Modifier.size(18.dp)
+                    )
+                },
+                modifier = itemModifier.padding(horizontal = 8.dp)
             )
+
+            // Amigos
             DropdownMenuItem(
-                text = { Text("Amigos", color = Color.White) },
+                text = {
+                    Text(
+                        "Amigos",
+                        color = Color.White,
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontSize = 13.sp
+                    )
+                },
                 onClick = {
                     expanded = false
                     navController.navigate("friends")
-                    //navController.navigate("chat")
                 },
                 leadingIcon = {
-                    Icon(Icons.Default.Person, contentDescription = "Amigos", tint = Color.White)
-                }
-            )
-            Divider(
-                color = Color(0x33CCCCCC),
-                thickness = 1.dp,
-                modifier = Modifier
-                    .width(120.dp)
-                    .align(Alignment.CenterHorizontally)
+                    Icon(
+                        Icons.Default.Person,
+                        contentDescription = null,
+                        tint = Color(0xFFA0A0A0),
+                        modifier = Modifier.size(18.dp)
+                    )
+                },
+                modifier = itemModifier.padding(horizontal = 8.dp)
             )
 
+            // Divisor sutil
+            Divider(
+                color = Color(0xFF3A3A3A),
+                thickness = 0.5.dp,
+                modifier = Modifier.padding(vertical = 2.dp)
+            )
+
+            // Cerrar sesión
             DropdownMenuItem(
-                text = { Text("Cerrar Sesión", color = Color(0xFFFF6B6B)) },
+                text = {
+                    Text(
+                        "Cerrar Sesión",
+                        color = Color(0xFFFF6B6B),
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontSize = 13.sp
+                    )
+                },
                 onClick = {
                     expanded = false
                     coroutineScope.launch {
-                        viewModel.cleanupOnLogout()  // Reinicia el reproductor
+                        viewModel.cleanupOnLogout()
                         ApiClient.logoutUser(context, navController)
                     }
                 },
                 leadingIcon = {
-                    Icon(Icons.Default.ExitToApp, contentDescription = "Cerrar Sesión", tint = Color(0xFFFF6B6B))
-                }
+                    Icon(
+                        Icons.Default.ExitToApp,
+                        contentDescription = null,
+                        tint = Color(0xFFFF6B6B),
+                        modifier = Modifier.size(18.dp)
+                    )
+                },
+                modifier = itemModifier.padding(horizontal = 8.dp)
             )
         }
     }

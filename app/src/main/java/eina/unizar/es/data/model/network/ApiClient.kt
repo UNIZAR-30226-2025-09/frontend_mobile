@@ -1,6 +1,9 @@
 package eina.unizar.es.data.model.network
 import android.content.Context
 import android.content.SharedPreferences
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.net.Uri
 import android.util.Log
 import android.widget.Toast
 import androidx.navigation.NavController
@@ -17,13 +20,14 @@ import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
+import java.io.ByteArrayOutputStream
 import java.io.DataOutputStream
 
 object ApiClient {
-    //const val BASE_URL = "http://10.0.2.2/request/api" // Usa la IP local del backend
-    //const val BASE_URL_IMG = "http://10.0.2.2/request"
-    const val BASE_URL = "http://164.90.160.181/request/api" // Usa la IP publica (nube) del backend
-    const val BASE_URL_IMG = "http://164.90.160.181/request"
+    const val BASE_URL = "http://10.0.2.2/request/api" // Usa la IP local del backend
+    const val BASE_URL_IMG = "http://10.0.2.2/request"
+    //const val BASE_URL = "http://164.90.160.181/request/api" // Usa la IP publica (nube) del backend
+    //const val BASE_URL_IMG = "http://164.90.160.181/request"
 
 
 
@@ -302,7 +306,8 @@ object ApiClient {
                         "nickname" to jsonResponse.optString("nickname", ""),
                         "mail" to jsonResponse.optString("mail", ""),
                         "is_premium" to jsonResponse.optBoolean("is_premium", false),
-                        "user_picture" to jsonResponse.optString("user_picture", "")
+                        "user_picture" to jsonResponse.optString("user_picture", ""),
+                        "daily_skips" to jsonResponse.optInt("daily_skips", 0),
                     )
                 }
             } catch (e: Exception) {
@@ -1478,16 +1483,7 @@ object ApiClient {
             null
         }
     }
-
-    /**
-     * Envía una valoración de un usuario para una playlist específica.
-     *
-     * @param playlistId El ID de la playlist que se desea valorar.
-     * @param rating La puntuación dada por el usuario (normalmente de 1 a 5).
-     * @return `true` si la valoración se envió correctamente, `false` si hubo un error.
-     *
-     * @throws Exception Si ocurre un problema al comunicarse con el servidor.
-     */
+    
     /**
      * Envía una valoración de un usuario para una playlist específica.
      *
@@ -1509,6 +1505,183 @@ object ApiClient {
         } catch (e: Exception) {
             println("Error al valorar la playlist: ${e.message}")
             false
+        }
+    }
+          
+    /*
+     * Función para consumir el endpoint que resta un skip diario a un usuario.
+     *
+     * @param userId ID del usuario al que se le desea restar un skip.
+     * @return JSONObject con la respuesta del servidor o `null` en caso de error.
+     */
+    suspend fun skipsLessApi(userId: String): JSONObject? {
+        return withContext(Dispatchers.IO) {
+            try {
+                val client = OkHttpClient()
+
+                val request = Request.Builder()
+                    .url("$BASE_URL/user/use-daily-skip/$userId")
+                    .post("".toRequestBody("application/json".toMediaTypeOrNull()))
+                    .addHeader("Content-Type", "application/json")
+                    .build()
+
+                client.newCall(request).execute().use { response ->
+                    val responseBody = response.body?.string()
+
+                    if (!response.isSuccessful) {
+                        Log.e("API", "Error en la respuesta: código ${response.code}, cuerpo: $responseBody")
+                        if (response.code == 400 && responseBody != null) {
+                            // Return the error response so we can handle it properly
+                            return@withContext JSONObject(responseBody)
+                        }
+                        null
+                    } else {
+                        Log.d("API", "Respuesta skip: $responseBody")
+                        if (responseBody != null) {
+                            JSONObject(responseBody)
+                        } else {
+                            null
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("ApiClient", "Error en skipsLessApi: ${e.message}")
+                e.printStackTrace()
+                null
+            }
+        }
+    }
+
+    /**
+     * Función para registrar una visita a una playlist por parte de un usuario.
+     *
+     * @param playlistId ID de la playlist visitada.
+     * @param userId ID del usuario que visita la playlist.
+     * @return JSONObject con la respuesta del servidor o `null` en caso de error.
+     */
+    suspend fun recordPlaylistVisit(playlistId: String, userId: String): JSONObject? {
+        return withContext(Dispatchers.IO) {
+            try {
+                val client = OkHttpClient()
+
+                val jsonBody = JSONObject().apply {
+                    put("userId", userId)
+                }
+
+                val requestBody = jsonBody.toString()
+                    .toRequestBody("application/json".toMediaTypeOrNull())
+
+                val request = Request.Builder()
+                    .url("$BASE_URL/playlists/$playlistId/visit")
+                    .post(requestBody)
+                    .addHeader("Content-Type", "application/json")
+                    .build()
+
+                client.newCall(request).execute().use { response ->
+                    val responseBody = response.body?.string()
+
+                    if (!response.isSuccessful) {
+                        Log.e("API", "Error al registrar visita: código ${response.code}, cuerpo: $responseBody")
+                        if (response.code == 400 && responseBody != null) {
+                            // Devolver la respuesta de error para manejarla adecuadamente
+                            return@withContext JSONObject(responseBody)
+                        }
+                        null
+                    } else {
+                        Log.d("API", "Visita registrada: $responseBody")
+                        if (responseBody != null) {
+                            JSONObject(responseBody)
+                        } else {
+                            null
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("ApiClient", "Error en recordPlaylistVisit: ${e.message}")
+                e.printStackTrace()
+                null
+            }
+        }
+    }
+
+    /**
+     * Función para actualizar la información de un usuario.
+     *
+     * @param userId ID del usuario a actualizar.
+     * @param nickname Nuevo nombre de usuario (opcional).
+     * @param profileImage Imagen de perfil en formato base64 (opcional).
+     * @return JSONObject con la respuesta del servidor o `null` en caso de error.
+     */
+    suspend fun updateUserProfile(userId: String, nickname: String? = null, profileImage: String? = null): JSONObject? {
+        return withContext(Dispatchers.IO) {
+            try {
+                val client = OkHttpClient()
+
+                val jsonBody = JSONObject().apply {
+                    nickname?.let { put("nickname", it) }
+                    profileImage?.let { put("profileImage", it) }
+                }
+
+                val requestBody = jsonBody.toString()
+                    .toRequestBody("application/json".toMediaTypeOrNull())
+
+                val request = Request.Builder()
+                    .url("$BASE_URL/user/users/$userId")
+                    .post(requestBody)  // Usando POST para actualizar recurso
+                    .addHeader("Content-Type", "application/json")
+                    .build()
+
+                client.newCall(request).execute().use { response ->
+                    val responseBody = response.body?.string()
+
+                    if (!response.isSuccessful) {
+                        Log.e("API", "Error al actualizar usuario: código ${response.code}, cuerpo: $responseBody")
+                        if (responseBody != null) {
+                            // Devolver la respuesta de error para manejarla adecuadamente
+                            return@withContext JSONObject(responseBody)
+                        }
+                        null
+                    } else {
+                        Log.d("API", "Usuario actualizado: $responseBody")
+                        if (responseBody != null) {
+                            JSONObject(responseBody)
+                        } else {
+                            null
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("ApiClient", "Error en updateUserProfile: ${e.message}")
+                e.printStackTrace()
+                null
+            }
+        }
+    }
+
+
+    /**
+     * Convierte una imagen identificada por un URI a una cadena en formato Base64.
+     *
+     * @param context El contexto de la aplicación necesario para acceder al ContentResolver
+     * @param uri El URI de la imagen que se va a convertir
+     * @return Una cadena en formato data URL con la imagen codificada en Base64, o null si ocurre un error
+     */
+    suspend fun uriToBase64(context: Context, uri: Uri): String? {
+        return withContext(Dispatchers.IO) {
+            try {
+                val inputStream = context.contentResolver.openInputStream(uri)
+                val bitmap = BitmapFactory.decodeStream(inputStream)
+                inputStream?.close()
+
+                val byteArrayOutputStream = ByteArrayOutputStream()
+                bitmap.compress(Bitmap.CompressFormat.JPEG, 80, byteArrayOutputStream)
+                val byteArray = byteArrayOutputStream.toByteArray()
+
+                "data:image/jpeg;base64,${android.util.Base64.encodeToString(byteArray, android.util.Base64.DEFAULT)}"
+            } catch (e: IOException) {
+                e.printStackTrace()
+                null
+            }
         }
     }
 

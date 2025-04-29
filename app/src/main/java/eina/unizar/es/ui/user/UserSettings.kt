@@ -10,8 +10,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.KeyboardArrowRight
@@ -46,10 +48,14 @@ import com.example.musicapp.ui.theme.VibraDarkGrey
 import com.example.musicapp.ui.theme.VibraLightGrey
 import com.example.musicapp.ui.theme.VibraMediumGrey
 import eina.unizar.es.data.model.network.ApiClient
+import eina.unizar.es.data.model.network.ApiClient.getImageUrl
 import eina.unizar.es.data.model.network.ApiClient.getUserData
+import eina.unizar.es.data.model.network.ApiClient.updateUserProfile
+import eina.unizar.es.data.model.network.ApiClient.uriToBase64
 import eina.unizar.es.ui.main.Rubik
 import eina.unizar.es.ui.player.MusicPlayerViewModel
 import kotlinx.coroutines.launch
+import org.json.JSONObject
 import java.time.format.TextStyle
 
 @Composable
@@ -77,6 +83,7 @@ fun UserSettings(navController: NavController, isPremium: Boolean, viewModel: Mu
         modifier = Modifier
             .fillMaxSize()
             .background(VibraDarkGrey)
+            .verticalScroll(rememberScrollState())
     ) {
         // Cabecera superior con foto de perfil y nombre
         HeaderSection()
@@ -162,6 +169,7 @@ fun HeaderSection() {
                 userPicture = (userData["user_picture"] ?: "").toString()
                 userId = (userData["id"] ?: "").toString()
 
+                Log.d("UserData", "userPicture asignado: $userPicture")
                 // Genera o recupera el color del perfil
                 val colorManager = UserColorManager(context)
                 profileColor = colorManager.getUserProfileColor(userId)
@@ -178,37 +186,14 @@ fun HeaderSection() {
             .padding(24.dp)
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-            /*// Imagen de perfil
-            if (userPicture.isEmpty()) { // !!! Ojo la negacion para docker!!!
-                AsyncImage(
-                    model = ImageRequest.Builder(LocalContext.current)
-                        .data(userPicture)
-                        .crossfade(true)
-                        .build(),
-                    contentDescription = "Imagen de perfil",
-                    modifier = Modifier
-                        .size(90.dp)
-                        .clip(CircleShape),
-                    contentScale = ContentScale.Crop
-                )
-            } else {
-                Box(
-                    modifier = Modifier
-                        .size(90.dp)
-                        .background(color = profileColor, shape = CircleShape)
-                        .clip(CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = initials,
-                        color = Color.White,
-                        fontSize = 36.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }*/
             // Aqui podemos sacar la URI de la imagen del usuario
-            ProfileImagePicker(userPicture, initials, profileColor)
+            ProfileImagePicker(
+                userId = userId,
+                userPicture = userPicture,
+                initials = initials,
+                profileColor = profileColor,
+                fromMenu = false,
+            )
 
             Spacer(modifier = Modifier.height(10.dp))
 
@@ -320,68 +305,146 @@ fun SettingsSection(title: String, items: List<Pair<String, String>>, navControl
 
 @Composable
 fun ProfileImagePicker(
-    userPicture: String?, // URL de la foto del usuario
-    initials: String, // Iniciales del usuario
-    profileColor: Color // Color de fondo para las iniciales
+    userId: String,
+    userPicture: String?,
+    initials: String,
+    profileColor: Color,
+    currentNickname: String = "",
+    onUpdateSuccess: (JSONObject) -> Unit = {},
+    onUpdateError: (String) -> Unit = {},
+    modifier: Modifier = Modifier,
+    fromMenu: Boolean = false
 ) {
-    var imageUri by remember { mutableStateOf<Uri?>(null) }
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+    var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
+    var isLoading by remember { mutableStateOf(false) }
+    var imageLoadFailed by remember { mutableStateOf(false) }
+    var currentUserPicture by remember { mutableStateOf(userPicture) }
+
     val galleryLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
-    ) { uriSelected: Uri? ->
-        uriSelected?.let { imageUri = it }
+    ) { uri: Uri? ->
+        uri?.let { imageUri ->
+            // Mostrar inmediatamente la imagen seleccionada
+            selectedImageUri = imageUri
+
+            coroutineScope.launch {
+                isLoading = true
+                try {
+                    val base64Image = uriToBase64(context, imageUri)
+                    base64Image?.let {
+                        val response = updateUserProfile(
+                            userId = userId,
+                            nickname = currentNickname.takeIf { it.isNotBlank() },
+                            profileImage = it
+                        )
+
+                        response?.let { jsonResponse ->
+                            if (jsonResponse.has("error")) {
+                                onUpdateError(jsonResponse.getString("error"))
+                            } else {
+                                currentUserPicture = jsonResponse.optString("user_picture", null)
+                                imageLoadFailed = false
+                                onUpdateSuccess(jsonResponse)
+                            }
+                        } ?: run {
+                            onUpdateError("Error desconocido al actualizar el perfil")
+                        }
+                    } ?: run {
+                        onUpdateError("No se pudo procesar la imagen")
+                    }
+                } catch (e: Exception) {
+                    onUpdateError("Error: ${e.localizedMessage ?: "Error desconocido"}")
+                } finally {
+                    isLoading = false
+                }
+            }
+        }
     }
 
     Box(
-        modifier = Modifier.size(100.dp),
+        modifier = modifier.size(100.dp),
         contentAlignment = Alignment.BottomEnd
     ) {
-        if (imageUri != null) {
-            // Mostrar la imagen seleccionada de la galería
-            Image(
-                painter = rememberAsyncImagePainter(imageUri),
-                contentDescription = "Imagen de perfil",
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clip(CircleShape)
-                    .background(Color.Gray),
-                contentScale = ContentScale.Crop
-            )
-        } else if (userPicture.isNullOrEmpty()) {
-            // Mostrar la foto del usuario desde la URL
-            AsyncImage(
-                model = ImageRequest.Builder(LocalContext.current)
-                    .data(userPicture)
-                    .crossfade(true)
-                    .build(),
-                contentDescription = "Imagen de perfil",
-                modifier = Modifier
-                    .size(90.dp)
-                    .clip(CircleShape),
-                contentScale = ContentScale.Crop
-            )
-        } else {
-            // Mostrar las iniciales del usuario
-            Box(
-                modifier = Modifier
-                    .size(90.dp)
-                    .background(color = profileColor, shape = CircleShape)
-                    .clip(CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = initials,
-                    color = Color.White,
-                    fontSize = 36.sp,
-                    fontWeight = FontWeight.Bold
+        // Contenido de imagen según los estados
+        when {
+            isLoading -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(CircleShape)
+                        .background(Color.LightGray),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
+                }
+            }
+            selectedImageUri != null -> {
+                // Prioridad 1: Mostrar imagen recién seleccionada
+                Image(
+                    painter = rememberAsyncImagePainter(selectedImageUri),
+                    contentDescription = "Nueva imagen de perfil",
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(CircleShape),
+                    contentScale = ContentScale.Crop
                 )
+            }
+            !userPicture.isNullOrBlank() && !imageLoadFailed -> {
+                // Prioridad 2: Mostrar imagen del servidor si existe y no ha fallado
+                val imageUrl = getImageUrl(userPicture ?: "", "/defaultuser.jpg")
+
+                AsyncImage(
+                    model = ImageRequest.Builder(context)
+                        .data(imageUrl)
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = "Imagen de perfil actual",
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(CircleShape),
+                    contentScale = ContentScale.Crop,
+                    onError = { imageLoadFailed = true }
+                )
+            }
+            else -> {
+                // Fallback: Mostrar iniciales si no hay imagen o falló la carga
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(color = profileColor, shape = CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = initials,
+                        color = Color.White,
+                        fontSize = if (fromMenu) 20.sp else 40.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
         }
 
-        IconButton(
-            onClick = { galleryLauncher.launch("image/*") },
-            modifier = Modifier.padding(4.dp)
-        ) {
-            Icon(Icons.Default.Edit, contentDescription = "Editar imagen")
+        if (!fromMenu) {
+            // Botón de edición
+            IconButton(
+                onClick = { galleryLauncher.launch("image/*") },
+                modifier = Modifier
+                    .size(36.dp)
+                    .background(
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        shape = CircleShape
+                    )
+                    .padding(4.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Edit,
+                    contentDescription = "Editar imagen",
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
         }
     }
 }

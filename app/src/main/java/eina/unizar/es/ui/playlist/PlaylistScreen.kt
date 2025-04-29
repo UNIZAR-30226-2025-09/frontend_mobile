@@ -95,6 +95,7 @@ import eina.unizar.es.data.model.network.ApiClient.isPlaylistOwner
 import eina.unizar.es.data.model.network.ApiClient.likeUnlikePlaylist
 import eina.unizar.es.data.model.network.ApiClient.likeUnlikeSong
 import eina.unizar.es.data.model.network.ApiClient.post
+import eina.unizar.es.data.model.network.ApiClient.recordPlaylistVisit
 import eina.unizar.es.data.model.network.ApiClient.updatePlaylist
 import eina.unizar.es.data.model.network.ApiClient.togglePlaylistType
 import eina.unizar.es.ui.artist.SongOptionItem
@@ -208,6 +209,29 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                 }
             } catch (e: Exception) {
                 println("Exception in toggleSongLike: ${e.message}")
+            }
+        }
+    }
+
+    // Registrar la visita a la playlist cuando se carga la pantalla
+    LaunchedEffect(playlistId) {
+        val userData = getUserData(context)
+        if (userData != null) {
+            userId = (userData["id"] ?: "").toString()
+
+            // Si tenemos un ID de usuario y un ID de playlist válidos, registramos la visita
+            if (userId.isNotEmpty() && !playlistId.isNullOrEmpty()) {
+                coroutineScope.launch {
+                    try {
+                        val response = recordPlaylistVisit(playlistId, userId)
+                        response?.let {
+                            // Opcional: Puedes hacer algo con la respuesta si lo necesitas
+                            Log.d("PlaylistScreen", "Visita registrada correctamente")
+                        }
+                    } catch (e: Exception) {
+                        Log.e("PlaylistScreen", "Error al registrar visita: ${e.message}")
+                    }
+                }
             }
         }
     }
