@@ -752,6 +752,8 @@ fun HorizontalPlaylistCard(
                     contentDescription = "Portada de ${playlist.title}",
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize(),
+                    placeholder = painterResource(id = R.drawable.defaultplaylist),
+                    error = painterResource(id = R.drawable.defaultplaylist),
                     onLoading = { isImageLoading = true },
                     onSuccess = { isImageLoading = false },
                     onError = { isImageLoading = false }
