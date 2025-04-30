@@ -3,6 +3,7 @@ package eina.unizar.es
 import android.os.Build
 import eina.unizar.es.utils.ApiTestUtils
 import kotlinx.coroutines.runBlocking
+import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Assert.*
 import org.junit.Before
@@ -120,4 +121,98 @@ class SocialTest {
             else -> fail("Error al aceptar: $acceptCode - $acceptResponse")
         }
     }
+
+    @Test
+    fun getFriendRequestsTest() {
+        // 1. Hacer petición usando el usuario ya creado en el setup
+        val (code, response) = apiUtils.post(
+            "/social/getReceivedFriendRequests",
+            body = JSONObject(),
+            headers = authHeaders(currentUser.token)
+        )
+
+        // 2. Verificar respuesta básica
+        when (code) {
+            200 -> {
+                // Caso con solicitudes recibidas
+                assertTrue("Respuesta debe ser JSONObject", response is JSONObject)
+                val json = response as JSONObject
+
+                // Verificar estructura mínima
+                assertTrue(json.has("receivedRequests"))
+                assertTrue(json.has("count"))
+
+                val requests = json.getJSONArray("receivedRequests")
+                for (i in 0 until requests.length()) {
+                    val request = requests.getJSONObject(i)
+                    assertTrue(request.has("friendId"))
+                    assertTrue(request.has("nickname"))
+                    assertTrue(request.has("state"))
+                }
+
+            }
+
+            404 -> {
+                // Caso sin solicitudes
+                assertTrue("Respuesta debe ser JSONObject", response is JSONObject)
+                assertEquals(
+                    "No hay solicitudes pendientes",
+                    (response as JSONObject).getString("message")
+                )
+            }
+
+            else -> fail("Código inesperado: $code - $response")
+        }
+    }
+
+
+    @Test
+    fun getFriendsListTest() {
+        // 1. Hacer la petición con el usuario ya autenticado
+        val (code, rawResponse) = apiUtils.post(
+            "/social/getFriendsList",
+            headers = authHeaders(currentUser.token)
+        )
+
+        // 2. Verificar que el código de respuesta es 200
+        if (code != 200) {
+            fail("Se esperaba código 200 pero se recibió $code. Respuesta: ${rawResponse?.take(200)}")
+        }
+
+        // 3. Verificar que no sea un error HTML
+        if (rawResponse.toString().startsWith("<!DOCTYPE")) {
+            fail("Error del servidor (HTML recibido): ${rawResponse?.take(500)}")
+        }
+
+        // 4. Parsear y devolver el JSON
+        try {
+            JSONObject(rawResponse.toString()).also {
+                println("Respuesta JSON exitosa: ${it.toString(2)}")
+            }
+        } catch (e: Exception) {
+            fail("Error al parsear JSON: ${e.message}\nContenido: ${rawResponse?.take(500)}")
+        }
+    }
+
+    @Test
+    fun getFriendsListWithoutTokenShouldFail() {
+        val (code, raw) = apiUtils.post("/social/getFriendsList", headers = emptyMap())
+        assertEquals(401, code)
+
+        val errorJson = JSONObject(raw)
+        assertEquals("Token no proporcionado", errorJson.getString("error"))
+    }
+
+    @Test
+    fun getFriendsListWithInvalidTokenShouldFail() {
+        val (code, raw) = apiUtils.post(
+            "/social/getFriendsList",
+            headers = mapOf("Authorization" to "Bearer token_invalido")
+        )
+
+        assertEquals(500, code)
+    }
+
+
+
 }

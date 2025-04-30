@@ -37,8 +37,8 @@ import kotlin.math.min
 
 @Composable
 fun PlansScreen(paymentSheet: PaymentSheet, navController: NavController,
-                isPremium: Boolean, playerViewModel: MusicPlayerViewModel,
-                isViewOnly: Boolean) {
+                isPremium: Boolean = false, playerViewModel: MusicPlayerViewModel,
+                isViewOnly: Boolean = false) {
 
 
     val context = LocalContext.current
@@ -395,6 +395,6 @@ suspend fun getPremiumStatus(context: Context) : Boolean? {
     if (userData != null) {
         return userData["is_premium"] as Boolean
     } else {
-        return null
+        return false
     }
 }

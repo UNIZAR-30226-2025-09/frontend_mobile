@@ -1,6 +1,9 @@
 package eina.unizar.es.data.model.network
 import android.content.Context
 import android.content.SharedPreferences
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.net.Uri
 import android.util.Log
 import android.widget.Toast
 import androidx.navigation.NavController
@@ -17,6 +20,7 @@ import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
+import java.io.ByteArrayOutputStream
 import java.io.DataOutputStream
 
 object ApiClient {
@@ -1460,6 +1464,51 @@ object ApiClient {
     }
 
     /**
+     * Obtiene la valoración promedio de una playlist específica desde el backend.
+     *
+     * @param playlistId El ID de la playlist de la que se quiere obtener la valoración.
+     * @return El valor promedio de la valoración (entre 0.0 y 5.0), o `null` si ocurre un error.
+     *
+     * @throws Exception Si hay un problema al realizar la solicitud al servidor.
+     */
+    suspend fun getPlaylistAverageRating(playlistId: String): Double? {
+        return try {
+            val response = get("ratingPlaylist/$playlistId/rating")
+            response?.let {
+                val json = JSONObject(it)
+                json.optDouble("average", 0.0)
+            }
+        } catch (e: Exception) {
+            println("Error al obtener el rating promedio: ${e.message}")
+            null
+        }
+    }
+    
+    /**
+     * Envía una valoración de un usuario para una playlist específica.
+     *
+     * @param playlistId El ID de la playlist que se desea valorar.
+     * @param userId El ID del usuario que está realizando la valoración.
+     * @param rating La puntuación dada por el usuario (normalmente de 1 a 5).
+     * @return `true` si la valoración se envió correctamente, `false` si hubo un error.
+     *
+     * @throws Exception Si ocurre un problema al comunicarse con el servidor.
+     */
+    suspend fun ratePlaylist(playlistId: String, userId: String, rating: Int): Boolean {
+        return try {
+            val jsonBody = JSONObject().apply {
+                put("user_id", userId) // Aquí añadimos el user_id
+                put("rating", rating)
+            }
+            val response = post("ratingPlaylist/$playlistId/rate", jsonBody)
+            response != null
+        } catch (e: Exception) {
+            println("Error al valorar la playlist: ${e.message}")
+            false
+        }
+    }
+          
+    /*
      * Función para consumir el endpoint que resta un skip diario a un usuario.
      *
      * @param userId ID del usuario al que se le desea restar un skip.
@@ -1549,6 +1598,87 @@ object ApiClient {
                 }
             } catch (e: Exception) {
                 Log.e("ApiClient", "Error en recordPlaylistVisit: ${e.message}")
+                e.printStackTrace()
+                null
+            }
+        }
+    }
+
+    /**
+     * Función para actualizar la información de un usuario.
+     *
+     * @param userId ID del usuario a actualizar.
+     * @param nickname Nuevo nombre de usuario (opcional).
+     * @param profileImage Imagen de perfil en formato base64 (opcional).
+     * @return JSONObject con la respuesta del servidor o `null` en caso de error.
+     */
+    suspend fun updateUserProfile(userId: String, nickname: String? = null, profileImage: String? = null): JSONObject? {
+        return withContext(Dispatchers.IO) {
+            try {
+                val client = OkHttpClient()
+
+                val jsonBody = JSONObject().apply {
+                    nickname?.let { put("nickname", it) }
+                    profileImage?.let { put("profileImage", it) }
+                }
+
+                val requestBody = jsonBody.toString()
+                    .toRequestBody("application/json".toMediaTypeOrNull())
+
+                val request = Request.Builder()
+                    .url("$BASE_URL/user/users/$userId")
+                    .post(requestBody)  // Usando POST para actualizar recurso
+                    .addHeader("Content-Type", "application/json")
+                    .build()
+
+                client.newCall(request).execute().use { response ->
+                    val responseBody = response.body?.string()
+
+                    if (!response.isSuccessful) {
+                        Log.e("API", "Error al actualizar usuario: código ${response.code}, cuerpo: $responseBody")
+                        if (responseBody != null) {
+                            // Devolver la respuesta de error para manejarla adecuadamente
+                            return@withContext JSONObject(responseBody)
+                        }
+                        null
+                    } else {
+                        Log.d("API", "Usuario actualizado: $responseBody")
+                        if (responseBody != null) {
+                            JSONObject(responseBody)
+                        } else {
+                            null
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("ApiClient", "Error en updateUserProfile: ${e.message}")
+                e.printStackTrace()
+                null
+            }
+        }
+    }
+
+
+    /**
+     * Convierte una imagen identificada por un URI a una cadena en formato Base64.
+     *
+     * @param context El contexto de la aplicación necesario para acceder al ContentResolver
+     * @param uri El URI de la imagen que se va a convertir
+     * @return Una cadena en formato data URL con la imagen codificada en Base64, o null si ocurre un error
+     */
+    suspend fun uriToBase64(context: Context, uri: Uri): String? {
+        return withContext(Dispatchers.IO) {
+            try {
+                val inputStream = context.contentResolver.openInputStream(uri)
+                val bitmap = BitmapFactory.decodeStream(inputStream)
+                inputStream?.close()
+
+                val byteArrayOutputStream = ByteArrayOutputStream()
+                bitmap.compress(Bitmap.CompressFormat.JPEG, 80, byteArrayOutputStream)
+                val byteArray = byteArrayOutputStream.toByteArray()
+
+                "data:image/jpeg;base64,${android.util.Base64.encodeToString(byteArray, android.util.Base64.DEFAULT)}"
+            } catch (e: IOException) {
                 e.printStackTrace()
                 null
             }

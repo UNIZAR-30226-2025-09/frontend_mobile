@@ -104,35 +104,49 @@ class MainActivity : ComponentActivity() {
                 val scheme = uri.scheme
                 val host = uri.host
                 val path = uri.pathSegments
-/*
-                if (scheme == "vibra" && host == "playlist" && path.isNotEmpty()) {
-                    val playlistId = path[0]
-                    Log.d("DeepLink", "Abriendo playlist: $playlistId")
-                    navController.navigate("playlist/$playlistId")
-                }
-*/
+
+                // Verificar autenticación
+                val isAuthenticated = isUserAuthenticated(this)
+
                 when {
                     // Enlace tipo vibra://playlist/123
                     scheme == "vibra" && host == "playlist" && path.isNotEmpty() -> {
                         val playlistId = path[0]
-                        Log.d("DeepLink", "Abriendo playlist desde esquema personalizado: $playlistId")
-                        navController.navigate("playlist/$playlistId")
+                        handleDeepLinkNavigation(navController, isAuthenticated, "playlist/$playlistId")
                     }
 
                     // Enlace tipo https://vibra.eina.unizar.es/playlist/123
-                    (scheme == "http" || scheme == "https")
-                            && host == "vibra.eina.unizar.es"
-                            && path.size >= 2
-                            && path[0] == "playlist" -> {
+                    (scheme == "http" || scheme == "https") &&
+                            host == "vibra.eina.unizar.es" &&
+                            path.size >= 2 &&
+                            path[0] == "playlist" -> {
 
                         val playlistId = path[1]
-                        Log.d("DeepLink", "Abriendo playlist desde HTTPS: $playlistId")
-                        navController.navigate("playlist/$playlistId")
+                        Log.d("TAG","Ha entrado donde toca y el id es: " + playlistId)
+                        handleDeepLinkNavigation(navController, isAuthenticated, "playlist/$playlistId")
                     }
                 }
-
             }
         }
+    }
+
+    private fun handleDeepLinkNavigation(navController: NavController, isAuthenticated: Boolean, destination: String) {
+        if (isAuthenticated) {
+            navController.navigate(destination) {
+                // Limpiar la pila de navegación
+                popUpTo(0)
+            }
+        } else {
+            navController.navigate("login?returnTo=$destination") {
+                // Limpiar la pila de navegación
+                popUpTo(0)
+            }
+        }
+    }
+
+    private fun isUserAuthenticated(context: Context): Boolean {
+        val sharedPreferences = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+        return !sharedPreferences.getString("auth_token", null).isNullOrEmpty()
     }
 
     private fun handlePaymentResult(result: PaymentSheetResult) {

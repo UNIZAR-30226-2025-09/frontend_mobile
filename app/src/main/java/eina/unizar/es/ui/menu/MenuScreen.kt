@@ -49,6 +49,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import com.example.musicapp.ui.theme.VibraBlue
 import com.example.musicapp.ui.theme.VibraDarkGrey
@@ -309,6 +310,7 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp)
                 ) {
+                    /*
                     // 1. Sección de Playlists recientemente visitadas
                     if (isLoadingRecent) {
                         Spacer(modifier = Modifier.height(12.dp))
@@ -323,7 +325,8 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
                                 color = VibraBlue
                             )
                         }
-                    } else if (recentPlaylists.isNotEmpty()) {
+                    } else */
+                    if (recentPlaylists.isNotEmpty()) {
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -540,9 +543,20 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
                                         }
                                         Spacer(modifier = Modifier.height(4.dp))
                                         Text(
-                                            text = album.title,
+                                            text = if (album.title.length > 20) {
+                                                val midpoint = album.title.substring(0, 20).lastIndexOf(" ").let {
+                                                    if (it == -1) 20 else it
+                                                }
+                                                album.title.substring(0, midpoint) + "\n" + album.title.substring(midpoint)
+                                            } else {
+                                                album.title
+                                            },
                                             color = MaterialTheme.colorScheme.onSurface,
-                                            style = MaterialTheme.typography.bodyMedium
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            maxLines = 2,
+                                            overflow = TextOverflow.Ellipsis,
+                                            textAlign = TextAlign.Center,
+                                            modifier = Modifier.fillMaxWidth()
                                         )
                                     }
                                 }

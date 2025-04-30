@@ -95,7 +95,19 @@ fun AppNavigator(navController: NavHostController, paymentSheet: PaymentSheet, i
                 composable("menu") { MenuScreen(navController, paymentSheet, isPremium, playerViewModel) }
                 composable("buscar") { SearchScreen(navController, playerViewModel) }
                 composable("tu biblioteca") { LibraryScreen(navController, playerViewModel) }
-                composable("login") { UserLoginScreen(navController) }
+                composable(
+                    "login?returnTo={returnTo}",
+                    arguments = listOf(
+                        navArgument("returnTo") {
+                            type = NavType.StringType
+                            defaultValue = ""
+                            nullable = true
+                        }
+                    )
+                ) { backStackEntry ->
+                    val returnTo = backStackEntry.arguments?.getString("returnTo") ?: ""
+                    UserLoginScreen(navController, returnTo)
+                }
                 composable("register") { UserRegisterScreen(navController) }
                 composable("perfilEdit") { EditProfileScreen(navController) }
                 composable("settings") { UserSettings(navController, isPremium, playerViewModel) }
@@ -116,7 +128,7 @@ fun AppNavigator(navController: NavHostController, paymentSheet: PaymentSheet, i
                         navController = navController,
                         isPremium = isPremium,
                         playerViewModel = playerViewModel,
-                        isViewOnly = isViewOnly // <--- Parámetro añadido
+                        isViewOnly = isViewOnly
                     )
                 }
                 composable(
