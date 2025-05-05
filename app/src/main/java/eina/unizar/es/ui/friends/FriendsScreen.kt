@@ -2,6 +2,7 @@ package eina.unizar.es.ui.friends
 
 import android.content.Context
 import android.util.Log
+import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
@@ -24,11 +25,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -38,17 +41,20 @@ import coil.request.ImageRequest
 import eina.unizar.es.data.model.network.ApiClient
 import eina.unizar.es.ui.player.MusicPlayerViewModel
 import eina.unizar.es.ui.user.UserProfileMenu
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import org.json.JSONArray
 
 data class Friend(
     val id: String,
     val name: String,
-    val photo: String,
-    val status: String = "offline", // online, offline, busy, etc.
-    val lastMessage: String = "",
-    val isPendingRequest: Boolean = false
+    val photo: String = "",
+    val status: String = "",
+    val isPendingRequest: Boolean = false,
+    val isSentRequest: Boolean = false,
+    val lastMessage: String = "" // Nueva propiedad para último mensaje
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -57,95 +63,110 @@ fun FriendsScreen(navController: NavController, playerViewModel: MusicPlayerView
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     
-    // Estado para expandir/colapsar las secciones
-    var friendRequestsExpanded by remember { mutableStateOf(true) }
-    var friendsExpanded by remember { mutableStateOf(true) }
-    
-    // Estados para las listas de amigos y solicitudes
-    var friendRequests by remember { mutableStateOf(listOf<Friend>()) }
-    var friends by remember { mutableStateOf(listOf<Friend>()) }
+    // Variables de estado para la UI
     var isLoading by remember { mutableStateOf(true) }
+    var searchQuery by remember { mutableStateOf("") }
+    var isSearching by remember { mutableStateOf(false) }
+    var showSearchDialog by remember { mutableStateOf(false) }
+    var friends by remember { mutableStateOf(listOf<Friend>()) }
+    var friendRequests by remember { mutableStateOf(listOf<Friend>()) }
+    var sentRequests by remember { mutableStateOf(listOf<Friend>()) } // Nueva variable para solicitudes enviadas
+    var searchResults by remember { mutableStateOf(listOf<Friend>()) }
+    var expandedReceivedRequests by remember { mutableStateOf(true) }
+    var expandedSentRequests by remember { mutableStateOf(true) } // Nueva variable para el desplegable
+    var expandedFriends by remember { mutableStateOf(true) }
     
     // Estado para controlar el diálogo de búsqueda de amigos
     var showAddFriendDialog by remember { mutableStateOf(false) }
-    var searchQuery by remember { mutableStateOf("") }
-    var searchResults by remember { mutableStateOf(listOf<Friend>()) }
-    var isSearching by remember { mutableStateOf(false) }
 
     // Carga de datos desde la API
     LaunchedEffect(Unit) {
         coroutineScope.launch {
             isLoading = true
             try {
-                // Obtener el token de autenticación
-                val sharedPreferences = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
-                val token = sharedPreferences.getString("auth_token", null)
-                
-                if (token.isNullOrEmpty()) {
-                    Log.e("FriendsScreen", "Token de autenticación no disponible")
-                    isLoading = false
-                    return@launch
-                }
-                
-                // Crear objeto JSONObject vacío para la petición
-                val emptyJson = JSONObject()
-                
-                // Preparar los headers con el token de autenticación
-                val headers = mutableMapOf<String, String>("Authorization" to "Bearer $token")
-
                 // Obtener solicitudes de amistad recibidas
-                val receivedRequestsResponse = ApiClient.postWithHeaders("social/getReceivedFriendRequests", emptyJson, context, headers)
-                receivedRequestsResponse?.let {
-                    val jsonArray = JSONArray(it)
+                val receivedRequestsArray = ApiClient.getReceivedFriendRequests(context)
+                if (receivedRequestsArray != null) {
                     val requests = mutableListOf<Friend>()
                     
-                    for (i in 0 until jsonArray.length()) {
-                        val jsonObject = jsonArray.getJSONObject(i)
-                        val user = jsonObject.getJSONObject("user1") // El remitente de la solicitud
-                        
-                        requests.add(
-                            Friend(
-                                id = user.getString("id"),
-                                name = user.getString("nickname"),
-                                photo = user.optString("user_picture", ""),
-                                isPendingRequest = true
+                    for (i in 0 until receivedRequestsArray.length()) {
+                        try {
+                            val request = receivedRequestsArray.getJSONObject(i)
+                            requests.add(
+                                Friend(
+                                    id = request.getString("friendId"),
+                                    name = request.getString("nickname"),
+                                    photo = request.optString("user_picture", ""),
+                                    isPendingRequest = true
+                                )
                             )
-                        )
+                        } catch (e: Exception) {
+                            Log.e("FriendsScreen", "Error procesando solicitud recibida: ${e.message}")
+                        }
                     }
                     
                     friendRequests = requests
+                    Log.d("FriendsScreen", "Solicitudes de amistad recibidas: ${requests.size}")
+                } else {
+                    Log.e("FriendsScreen", "Error obteniendo solicitudes de amistad recibidas")
+                }
+                
+                // Obtener solicitudes de amistad enviadas (NUEVO)
+                val sentRequestsArray = ApiClient.getSentFriendRequests(context)
+                if (sentRequestsArray != null) {
+                    val requests = mutableListOf<Friend>()
+                    
+                    for (i in 0 until sentRequestsArray.length()) {
+                        try {
+                            val request = sentRequestsArray.getJSONObject(i)
+                            requests.add(
+                                Friend(
+                                    id = request.getString("friendId"),
+                                    name = request.getString("nickname"),
+                                    photo = request.optString("user_picture", ""),
+                                    isPendingRequest = true,
+                                    isSentRequest = true // Marcar como solicitud enviada
+                                )
+                            )
+                        } catch (e: Exception) {
+                            Log.e("FriendsScreen", "Error procesando solicitud enviada: ${e.message}")
+                        }
+                    }
+                    
+                    sentRequests = requests
+                    Log.d("FriendsScreen", "Solicitudes de amistad enviadas: ${requests.size}")
+                } else {
+                    Log.e("FriendsScreen", "Error obteniendo solicitudes de amistad enviadas")
                 }
                 
                 // Obtener lista de amigos
-                val friendsListResponse = ApiClient.postWithHeaders("social/getFriendsList", emptyJson, context, headers)
-                friendsListResponse?.let {
-                    val jsonArray = JSONArray(it)
+                val friendsArray = ApiClient.getFriendsList(context)
+                if (friendsArray != null) {
                     val friendsList = mutableListOf<Friend>()
                     
-                    for (i in 0 until jsonArray.length()) {
-                        val jsonObject = jsonArray.getJSONObject(i)
-                        // Determinar qué usuario es el amigo (no el usuario actual)
-                        val user = if (jsonObject.has("user2")) {
-                            jsonObject.getJSONObject("user2")
-                        } else {
-                            jsonObject.getJSONObject("user1")
-                        }
-                        
-                        friendsList.add(
-                            Friend(
-                                id = user.getString("id"),
-                                name = user.getString("nickname"),
-                                photo = user.optString("user_picture", ""),
-                                status = "online" // Por defecto asumimos que está en línea
+                    for (i in 0 until friendsArray.length()) {
+                        try {
+                            val friend = friendsArray.getJSONObject(i)
+                            friendsList.add(
+                                Friend(
+                                    id = friend.getString("friendId"),
+                                    name = friend.getString("nickname"),
+                                    photo = friend.optString("user_picture", ""),
+                                    status = "online" // Asumimos online por defecto
+                                )
                             )
-                        )
+                        } catch (e: Exception) {
+                            Log.e("FriendsScreen", "Error procesando amigo: ${e.message}")
+                        }
                     }
                     
                     friends = friendsList
+                    Log.d("FriendsScreen", "Amigos cargados: ${friendsList.size}")
+                } else {
+                    Log.e("FriendsScreen", "Error obteniendo lista de amigos")
                 }
             } catch (e: Exception) {
-                // Manejar errores
-                e.printStackTrace()
+                Log.e("FriendsScreen", "Error cargando datos sociales: ${e.message}", e)
             } finally {
                 isLoading = false
             }
@@ -157,61 +178,85 @@ fun FriendsScreen(navController: NavController, playerViewModel: MusicPlayerView
         if (query.isBlank()) {
             searchResults = emptyList()
             searchQuery = query
+            isSearching = false
             return
         }
         
         searchQuery = query
         isSearching = true
+        
         coroutineScope.launch {
             try {
-                // Obtener el token de autenticación
-                val sharedPreferences = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
-                val token = sharedPreferences.getString("auth_token", null)
+                Log.d("SearchFriends", "Buscando usuarios con query: $query")
                 
-                if (token.isNullOrEmpty()) {
-                    Log.e("SearchFriends", "Token de autenticación no disponible")
-                    isSearching = false
-                    return@launch
-                }
+                // Obtener todos los usuarios potenciales (no amigos)
+                val allPotentialFriendsArray = ApiClient.searchNewFriends(context)
                 
-                // Crear objeto JSONObject con el query de búsqueda
-                val jsonBody = JSONObject().put("searchText", query)
-                
-                // Preparar los headers con el token de autenticación
-                val headers = mutableMapOf<String, String>("Authorization" to "Bearer $token")
-                
-                // Llamar a la API con el token de autenticación
-                val response = ApiClient.postWithHeaders("social/searchNewFriends", jsonBody, context, headers)
-                
-                if (response != null) {
-                    Log.d("SearchFriends", "Respuesta recibida: $response")
-                    val jsonArray = JSONArray(response)
+                if (allPotentialFriendsArray != null) {
                     val results = mutableListOf<Friend>()
                     
-                    for (i in 0 until jsonArray.length()) {
-                        val user = jsonArray.getJSONObject(i)
-                        
-                        results.add(
-                            Friend(
-                                id = user.getString("id"),
-                                name = user.getString("nickname"),
-                                photo = user.optString("user_picture", ""),
-                                isPendingRequest = false
+                    // Convertir el JSONArray a una lista de Friend
+                    val allPotentialFriends = mutableListOf<Friend>()
+                    for (i in 0 until allPotentialFriendsArray.length()) {
+                        try {
+                            val user = allPotentialFriendsArray.getJSONObject(i)
+                            allPotentialFriends.add(
+                                Friend(
+                                    id = user.getString("id"),
+                                    name = user.getString("nickname"),
+                                    photo = user.optString("user_picture", ""),
+                                    isPendingRequest = false
+                                )
                             )
-                        )
+                        } catch (e: Exception) {
+                            Log.e("SearchFriends", "Error procesando usuario: ${e.message}", e)
+                        }
                     }
                     
-                    searchResults = results
+                    // Filtrar la lista según el término de búsqueda
+                    val filteredResults = allPotentialFriends.filter {
+                        it.name.contains(query, ignoreCase = true)
+                    }
+                    
+                    withContext(Dispatchers.Main) {
+                        searchResults = filteredResults
+                        
+                        if (filteredResults.isEmpty()) {
+                            Log.d("SearchFriends", "No se encontraron usuarios que coincidan con: $query")
+                            Toast.makeText(
+                                context,
+                                "No se encontraron usuarios que coincidan",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        } else {
+                            Log.d("SearchFriends", "Se encontraron ${filteredResults.size} usuarios que coinciden con: $query")
+                        }
+                    }
                 } else {
-                    Log.e("SearchFriends", "La API devolvió una respuesta nula")
-                    searchResults = emptyList()
+                    withContext(Dispatchers.Main) {
+                        searchResults = emptyList()
+                        Log.e("SearchFriends", "Error en la búsqueda de usuarios")
+                        Toast.makeText(
+                            context,
+                            "Error en la búsqueda de usuarios",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
                 }
             } catch (e: Exception) {
                 Log.e("SearchFriends", "Error al buscar amigos: ${e.message}", e)
-                e.printStackTrace()
-                searchResults = emptyList()
+                withContext(Dispatchers.Main) {
+                    searchResults = emptyList()
+                    Toast.makeText(
+                        context,
+                        "Error en la búsqueda: ${e.message}",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
             } finally {
-                isSearching = false
+                withContext(Dispatchers.Main) {
+                    isSearching = false
+                }
             }
         }
     }
@@ -220,33 +265,40 @@ fun FriendsScreen(navController: NavController, playerViewModel: MusicPlayerView
     fun sendFriendRequest(friendId: String) {
         coroutineScope.launch {
             try {
-                // Obtener el token de autenticación
-                val sharedPreferences = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
-                val token = sharedPreferences.getString("auth_token", null)
+                Log.d("SendFriendRequest", "Enviando solicitud a: $friendId")
                 
-                if (token.isNullOrEmpty()) {
-                    Log.e("SendFriendRequest", "Token de autenticación no disponible")
-                    return@launch
-                }
-                
-                // Crear objeto JSONObject con el ID del amigo
-                val jsonBody = JSONObject().put("friendId", friendId)
-                
-                // Preparar los headers con el token de autenticación
-                val headers = mutableMapOf<String, String>("Authorization" to "Bearer $token")
-                
-                // Llamar a la API con el token de autenticación
-                val response = ApiClient.postWithHeaders("social/send", jsonBody, context, headers)
+                // Usar el nuevo método implementado en ApiClient
+                val response = ApiClient.sendFriendRequest(friendId, context)
                 
                 if (response != null) {
-                    // Eliminar el usuario de la lista de resultados para evitar enviar múltiples solicitudes
-                    searchResults = searchResults.filter { it.id != friendId }
+                    withContext(Dispatchers.Main) {
+                        // Eliminar el usuario de la lista de resultados para evitar enviar múltiples solicitudes
+                        searchResults = searchResults.filter { it.id != friendId }
+                        Toast.makeText(
+                            context,
+                            "Solicitud de amistad enviada",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
                 } else {
-                    Log.e("SendFriendRequest", "Error al enviar solicitud de amistad: La API devolvió una respuesta nula")
+                    withContext(Dispatchers.Main) {
+                        Log.e("SendFriendRequest", "Error al enviar solicitud de amistad")
+                        Toast.makeText(
+                            context,
+                            "Error al enviar solicitud de amistad",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
                 }
             } catch (e: Exception) {
                 Log.e("SendFriendRequest", "Error al enviar solicitud de amistad: ${e.message}", e)
-                e.printStackTrace()
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(
+                        context,
+                        "Error al enviar solicitud: ${e.message}",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
             }
         }
     }
@@ -255,32 +307,175 @@ fun FriendsScreen(navController: NavController, playerViewModel: MusicPlayerView
     fun removeFriend(friendId: String) {
         coroutineScope.launch {
             try {
-                // Obtener el token de autenticación
-                val sharedPreferences = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
-                val token = sharedPreferences.getString("auth_token", null)
+                Log.d("RemoveFriend", "Eliminando amigo: $friendId")
                 
-                if (token.isNullOrEmpty()) {
-                    Log.e("RemoveFriend", "Token de autenticación no disponible")
-                    return@launch
-                }
-                
-                val jsonBody = JSONObject().put("friendRequestId", friendId)
-                
-                // Preparar los headers con el token de autenticación
-                val headers = mutableMapOf<String, String>("Authorization" to "Bearer $token")
-                
-                // Llamar a la API con el token de autenticación
-                val response = ApiClient.postWithHeaders("social/reject", jsonBody, context, headers)
+                val response = ApiClient.unfollowFriend(friendId, context)
                 
                 if (response != null) {
-                    // Actualizar la UI solo si la API responde correctamente
-                    friends = friends.filter { it.id != friendId }
+                    withContext(Dispatchers.Main) {
+                        // Actualizar la UI: eliminar de la lista de amigos
+                        friends = friends.filter { it.id != friendId }
+                        
+                        Toast.makeText(
+                            context,
+                            "Amigo eliminado",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
                 } else {
-                    Log.e("RemoveFriend", "Error al eliminar amigo: La API devolvió una respuesta nula")
+                    withContext(Dispatchers.Main) {
+                        Log.e("RemoveFriend", "Error al eliminar amigo")
+                        Toast.makeText(
+                            context,
+                            "Error al eliminar amigo",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
                 }
             } catch (e: Exception) {
-                Log.e("RemoveFriend", "Error al eliminar amigo: ${e.message}", e)
-                e.printStackTrace()
+                Log.e("RemoveFriend", "Error: ${e.message}", e)
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(
+                        context,
+                        "Error: ${e.message}",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
+        }
+    }
+
+    // Función para aceptar una solicitud de amistad
+    fun acceptFriendRequest(friendId: String, friendName: String, friendPhoto: String) {
+        coroutineScope.launch {
+            try {
+                Log.d("AcceptFriendRequest", "Aceptando solicitud de: $friendId")
+                
+                val response = ApiClient.acceptFriendRequest(friendId, context)
+                
+                if (response != null) {
+                    withContext(Dispatchers.Main) {
+                        // Actualizar la UI: eliminar de solicitudes y añadir a amigos
+                        friendRequests = friendRequests.filter { it.id != friendId }
+                        
+                        // Añadir a la lista de amigos con datos completos
+                        friends = friends + Friend(
+                            id = friendId,
+                            name = friendName,
+                            photo = friendPhoto,
+                            status = "online", // Estado por defecto
+                            isPendingRequest = false
+                        )
+                        
+                        Toast.makeText(
+                            context,
+                            "Solicitud aceptada",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                } else {
+                    withContext(Dispatchers.Main) {
+                        Log.e("AcceptFriendRequest", "Error al aceptar solicitud")
+                        Toast.makeText(
+                            context,
+                            "Error al aceptar solicitud",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("AcceptFriendRequest", "Error: ${e.message}", e)
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(
+                        context,
+                        "Error: ${e.message}",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
+        }
+    }
+
+    // Función para rechazar una solicitud de amistad
+    fun rejectFriendRequest(friendId: String) {
+        coroutineScope.launch {
+            try {
+                Log.d("RejectFriendRequest", "Rechazando solicitud de: $friendId")
+                
+                val response = ApiClient.rejectFriendRequest(friendId, context)
+                
+                if (response != null) {
+                    withContext(Dispatchers.Main) {
+                        // Actualizar la UI: eliminar de solicitudes
+                        friendRequests = friendRequests.filter { it.id != friendId }
+                        
+                        Toast.makeText(
+                            context,
+                            "Solicitud rechazada",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                } else {
+                    withContext(Dispatchers.Main) {
+                        Log.e("RejectFriendRequest", "Error al rechazar solicitud")
+                        Toast.makeText(
+                            context,
+                            "Error al rechazar solicitud",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("RejectFriendRequest", "Error: ${e.message}", e)
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(
+                        context,
+                        "Error: ${e.message}",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
+        }
+    }
+
+    // Función para cancelar una solicitud de amistad enviada
+    fun cancelFriendRequest(friendId: String) {
+        coroutineScope.launch {
+            try {
+                Log.d("CancelFriendRequest", "Cancelando solicitud a: $friendId")
+                
+                val response = ApiClient.rejectFriendRequest(friendId, context)
+                
+                if (response != null) {
+                    withContext(Dispatchers.Main) {
+                        // Actualizar la UI: eliminar de solicitudes enviadas
+                        sentRequests = sentRequests.filter { it.id != friendId }
+                        
+                        Toast.makeText(
+                            context,
+                            "Solicitud cancelada",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                } else {
+                    withContext(Dispatchers.Main) {
+                        Log.e("CancelFriendRequest", "Error al cancelar solicitud")
+                        Toast.makeText(
+                            context,
+                            "Error al cancelar solicitud",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("CancelFriendRequest", "Error: ${e.message}", e)
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(
+                        context,
+                        "Error: ${e.message}",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
             }
         }
     }
@@ -468,12 +663,7 @@ fun FriendsScreen(navController: NavController, playerViewModel: MusicPlayerView
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
-                title = {
-                    Row (verticalAlignment = Alignment.CenterVertically) {
-                        Spacer(modifier = Modifier.width(5.dp))
-                        Text("Amigos", color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.titleLarge)
-                    }
-                },
+                title = {},
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(8.dp),
@@ -486,36 +676,48 @@ fun FriendsScreen(navController: NavController, playerViewModel: MusicPlayerView
                     }
                 }
             )
-        }
+        },
+        floatingActionButton = {
+            if (!isLoading) {
+                FloatingActionButton(
+                    onClick = { showAddFriendDialog = true },
+                    containerColor = MaterialTheme.colorScheme.primary
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.PersonAdd,
+                        contentDescription = "Añadir amigo",
+                        tint = MaterialTheme.colorScheme.onPrimary
+                    )
+                }
+            }
+        },
+        floatingActionButtonPosition = FabPosition.End
     ) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(16.dp)
-                .background(MaterialTheme.colorScheme.background)
+                .padding(horizontal = 8.dp)
         ) {
             if (isLoading) {
-                // Mostrar indicador de carga
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator(
-                        color = MaterialTheme.colorScheme.primary
-                    )
+                    CircularProgressIndicator()
                 }
             } else {
-                // Sección de solicitudes de amistad
+                // Sección 1: Solicitudes Recibidas (encabezado + contenido)
                 ExpandableSection(
-                    title = "Solicitudes de amistad",
-                    itemCount = friendRequests.size,
-                    isExpanded = friendRequestsExpanded,
-                    onToggle = { friendRequestsExpanded = !friendRequestsExpanded }
+                    title = "Solicitudes recibidas${if (friendRequests.isNotEmpty()) " (${friendRequests.size})" else ""}",
+                    isExpanded = expandedReceivedRequests,
+                    onToggle = { expandedReceivedRequests = !expandedReceivedRequests },
+                    icon = Icons.Default.Person
                 )
                 
+                // Contenido de solicitudes recibidas
                 AnimatedVisibility(
-                    visible = friendRequestsExpanded,
+                    visible = expandedReceivedRequests,
                     enter = expandVertically(animationSpec = tween(300)),
                     exit = shrinkVertically(animationSpec = tween(300))
                 ) {
@@ -529,39 +731,10 @@ fun FriendsScreen(navController: NavController, playerViewModel: MusicPlayerView
                                 FriendRequestItem(
                                     friend = friend,
                                     onAccept = {
-                                        coroutineScope.launch {
-                                            try {
-                                                // Llamada a la API para aceptar la solicitud
-                                                val jsonBody = JSONObject().put("friendRequestId", friend.id)
-                                                val response = ApiClient.post("social/accept", jsonBody)
-                                                
-                                                if (response != null) {
-                                                    // Actualizar la UI
-                                                    friendRequests = friendRequests.filter { it.id != friend.id }
-                                                    friends = friends + friend.copy(isPendingRequest = false)
-                                                }
-                                            } catch (e: Exception) {
-                                                // Manejar error
-                                                e.printStackTrace()
-                                            }
-                                        }
+                                        acceptFriendRequest(friend.id, friend.name, friend.photo)
                                     },
                                     onReject = {
-                                        coroutineScope.launch {
-                                            try {
-                                                // Llamada a la API para rechazar la solicitud
-                                                val jsonBody = JSONObject().put("friendRequestId", friend.id)
-                                                val response = ApiClient.post("social/reject", jsonBody)
-                                                
-                                                if (response != null) {
-                                                    // Actualizar la UI
-                                                    friendRequests = friendRequests.filter { it.id != friend.id }
-                                                }
-                                            } catch (e: Exception) {
-                                                // Manejar error
-                                                e.printStackTrace()
-                                            }
-                                        }
+                                        rejectFriendRequest(friend.id)
                                     }
                                 )
                             }
@@ -581,18 +754,61 @@ fun FriendsScreen(navController: NavController, playerViewModel: MusicPlayerView
                     }
                 }
                 
-                Spacer(modifier = Modifier.height(16.dp))
-                
-                // Sección de amigos
+                // Sección 2: Solicitudes Enviadas (encabezado + contenido)
                 ExpandableSection(
-                    title = "Tus amigos",
-                    itemCount = friends.size,
-                    isExpanded = friendsExpanded,
-                    onToggle = { friendsExpanded = !friendsExpanded }
+                    title = "Solicitudes enviadas${if (sentRequests.isNotEmpty()) " (${sentRequests.size})" else ""}",
+                    isExpanded = expandedSentRequests,
+                    onToggle = { expandedSentRequests = !expandedSentRequests },
+                    icon = Icons.Default.Send
                 )
                 
+                // Contenido de solicitudes enviadas
                 AnimatedVisibility(
-                    visible = friendsExpanded,
+                    visible = expandedSentRequests,
+                    enter = expandVertically(animationSpec = tween(300)),
+                    exit = shrinkVertically(animationSpec = tween(300))
+                ) {
+                    if (sentRequests.isNotEmpty()) {
+                        LazyColumn(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(max = 300.dp)
+                        ) {
+                            items(sentRequests) { friend ->
+                                SentRequestItem(
+                                    friend = friend,
+                                    onCancel = {
+                                        cancelFriendRequest(friend.id)
+                                    }
+                                )
+                            }
+                        }
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 16.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                "No has enviado solicitudes de amistad",
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                            )
+                        }
+                    }
+                }
+                
+                // Sección 3: Amigos (encabezado + contenido)
+                ExpandableSection(
+                    title = "Amigos${if (friends.isNotEmpty()) " (${friends.size})" else ""}",
+                    isExpanded = expandedFriends,
+                    onToggle = { expandedFriends = !expandedFriends },
+                    icon = Icons.Default.Group
+                )
+                
+                // Contenido de la lista de amigos
+                AnimatedVisibility(
+                    visible = expandedFriends,
                     enter = expandVertically(animationSpec = tween(300)),
                     exit = shrinkVertically(animationSpec = tween(300))
                 ) {
@@ -600,14 +816,20 @@ fun FriendsScreen(navController: NavController, playerViewModel: MusicPlayerView
                         LazyColumn(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .weight(1f) // Toma el espacio restante
+                                .weight(1f)
                         ) {
                             items(friends) { friend ->
                                 FriendItem(
                                     friend = friend,
                                     onClick = {
-                                        // Navegar a la conversación con este amigo
-                                        navController.navigate("chat/${friend.id}")
+                                        val encodedName = java.net.URLEncoder.encode(friend.name, "UTF-8")
+                                        val encodedPhoto = if (friend.photo.isNotEmpty()) {
+                                            java.net.URLEncoder.encode(friend.photo, "UTF-8")
+                                        } else {
+                                            ""
+                                        }
+                                        
+                                        navController.navigate("chat/${friend.id}/$encodedName/$encodedPhoto")
                                     },
                                     onDeleteConfirmed = {
                                         removeFriend(friend.id)
@@ -623,38 +845,10 @@ fun FriendsScreen(navController: NavController, playerViewModel: MusicPlayerView
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                "Aún no tienes amigos añadidos",
+                                "No tienes amigos en tu lista",
                                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                             )
                         }
-                    }
-                }
-                
-                // Botón para añadir amigo
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 16.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Button(
-                        onClick = {
-                            // Mostrar el diálogo de búsqueda de amigos
-                            showAddFriendDialog = true
-                        },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary,
-                            contentColor = MaterialTheme.colorScheme.onPrimary
-                        )
-                    ) {
-                        Icon(
-                            Icons.Filled.PersonAdd,
-                            contentDescription = "Añadir amigo",
-                            modifier = Modifier.size(20.dp),
-                            tint = MaterialTheme.colorScheme.onPrimary
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Añadir amigo", color = MaterialTheme.colorScheme.onPrimary)
                     }
                 }
             }
@@ -665,9 +859,9 @@ fun FriendsScreen(navController: NavController, playerViewModel: MusicPlayerView
 @Composable
 fun ExpandableSection(
     title: String,
-    itemCount: Int,
     isExpanded: Boolean,
-    onToggle: () -> Unit
+    onToggle: () -> Unit,
+    icon: ImageVector
 ) {
     Row(
         modifier = Modifier
@@ -682,17 +876,17 @@ fun ExpandableSection(
             tint = MaterialTheme.colorScheme.primary
         )
         Spacer(modifier = Modifier.width(8.dp))
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary
+        )
+        Spacer(modifier = Modifier.width(8.dp))
         Text(
             text = title,
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onBackground
-        )
-        Spacer(modifier = Modifier.width(8.dp))
-        Text(
-            text = "($itemCount)",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
         )
     }
 }
@@ -750,8 +944,7 @@ fun FriendRequestItem(
             
             // Información del amigo
             Column(
-                modifier = Modifier
-                    .weight(1f)
+                modifier = Modifier.weight(1f)
             ) {
                 Text(
                     text = friend.name,
@@ -900,9 +1093,19 @@ fun FriendItem(
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurface
                 )
+                // Solo mostrar el último mensaje si existe
                 if (friend.lastMessage.isNotEmpty()) {
                     Text(
                         text = friend.lastMessage,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                } else {
+                    // Si no hay último mensaje, mostrar un estado genérico
+                    Text(
+                        text = if (friend.status == "online") "En línea" else "Desconectado",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                         maxLines = 1
@@ -958,6 +1161,76 @@ fun FriendItem(
                         )
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+fun SentRequestItem(
+    friend: Friend,
+    onCancel: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.secondaryContainer),
+                contentAlignment = Alignment.Center
+            ) {
+                if (friend.photo.isNotEmpty()) {
+                    AsyncImage(
+                        model = ImageRequest.Builder(LocalContext.current)
+                            .data(friend.photo)
+                            .crossfade(true)
+                            .build(),
+                        contentDescription = "Foto de perfil",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Text(
+                        text = friend.name.firstOrNull()?.toString() ?: "?",
+                        style = MaterialTheme.typography.headlineMedium,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                }
+            }
+            
+            Spacer(modifier = Modifier.width(12.dp))
+            
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                    text = friend.name,
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Text(
+                    text = "Solicitud pendiente",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                )
+            }
+            
+            IconButton(onClick = onCancel) {
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = "Cancelar solicitud",
+                    tint = Color.Red
+                )
             }
         }
     }
