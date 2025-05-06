@@ -13,12 +13,18 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.pullrefresh.PullRefreshIndicator
+import androidx.compose.material.pullrefresh.pullRefresh
+import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -42,10 +48,12 @@ import eina.unizar.es.data.model.network.ApiClient
 import eina.unizar.es.ui.player.MusicPlayerViewModel
 import eina.unizar.es.ui.user.UserProfileMenu
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import org.json.JSONArray
+import java.net.URLEncoder
 
 data class Friend(
     val id: String,
@@ -54,10 +62,10 @@ data class Friend(
     val status: String = "",
     val isPendingRequest: Boolean = false,
     val isSentRequest: Boolean = false,
-    val lastMessage: String = "" // Nueva propiedad para último mensaje
+    val lastMessage: String = ""
 )
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterialApi::class)
 @Composable
 fun FriendsScreen(navController: NavController, playerViewModel: MusicPlayerViewModel) {
     val context = LocalContext.current
@@ -70,21 +78,24 @@ fun FriendsScreen(navController: NavController, playerViewModel: MusicPlayerView
     var showSearchDialog by remember { mutableStateOf(false) }
     var friends by remember { mutableStateOf(listOf<Friend>()) }
     var friendRequests by remember { mutableStateOf(listOf<Friend>()) }
-    var sentRequests by remember { mutableStateOf(listOf<Friend>()) } // Nueva variable para solicitudes enviadas
+    var sentRequests by remember { mutableStateOf(listOf<Friend>()) }
     var searchResults by remember { mutableStateOf(listOf<Friend>()) }
     var expandedReceivedRequests by remember { mutableStateOf(true) }
-    var expandedSentRequests by remember { mutableStateOf(true) } // Nueva variable para el desplegable
+    var expandedSentRequests by remember { mutableStateOf(true) }
     var expandedFriends by remember { mutableStateOf(true) }
     
     // Estado para controlar el diálogo de búsqueda de amigos
     var showAddFriendDialog by remember { mutableStateOf(false) }
-
-    // Carga de datos desde la API
-    LaunchedEffect(Unit) {
+    
+    var isRefreshing by remember { mutableStateOf(false) }
+    
+    // Función para recargar todos los datos de la pantalla
+    fun refreshData() {
         coroutineScope.launch {
-            isLoading = true
             try {
-                // Obtener solicitudes de amistad recibidas
+                isLoading = true
+                
+                // Obtener solicitudes recibidas
                 val receivedRequestsArray = ApiClient.getReceivedFriendRequests(context)
                 if (receivedRequestsArray != null) {
                     val requests = mutableListOf<Friend>()
@@ -107,11 +118,9 @@ fun FriendsScreen(navController: NavController, playerViewModel: MusicPlayerView
                     
                     friendRequests = requests
                     Log.d("FriendsScreen", "Solicitudes de amistad recibidas: ${requests.size}")
-                } else {
-                    Log.e("FriendsScreen", "Error obteniendo solicitudes de amistad recibidas")
                 }
                 
-                // Obtener solicitudes de amistad enviadas (NUEVO)
+                // Obtener solicitudes enviadas
                 val sentRequestsArray = ApiClient.getSentFriendRequests(context)
                 if (sentRequestsArray != null) {
                     val requests = mutableListOf<Friend>()
@@ -125,7 +134,7 @@ fun FriendsScreen(navController: NavController, playerViewModel: MusicPlayerView
                                     name = request.getString("nickname"),
                                     photo = request.optString("user_picture", ""),
                                     isPendingRequest = true,
-                                    isSentRequest = true // Marcar como solicitud enviada
+                                    isSentRequest = true
                                 )
                             )
                         } catch (e: Exception) {
@@ -135,8 +144,6 @@ fun FriendsScreen(navController: NavController, playerViewModel: MusicPlayerView
                     
                     sentRequests = requests
                     Log.d("FriendsScreen", "Solicitudes de amistad enviadas: ${requests.size}")
-                } else {
-                    Log.e("FriendsScreen", "Error obteniendo solicitudes de amistad enviadas")
                 }
                 
                 // Obtener lista de amigos
@@ -162,8 +169,6 @@ fun FriendsScreen(navController: NavController, playerViewModel: MusicPlayerView
                     
                     friends = friendsList
                     Log.d("FriendsScreen", "Amigos cargados: ${friendsList.size}")
-                } else {
-                    Log.e("FriendsScreen", "Error obteniendo lista de amigos")
                 }
             } catch (e: Exception) {
                 Log.e("FriendsScreen", "Error cargando datos sociales: ${e.message}", e)
@@ -171,6 +176,21 @@ fun FriendsScreen(navController: NavController, playerViewModel: MusicPlayerView
                 isLoading = false
             }
         }
+    }
+
+    fun manualRefresh() {
+        coroutineScope.launch {
+            isRefreshing = true
+            refreshData()
+            isRefreshing = false
+        }
+    }
+    
+    val pullRefreshState = rememberPullRefreshState(isRefreshing, ::manualRefresh)
+
+    // Carga inicial de datos
+    LaunchedEffect(Unit) {
+        refreshData()
     }
     
     // Función para buscar amigos potenciales
@@ -223,11 +243,6 @@ fun FriendsScreen(navController: NavController, playerViewModel: MusicPlayerView
                         
                         if (filteredResults.isEmpty()) {
                             Log.d("SearchFriends", "No se encontraron usuarios que coincidan con: $query")
-                            Toast.makeText(
-                                context,
-                                "No se encontraron usuarios que coincidan",
-                                Toast.LENGTH_SHORT
-                            ).show()
                         } else {
                             Log.d("SearchFriends", "Se encontraron ${filteredResults.size} usuarios que coinciden con: $query")
                         }
@@ -236,11 +251,6 @@ fun FriendsScreen(navController: NavController, playerViewModel: MusicPlayerView
                     withContext(Dispatchers.Main) {
                         searchResults = emptyList()
                         Log.e("SearchFriends", "Error en la búsqueda de usuarios")
-                        Toast.makeText(
-                            context,
-                            "Error en la búsqueda de usuarios",
-                            Toast.LENGTH_SHORT
-                        ).show()
                     }
                 }
             } catch (e: Exception) {
@@ -267,18 +277,33 @@ fun FriendsScreen(navController: NavController, playerViewModel: MusicPlayerView
             try {
                 Log.d("SendFriendRequest", "Enviando solicitud a: $friendId")
                 
-                // Usar el nuevo método implementado en ApiClient
                 val response = ApiClient.sendFriendRequest(friendId, context)
                 
                 if (response != null) {
                     withContext(Dispatchers.Main) {
-                        // Eliminar el usuario de la lista de resultados para evitar enviar múltiples solicitudes
+                        // Eliminar el usuario de la lista de resultados
                         searchResults = searchResults.filter { it.id != friendId }
+                        
+                        // Buscar el usuario en los resultados para añadirlo a solicitudes enviadas
+                        val sentUser = searchResults.find { it.id == friendId }
+                        sentUser?.let {
+                            sentRequests = sentRequests + Friend(
+                                id = it.id,
+                                name = it.name,
+                                photo = it.photo,
+                                isPendingRequest = true,
+                                isSentRequest = true
+                            )
+                        }
+                        
                         Toast.makeText(
                             context,
                             "Solicitud de amistad enviada",
                             Toast.LENGTH_SHORT
                         ).show()
+                        
+                        // Recargar datos después de enviar solicitud
+                        refreshData()
                     }
                 } else {
                     withContext(Dispatchers.Main) {
@@ -321,6 +346,9 @@ fun FriendsScreen(navController: NavController, playerViewModel: MusicPlayerView
                             "Amigo eliminado",
                             Toast.LENGTH_SHORT
                         ).show()
+                        
+                        // Recargar datos después de eliminar amigo
+                        refreshData()
                     }
                 } else {
                     withContext(Dispatchers.Main) {
@@ -372,6 +400,9 @@ fun FriendsScreen(navController: NavController, playerViewModel: MusicPlayerView
                             "Solicitud aceptada",
                             Toast.LENGTH_SHORT
                         ).show()
+                        
+                        // Recargar datos después de aceptar
+                        refreshData()
                     }
                 } else {
                     withContext(Dispatchers.Main) {
@@ -414,6 +445,9 @@ fun FriendsScreen(navController: NavController, playerViewModel: MusicPlayerView
                             "Solicitud rechazada",
                             Toast.LENGTH_SHORT
                         ).show()
+                        
+                        // Recargar datos después de rechazar solicitud
+                        refreshData()
                     }
                 } else {
                     withContext(Dispatchers.Main) {
@@ -456,6 +490,9 @@ fun FriendsScreen(navController: NavController, playerViewModel: MusicPlayerView
                             "Solicitud cancelada",
                             Toast.LENGTH_SHORT
                         ).show()
+                        
+                        // Recargar datos después de cancelar solicitud
+                        refreshData()
                     }
                 } else {
                     withContext(Dispatchers.Main) {
@@ -659,200 +696,211 @@ fun FriendsScreen(navController: NavController, playerViewModel: MusicPlayerView
         }
     }
 
-    Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
-        topBar = {
-            TopAppBar(
-                title = {},
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .pullRefresh(pullRefreshState)
+    ) {
+        Scaffold(
+            containerColor = MaterialTheme.colorScheme.background,
+            topBar = {
+                TopAppBar(
+                    title = {},
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(8.dp),
+                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.background
+                    ),
+                    navigationIcon = {
+                        Box(modifier = Modifier.padding(start = 4.dp)) {
+                            UserProfileMenu(navController, playerViewModel)
+                        }
+                    }
+                )
+            },
+            floatingActionButton = {
+                if (!isLoading) {
+                    FloatingActionButton(
+                        onClick = { showAddFriendDialog = true },
+                        containerColor = MaterialTheme.colorScheme.primary
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.PersonAdd,
+                            contentDescription = "Añadir amigo",
+                            tint = MaterialTheme.colorScheme.onPrimary
+                        )
+                    }
+                }
+            },
+            floatingActionButtonPosition = FabPosition.End
+        ) { paddingValues ->
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(8.dp),
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
-                ),
-                navigationIcon = {
-                    Box(modifier = Modifier.padding(start = 4.dp)) {
-                        UserProfileMenu(navController, playerViewModel)
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .padding(horizontal = 8.dp)
+                    .verticalScroll(rememberScrollState())
+            ) {
+                if (isLoading) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(400.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator()
                     }
-                }
-            )
-        },
-        floatingActionButton = {
-            if (!isLoading) {
-                FloatingActionButton(
-                    onClick = { showAddFriendDialog = true },
-                    containerColor = MaterialTheme.colorScheme.primary
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.PersonAdd,
-                        contentDescription = "Añadir amigo",
-                        tint = MaterialTheme.colorScheme.onPrimary
+                } else {
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Sección 1: Solicitudes Recibidas (encabezado + contenido)
+                    ExpandableSection(
+                        title = "Solicitudes recibidas${if (friendRequests.isNotEmpty()) " (${friendRequests.size})" else ""}",
+                        isExpanded = expandedReceivedRequests,
+                        onToggle = { expandedReceivedRequests = !expandedReceivedRequests },
+                        icon = Icons.Default.Person
                     )
-                }
-            }
-        },
-        floatingActionButtonPosition = FabPosition.End
-    ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .padding(horizontal = 8.dp)
-        ) {
-            if (isLoading) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator()
-                }
-            } else {
-                // Sección 1: Solicitudes Recibidas (encabezado + contenido)
-                ExpandableSection(
-                    title = "Solicitudes recibidas${if (friendRequests.isNotEmpty()) " (${friendRequests.size})" else ""}",
-                    isExpanded = expandedReceivedRequests,
-                    onToggle = { expandedReceivedRequests = !expandedReceivedRequests },
-                    icon = Icons.Default.Person
-                )
-                
-                // Contenido de solicitudes recibidas
-                AnimatedVisibility(
-                    visible = expandedReceivedRequests,
-                    enter = expandVertically(animationSpec = tween(300)),
-                    exit = shrinkVertically(animationSpec = tween(300))
-                ) {
-                    if (friendRequests.isNotEmpty()) {
-                        LazyColumn(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .heightIn(max = 300.dp)
-                        ) {
-                            items(friendRequests) { friend ->
-                                FriendRequestItem(
-                                    friend = friend,
-                                    onAccept = {
-                                        acceptFriendRequest(friend.id, friend.name, friend.photo)
-                                    },
-                                    onReject = {
-                                        rejectFriendRequest(friend.id)
-                                    }
-                                )
-                            }
-                        }
-                    } else {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 16.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                "No tienes solicitudes de amistad pendientes",
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                            )
-                        }
-                    }
-                }
-                
-                // Sección 2: Solicitudes Enviadas (encabezado + contenido)
-                ExpandableSection(
-                    title = "Solicitudes enviadas${if (sentRequests.isNotEmpty()) " (${sentRequests.size})" else ""}",
-                    isExpanded = expandedSentRequests,
-                    onToggle = { expandedSentRequests = !expandedSentRequests },
-                    icon = Icons.Default.Send
-                )
-                
-                // Contenido de solicitudes enviadas
-                AnimatedVisibility(
-                    visible = expandedSentRequests,
-                    enter = expandVertically(animationSpec = tween(300)),
-                    exit = shrinkVertically(animationSpec = tween(300))
-                ) {
-                    if (sentRequests.isNotEmpty()) {
-                        LazyColumn(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .heightIn(max = 300.dp)
-                        ) {
-                            items(sentRequests) { friend ->
-                                SentRequestItem(
-                                    friend = friend,
-                                    onCancel = {
-                                        cancelFriendRequest(friend.id)
-                                    }
-                                )
-                            }
-                        }
-                    } else {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 16.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                "No has enviado solicitudes de amistad",
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                            )
-                        }
-                    }
-                }
-                
-                // Sección 3: Amigos (encabezado + contenido)
-                ExpandableSection(
-                    title = "Amigos${if (friends.isNotEmpty()) " (${friends.size})" else ""}",
-                    isExpanded = expandedFriends,
-                    onToggle = { expandedFriends = !expandedFriends },
-                    icon = Icons.Default.Group
-                )
-                
-                // Contenido de la lista de amigos
-                AnimatedVisibility(
-                    visible = expandedFriends,
-                    enter = expandVertically(animationSpec = tween(300)),
-                    exit = shrinkVertically(animationSpec = tween(300))
-                ) {
-                    if (friends.isNotEmpty()) {
-                        LazyColumn(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .weight(1f)
-                        ) {
-                            items(friends) { friend ->
-                                FriendItem(
-                                    friend = friend,
-                                    onClick = {
-                                        val encodedName = java.net.URLEncoder.encode(friend.name, "UTF-8")
-                                        val encodedPhoto = if (friend.photo.isNotEmpty()) {
-                                            java.net.URLEncoder.encode(friend.photo, "UTF-8")
-                                        } else {
-                                            ""
+                    
+                    // Contenido de solicitudes recibidas
+                    AnimatedVisibility(
+                        visible = expandedReceivedRequests,
+                        enter = expandVertically(animationSpec = tween(300)),
+                        exit = shrinkVertically(animationSpec = tween(300))
+                    ) {
+                        if (friendRequests.isNotEmpty()) {
+                            Column {
+                                friendRequests.forEach { friend ->
+                                    FriendRequestItem(
+                                        friend = friend,
+                                        onAccept = {
+                                            acceptFriendRequest(friend.id, friend.name, friend.photo)
+                                        },
+                                        onReject = {
+                                            rejectFriendRequest(friend.id)
                                         }
-                                        
-                                        navController.navigate("chat/${friend.id}/$encodedName/$encodedPhoto")
-                                    },
-                                    onDeleteConfirmed = {
-                                        removeFriend(friend.id)
-                                    }
+                                    )
+                                }
+                            }
+                        } else {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 16.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    "No tienes solicitudes de amistad pendientes",
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                                 )
                             }
                         }
-                    } else {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 16.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                "No tienes amigos en tu lista",
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                            )
+                    }
+                    
+                    // Sección 2: Solicitudes Enviadas (encabezado + contenido)
+                    ExpandableSection(
+                        title = "Solicitudes enviadas${if (sentRequests.isNotEmpty()) " (${sentRequests.size})" else ""}",
+                        isExpanded = expandedSentRequests,
+                        onToggle = { expandedSentRequests = !expandedSentRequests },
+                        icon = Icons.Default.Send
+                    )
+                    
+                    // Contenido de solicitudes enviadas
+                    AnimatedVisibility(
+                        visible = expandedSentRequests,
+                        enter = expandVertically(animationSpec = tween(300)),
+                        exit = shrinkVertically(animationSpec = tween(300))
+                    ) {
+                        if (sentRequests.isNotEmpty()) {
+                            Column {
+                                sentRequests.forEach { friend ->
+                                    SentRequestItem(
+                                        friend = friend,
+                                        onCancel = {
+                                            cancelFriendRequest(friend.id)
+                                        }
+                                    )
+                                }
+                            }
+                        } else {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 16.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    "No has enviado solicitudes de amistad",
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                )
+                            }
                         }
                     }
+                    
+                    // Sección 3: Amigos (encabezado + contenido)
+                    ExpandableSection(
+                        title = "Amigos${if (friends.isNotEmpty()) " (${friends.size})" else ""}",
+                        isExpanded = expandedFriends,
+                        onToggle = { expandedFriends = !expandedFriends },
+                        icon = Icons.Default.Group
+                    )
+                    
+                    // Contenido de la lista de amigos
+                    AnimatedVisibility(
+                        visible = expandedFriends,
+                        enter = expandVertically(animationSpec = tween(300)),
+                        exit = shrinkVertically(animationSpec = tween(300))
+                    ) {
+                        if (friends.isNotEmpty()) {
+                            Column {
+                                friends.forEach { friend ->
+                                    FriendItem(
+                                        friend = friend,
+                                        onClick = {
+                                            val encodedName = URLEncoder.encode(friend.name, "UTF-8")
+                                            val encodedPhoto = if (friend.photo.isNotEmpty()) {
+                                                URLEncoder.encode(friend.photo, "UTF-8")
+                                            } else {
+                                                ""
+                                            }
+                                            
+                                            navController.navigate("chat/${friend.id}/$encodedName/$encodedPhoto")
+                                        },
+                                        onDeleteConfirmed = {
+                                            removeFriend(friend.id)
+                                        }
+                                    )
+                                }
+                            }
+                        } else {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 16.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    "No tienes amigos en tu lista",
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(80.dp))
                 }
             }
         }
+        
+        // Indicador de Pull-to-refresh ahora en el Box exterior
+        PullRefreshIndicator(
+            refreshing = isRefreshing,
+            state = pullRefreshState,
+            modifier = Modifier.align(Alignment.TopCenter),
+            backgroundColor = MaterialTheme.colorScheme.surface,
+            contentColor = MaterialTheme.colorScheme.primary
+        )
     }
 }
 
