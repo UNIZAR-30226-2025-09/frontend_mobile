@@ -24,10 +24,10 @@ import java.io.ByteArrayOutputStream
 import java.io.DataOutputStream
 
 object ApiClient {
-    const val BASE_URL = "http://10.0.2.2/request/api" // Usa la IP local del backend
-    const val BASE_URL_IMG = "http://10.0.2.2/request"
-    //const val BASE_URL = "http://164.90.160.181/request/api" // Usa la IP publica (nube) del backend
-    //const val BASE_URL_IMG = "http://164.90.160.181/request"
+    //const val BASE_URL = "http://10.0.2.2/request/api" // Usa la IP local del backend
+    //const val BASE_URL_IMG = "http://10.0.2.2/request"
+    const val BASE_URL = "http://164.90.160.181/request/api" // Usa la IP publica (nube) del backend
+    const val BASE_URL_IMG = "http://164.90.160.181/request"
 
 
 
@@ -651,7 +651,7 @@ object ApiClient {
      *
      * @param userId The ID of the user whose favorite songs are to be retrieved
      * @return A list of Song objects representing the user's favorite songs,
-     *         or null if the request fails or the user ID is invalid
+     *         or null if the request fails or if either ID is invalid
      *
      * @throws Exception If an error occurs during the network request or when processing the response
      */
@@ -1685,4 +1685,510 @@ object ApiClient {
         }
     }
 
+    /**
+     * Busca usuarios que pueden ser añadidos como amigos.
+     */
+    suspend fun searchNewFriends(context: Context): JSONArray? {
+        return withContext(Dispatchers.IO) {
+            try {
+                val sharedPreferences = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+                val token = sharedPreferences.getString("auth_token", null)
+                
+                if (token.isNullOrEmpty()) {
+                    Log.e("API", "Token no disponible para buscar amigos")
+                    return@withContext null
+                }
+                
+                // La URL correcta según el backend
+                val url = URL("$BASE_URL/social/getNewFriends")
+                
+                Log.d("API", "URL de búsqueda: ${url.toString()}")
+                
+                val connection = url.openConnection() as HttpURLConnection
+                connection.apply {
+                    requestMethod = "POST" // Cambiado a POST
+                    setRequestProperty("Content-Type", "application/json")
+                    setRequestProperty("Accept", "application/json")
+                    setRequestProperty("Authorization", "Bearer $token")
+                    doOutput = true // Necesario para POST
+                    connectTimeout = 15000
+                    readTimeout = 15000
+                }
+                
+//                // Escribir el cuerpo JSON con el término de búsqueda
+//                connection.outputStream.use { os ->
+//                    os.write(jsonBody.toString().toByteArray(Charsets.UTF_8))
+//                    os.flush()
+//                }
+                
+                val responseCode = connection.responseCode
+                Log.d("API", "Código de respuesta searchNewFriends: $responseCode")
+                
+                if (responseCode in 200..299) {
+                    val response = connection.inputStream.bufferedReader().use { it.readText() }
+                    Log.d("API", "Respuesta searchNewFriends: $response")
+                    
+                    val jsonObject = JSONObject(response)
+                    if (jsonObject.has("users")) {
+                        return@withContext jsonObject.getJSONArray("users")
+                    } else {
+                        Log.d("API", "No se encontraron resultados en la búsqueda")
+                        return@withContext JSONArray()
+                    }
+                } else {
+                    val errorStream = connection.errorStream
+                    val errorBody = errorStream?.bufferedReader()?.use { it.readText() } ?: "No error message"
+                    Log.e("API", "Error en searchNewFriends: $errorBody")
+                    return@withContext null
+                }
+            } catch (e: Exception) {
+                Log.e("API", "Excepción en searchNewFriends: ${e.message}", e)
+                return@withContext null
+            }
+        }
+    }
+
+    /**
+     * Obtiene las solicitudes de amistad recibidas por el usuario actual.
+     */
+    suspend fun getReceivedFriendRequests(context: Context): JSONArray? {
+        return withContext(Dispatchers.IO) {
+            try {
+                val sharedPreferences = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+                val token = sharedPreferences.getString("auth_token", null)
+                
+                if (token.isNullOrEmpty()) {
+                    Log.e("API", "Token no disponible para obtener solicitudes recibidas")
+                    return@withContext null
+                }
+                
+                // La URL correcta según el backend
+                val url = URL("$BASE_URL/social/getReceivedFriendRequests")
+                
+                Log.d("API", "URL de solicitudes recibidas: ${url.toString()}")
+                
+                val connection = url.openConnection() as HttpURLConnection
+                connection.apply {
+                    requestMethod = "POST" // Cambiado a POST
+                    setRequestProperty("Content-Type", "application/json")
+                    setRequestProperty("Accept", "application/json")
+                    setRequestProperty("Authorization", "Bearer $token")
+                    doOutput = true // Necesario para POST
+                    connectTimeout = 15000
+                    readTimeout = 15000
+                }
+                
+                // Enviar un objeto JSON vacío como cuerpo
+                val emptyJsonBody = JSONObject()
+                connection.outputStream.use { os ->
+                    os.write(emptyJsonBody.toString().toByteArray(Charsets.UTF_8))
+                    os.flush()
+                }
+                
+                val responseCode = connection.responseCode
+                Log.d("API", "Código de respuesta getReceivedFriendRequests: $responseCode")
+                
+                if (responseCode in 200..299) {
+                    val response = connection.inputStream.bufferedReader().use { it.readText() }
+                    Log.d("API", "Respuesta getReceivedFriendRequests: $response")
+                    
+                    val jsonObject = JSONObject(response)
+                    if (jsonObject.has("receivedRequests")) {
+                        return@withContext jsonObject.getJSONArray("receivedRequests")
+                    } else {
+                        Log.d("API", "No se encontraron solicitudes recibidas")
+                        return@withContext JSONArray()
+                    }
+                } else {
+                    val errorStream = connection.errorStream
+                    val errorBody = errorStream?.bufferedReader()?.use { it.readText() } ?: "No error message"
+                    Log.e("API", "Error en getReceivedFriendRequests: $errorBody")
+                    return@withContext null
+                }
+            } catch (e: Exception) {
+                Log.e("API", "Excepción en getReceivedFriendRequests: ${e.message}", e)
+                return@withContext null
+            }
+        }
+    }
+
+    /**
+     * Obtiene la lista de amigos del usuario actual.
+     */
+    suspend fun getFriendsList(context: Context): JSONArray? {
+        return withContext(Dispatchers.IO) {
+            try {
+                val sharedPreferences = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+                val token = sharedPreferences.getString("auth_token", null)
+                
+                if (token.isNullOrEmpty()) {
+                    Log.e("API", "Token no disponible para obtener lista de amigos")
+                    return@withContext null
+                }
+                
+                // La URL correcta según el backend
+                val url = URL("$BASE_URL/social/getFriendsList")
+                
+                Log.d("API", "URL de lista de amigos: ${url.toString()}")
+                
+                val connection = url.openConnection() as HttpURLConnection
+                connection.apply {
+                    requestMethod = "POST" // Cambiado a POST
+                    setRequestProperty("Content-Type", "application/json")
+                    setRequestProperty("Accept", "application/json")
+                    setRequestProperty("Authorization", "Bearer $token")
+                    doOutput = true // Necesario para POST
+                    connectTimeout = 15000
+                    readTimeout = 15000
+                }
+                
+                // Enviar un objeto JSON vacío como cuerpo
+                val emptyJsonBody = JSONObject()
+                connection.outputStream.use { os ->
+                    os.write(emptyJsonBody.toString().toByteArray(Charsets.UTF_8))
+                    os.flush()
+                }
+                
+                val responseCode = connection.responseCode
+                Log.d("API", "Código de respuesta getFriendsList: $responseCode")
+                
+                if (responseCode in 200..299) {
+                    val response = connection.inputStream.bufferedReader().use { it.readText() }
+                    Log.d("API", "Respuesta getFriendsList: $response")
+                    
+                    val jsonObject = JSONObject(response)
+                    if (jsonObject.has("friends")) {
+                        return@withContext jsonObject.getJSONArray("friends")
+                    } else {
+                        Log.d("API", "No se encontraron amigos")
+                        return@withContext JSONArray()
+                    }
+                } else {
+                    val errorStream = connection.errorStream
+                    val errorBody = errorStream?.bufferedReader()?.use { it.readText() } ?: "No error message"
+                    Log.e("API", "Error en getFriendsList: $errorBody")
+                    return@withContext null
+                }
+            } catch (e: Exception) {
+                Log.e("API", "Excepción en getFriendsList: ${e.message}", e)
+                return@withContext null
+            }
+        }
+    }
+
+    /**
+     * Envía una solicitud de amistad a otro usuario.
+     */
+    suspend fun sendFriendRequest(friendId: String, context: Context): JSONObject? {
+        return withContext(Dispatchers.IO) {
+            try {
+                val sharedPreferences = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+                val token = sharedPreferences.getString("auth_token", null)
+                
+                if (token.isNullOrEmpty()) {
+                    Log.e("API", "Token no disponible para enviar solicitud de amistad")
+                    return@withContext null
+                }
+                
+                // Según el código del backend, la ruta correcta es "/social/send"
+                val url = URL("$BASE_URL/social/send")
+                
+                Log.d("API", "URL de envío de solicitud: ${url.toString()}")
+                
+                val connection = url.openConnection() as HttpURLConnection
+                connection.apply {
+                    requestMethod = "POST"
+                    setRequestProperty("Content-Type", "application/json")
+                    setRequestProperty("Authorization", "Bearer $token")
+                    doOutput = true
+                    connectTimeout = 15000
+                    readTimeout = 15000
+                }
+                
+                // Según el código del backend, se espera "user2_id" en el cuerpo
+                val jsonBody = JSONObject().apply {
+                    put("user2_id", friendId)
+                }
+                
+                // Escribir el cuerpo JSON
+                connection.outputStream.use { os ->
+                    os.write(jsonBody.toString().toByteArray(Charsets.UTF_8))
+                    os.flush()
+                }
+                
+                val responseCode = connection.responseCode
+                Log.d("API", "Código de respuesta sendFriendRequest: $responseCode")
+                
+                if (responseCode in 200..299) {
+                    val response = connection.inputStream.bufferedReader().use { it.readText() }
+                    Log.d("API", "Respuesta sendFriendRequest: $response")
+                    return@withContext JSONObject(response)
+                } else {
+                    val errorStream = connection.errorStream
+                    val errorBody = errorStream?.bufferedReader()?.use { it.readText() } ?: "No error message"
+                    Log.e("API", "Error en sendFriendRequest: $errorBody")
+                    return@withContext null
+                }
+            } catch (e: Exception) {
+                Log.e("API", "Excepción en sendFriendRequest: ${e.message}", e)
+                return@withContext null
+            }
+        }
+    }
+
+    /**
+     * Acepta una solicitud de amistad recibida.
+     * 
+     * @param user1Id ID del usuario que envió la solicitud
+     * @param context Contexto para obtener el token de autenticación
+     * @return Objeto JSON con la respuesta o null si hay error
+     */
+    suspend fun acceptFriendRequest(user1Id: String, context: Context): JSONObject? {
+        return withContext(Dispatchers.IO) {
+            try {
+                val sharedPreferences = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+                val token = sharedPreferences.getString("auth_token", null)
+                
+                if (token.isNullOrEmpty()) {
+                    Log.e("API", "Token no disponible para aceptar solicitud de amistad")
+                    return@withContext null
+                }
+                
+                // La URL correcta según el backend
+                val url = URL("$BASE_URL/social/accept")
+                
+                Log.d("API", "URL para aceptar solicitud: ${url.toString()}")
+                
+                val connection = url.openConnection() as HttpURLConnection
+                connection.apply {
+                    requestMethod = "POST"
+                    setRequestProperty("Content-Type", "application/json")
+                    setRequestProperty("Authorization", "Bearer $token")
+                    doOutput = true
+                    connectTimeout = 15000
+                    readTimeout = 15000
+                }
+                
+                // Según el controlador del backend, se espera "user1_id" en el cuerpo
+                val jsonBody = JSONObject().apply {
+                    put("user1_id", user1Id)
+                }
+                
+                // Escribir el cuerpo JSON
+                connection.outputStream.use { os ->
+                    os.write(jsonBody.toString().toByteArray(Charsets.UTF_8))
+                    os.flush()
+                }
+                
+                val responseCode = connection.responseCode
+                Log.d("API", "Código de respuesta acceptFriendRequest: $responseCode")
+                
+                if (responseCode in 200..299) {
+                    val response = connection.inputStream.bufferedReader().use { it.readText() }
+                    Log.d("API", "Respuesta acceptFriendRequest: $response")
+                    return@withContext JSONObject(response)
+                } else {
+                    val errorStream = connection.errorStream
+                    val errorBody = errorStream?.bufferedReader()?.use { it.readText() } ?: "No error message"
+                    Log.e("API", "Error en acceptFriendRequest: $errorBody")
+                    return@withContext null
+                }
+            } catch (e: Exception) {
+                Log.e("API", "Excepción en acceptFriendRequest: ${e.message}", e)
+                return@withContext null
+            }
+        }
+    }
+
+    /**
+     * Rechaza una solicitud de amistad pendiente.
+     * 
+     * @param friendId ID del usuario cuya solicitud se rechaza
+     * @param context Contexto para obtener el token de autenticación
+     * @return Objeto JSON con la respuesta o null si hay error
+     */
+    suspend fun rejectFriendRequest(friendId: String, context: Context): JSONObject? {
+        return withContext(Dispatchers.IO) {
+            try {
+                val sharedPreferences = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+                val token = sharedPreferences.getString("auth_token", null)
+                
+                if (token.isNullOrEmpty()) {
+                    Log.e("API", "Token no disponible para rechazar solicitud de amistad")
+                    return@withContext null
+                }
+                
+                // La URL correcta según el backend
+                val url = URL("$BASE_URL/social/reject")
+                
+                Log.d("API", "URL para rechazar solicitud: ${url.toString()}")
+                
+                val connection = url.openConnection() as HttpURLConnection
+                connection.apply {
+                    requestMethod = "POST"
+                    setRequestProperty("Content-Type", "application/json")
+                    setRequestProperty("Authorization", "Bearer $token")
+                    doOutput = true
+                    connectTimeout = 15000
+                    readTimeout = 15000
+                }
+                
+                // Según el controlador del backend, se espera "friendId" en el cuerpo
+                val jsonBody = JSONObject().apply {
+                    put("friendId", friendId)
+                }
+                
+                // Escribir el cuerpo JSON
+                connection.outputStream.use { os ->
+                    os.write(jsonBody.toString().toByteArray(Charsets.UTF_8))
+                    os.flush()
+                }
+                
+                val responseCode = connection.responseCode
+                Log.d("API", "Código de respuesta rejectFriendRequest: $responseCode")
+                
+                if (responseCode in 200..299) {
+                    val response = connection.inputStream.bufferedReader().use { it.readText() }
+                    Log.d("API", "Respuesta rejectFriendRequest: $response")
+                    return@withContext JSONObject(response)
+                } else {
+                    val errorStream = connection.errorStream
+                    val errorBody = errorStream?.bufferedReader()?.use { it.readText() } ?: "No error message"
+                    Log.e("API", "Error en rejectFriendRequest: $errorBody")
+                    return@withContext null
+                }
+            } catch (e: Exception) {
+                Log.e("API", "Excepción en rejectFriendRequest: ${e.message}", e)
+                return@withContext null
+            }
+        }
+    }
+
+    /**
+     * Elimina a un amigo de la lista de amigos.
+     * 
+     * @param friendId ID del usuario que se eliminará como amigo
+     * @param context Contexto para obtener el token de autenticación
+     * @return Objeto JSON con la respuesta o null si hay error
+     */
+    suspend fun unfollowFriend(friendId: String, context: Context): JSONObject? {
+        return withContext(Dispatchers.IO) {
+            try {
+                val sharedPreferences = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+                val token = sharedPreferences.getString("auth_token", null)
+                
+                if (token.isNullOrEmpty()) {
+                    Log.e("API", "Token no disponible para eliminar amigo")
+                    return@withContext null
+                }
+                
+                // La URL correcta según el backend
+                val url = URL("$BASE_URL/social/unfollow")
+                
+                Log.d("API", "URL para eliminar amigo: ${url.toString()}")
+                
+                val connection = url.openConnection() as HttpURLConnection
+                connection.apply {
+                    requestMethod = "POST"
+                    setRequestProperty("Content-Type", "application/json")
+                    setRequestProperty("Authorization", "Bearer $token")
+                    doOutput = true
+                    connectTimeout = 15000
+                    readTimeout = 15000
+                }
+                
+                // Según el controlador del backend, se espera "friendId" en el cuerpo
+                val jsonBody = JSONObject().apply {
+                    put("friendId", friendId)
+                }
+                
+                // Escribir el cuerpo JSON
+                connection.outputStream.use { os ->
+                    os.write(jsonBody.toString().toByteArray(Charsets.UTF_8))
+                    os.flush()
+                }
+                
+                val responseCode = connection.responseCode
+                Log.d("API", "Código de respuesta unfollowFriend: $responseCode")
+                
+                if (responseCode in 200..299) {
+                    val response = connection.inputStream.bufferedReader().use { it.readText() }
+                    Log.d("API", "Respuesta unfollowFriend: $response")
+                    return@withContext JSONObject(response)
+                } else {
+                    val errorStream = connection.errorStream
+                    val errorBody = errorStream?.bufferedReader()?.use { it.readText() } ?: "No error message"
+                    Log.e("API", "Error en unfollowFriend: $errorBody")
+                    return@withContext null
+                }
+            } catch (e: Exception) {
+                Log.e("API", "Excepción en unfollowFriend: ${e.message}", e)
+                return@withContext null
+            }
+        }
+    }
+
+    /**
+     * Obtiene las solicitudes de amistad enviadas por el usuario actual.
+     */
+    suspend fun getSentFriendRequests(context: Context): JSONArray? {
+        return withContext(Dispatchers.IO) {
+            try {
+                val sharedPreferences = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+                val token = sharedPreferences.getString("auth_token", null)
+                
+                if (token.isNullOrEmpty()) {
+                    Log.e("API", "Token no disponible para obtener solicitudes enviadas")
+                    return@withContext null
+                }
+                
+                // La URL correcta según el backend
+                val url = URL("$BASE_URL/social/getSentFriendRequests")
+                
+                Log.d("API", "URL de solicitudes enviadas: ${url.toString()}")
+                
+                val connection = url.openConnection() as HttpURLConnection
+                connection.apply {
+                    requestMethod = "POST" // El backend espera POST
+                    setRequestProperty("Content-Type", "application/json")
+                    setRequestProperty("Accept", "application/json")
+                    setRequestProperty("Authorization", "Bearer $token")
+                    doOutput = true // Necesario para POST
+                    connectTimeout = 15000
+                    readTimeout = 15000
+                }
+                
+                // Enviar un objeto JSON vacío como cuerpo
+                val emptyJsonBody = JSONObject()
+                connection.outputStream.use { os ->
+                    os.write(emptyJsonBody.toString().toByteArray(Charsets.UTF_8))
+                    os.flush()
+                }
+                
+                val responseCode = connection.responseCode
+                Log.d("API", "Código de respuesta getSentFriendRequests: $responseCode")
+                
+                if (responseCode in 200..299) {
+                    val response = connection.inputStream.bufferedReader().use { it.readText() }
+                    Log.d("API", "Respuesta getSentFriendRequests: $response")
+                    
+                    val jsonObject = JSONObject(response)
+                    if (jsonObject.has("sentRequests")) {
+                        return@withContext jsonObject.getJSONArray("sentRequests")
+                    } else {
+                        Log.d("API", "No se encontraron solicitudes enviadas")
+                        return@withContext JSONArray()
+                    }
+                } else {
+                    val errorStream = connection.errorStream
+                    val errorBody = errorStream?.bufferedReader()?.use { it.readText() } ?: "No error message"
+                    Log.e("API", "Error en getSentFriendRequests: $errorBody")
+                    return@withContext null
+                }
+            } catch (e: Exception) {
+                Log.e("API", "Excepción en getSentFriendRequests: ${e.message}", e)
+                return@withContext null
+            }
+        }
+    }
 }
