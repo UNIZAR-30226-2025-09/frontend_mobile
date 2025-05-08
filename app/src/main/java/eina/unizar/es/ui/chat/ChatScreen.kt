@@ -202,9 +202,12 @@ fun ChatScreen(
         currentMessage = TextFieldValue("")
         focusManager.clearFocus()
         
+        // Generar ID temporal único
+        val tempId = "temp-${System.currentTimeMillis()}"
+        
         // Mensaje temporal
         val tempMessage = ChatMessage(
-            id = "temp-${System.currentTimeMillis()}",
+            id = tempId,
             senderId = currentUserId,
             receiverId = friendId,
             content = messageText,
@@ -212,7 +215,7 @@ fun ChatScreen(
             isRead = false
         )
         
-        // Actualizar UI inmediatamente
+        // Actualizar UI inmediatamente con mensaje temporal
         messages = messages + tempMessage
         
         // Scroll al final
@@ -225,10 +228,45 @@ fun ChatScreen(
             try {
                 val response = ApiClient.sendChatMessage(friendId, messageText, context)
                 if (response != null) {
-                    // Recargar mensajes para obtener la versión final del servidor
-                    loadMessages()
+                    // En lugar de recargar todos los mensajes, actualizamos solo este mensaje
+                    try {
+                        // Extraer el ID real del mensaje enviado desde la respuesta
+                        val realMessageId = response.optString("messageId", "")
+                        if (realMessageId.isNotEmpty()) {
+                            withContext(Dispatchers.Main) {
+                                // Reemplazar el mensaje temporal con el mensaje real
+                                messages = messages.map { 
+                                    if (it.id == tempId) {
+                                        // Actualizar el mensaje con el ID real y marcar como enviado
+                                        it.copy(id = realMessageId, isRead = false)
+                                    } else {
+                                        it
+                                    }
+                                }
+                                
+                                // Programar una recarga completa después de un breve retraso
+                                // para sincronizar con otros posibles cambios en el servidor
+                                delay(500)
+                                loadMessages()
+                            }
+                        } else {
+                            // Si no se obtuvo un ID, recargamos mensajes después de un retraso
+                            delay(1000)
+                            loadMessages()
+                        }
+                    } catch (e: Exception) {
+                        Log.e("ChatScreen", "Error actualizando mensaje: ${e.message}")
+                        // En caso de error, recargar todos los mensajes después de un retraso
+                        delay(1000)
+                        loadMessages()
+                    }
                 } else {
                     Log.e("ChatScreen", "Error al enviar mensaje, respuesta nula")
+                    // En caso de error, mantener el mensaje temporal pero marcarlo como fallido
+                    withContext(Dispatchers.Main) {
+                        // Opcionalmente, podrías cambiar el aspecto visual del mensaje para indicar error
+                        // Por ejemplo, cambiando el color o añadiendo un icono de error
+                    }
                 }
             } catch (e: Exception) {
                 Log.e("ChatScreen", "Error enviando mensaje: ${e.message}")
@@ -402,7 +440,7 @@ fun ChatScreen(
             // Barra de entrada de mensaje
             Surface(
                 modifier = Modifier.fillMaxWidth(),
-                tonalElevation = 4.dp
+                //tonalElevation = 4.dp
             ) {
                 Row(
                     modifier = Modifier

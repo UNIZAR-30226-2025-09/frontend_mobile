@@ -2278,11 +2278,14 @@ object ApiClient {
                     readTimeout = 15000
                 }
                 
-                // Creamos el cuerpo del mensaje
+                // Usar exactamente los nombres que el backend espera según documentación
                 val jsonBody = JSONObject().apply {
-                    put("receiverId", friendId)
-                    put("message", message)
+                    put("user2_id", friendId)
+                    put("message", message)  // Cambiado de "txt_message" a "message"
                 }
+                
+                // Imprimir para depuración
+                Log.d("API", "Enviando mensaje: ${jsonBody.toString()}")
                 
                 // Enviamos el cuerpo JSON
                 connection.outputStream.use { os ->
