@@ -283,7 +283,7 @@ fun ChatScreen(
     // Polling para actualizar mensajes automáticamente
     LaunchedEffect(Unit) {
         while (true) {
-            delay(3000) // esperar 3 segundos
+            delay(1000) // esperar 1 segundo1
             if (friendId != null && !isLoading) {
                 try {
                     loadMessages()
