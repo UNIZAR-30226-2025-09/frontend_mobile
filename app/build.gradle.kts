@@ -56,6 +56,7 @@ dependencies {
     testImplementation (libs.androidx.junit.v121)
     implementation ("androidx.compose.material3:material3:1.2.0")
     implementation ("androidx.compose.ui:ui:1.6.0")
+    implementation ("androidx.compose.material:material:1.6.0")
     implementation("androidx.media3:media3-exoplayer:1.0.0") //Audio de manera remota
     implementation("io.coil-kt:coil-compose:2.5.0") //Imagenes
     implementation("com.stripe:stripe-android:20.50.0") // SDK de Stripe
