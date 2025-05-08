@@ -2191,4 +2191,168 @@ object ApiClient {
             }
         }
     }
+
+    /**
+     * Obtiene el historial de mensajes entre el usuario actual y un amigo.
+     * 
+     * @param friendId ID del amigo con quien se tiene la conversación
+     * @param context Contexto para obtener el token de autenticación
+     * @return JSONObject con los mensajes de la conversación o null si hay un error
+     */
+    suspend fun getChatConversation(friendId: String, context: Context): JSONObject? {
+        return withContext(Dispatchers.IO) {
+            try {
+                val sharedPreferences = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+                val token = sharedPreferences.getString("auth_token", null)
+                
+                if (token.isNullOrEmpty()) {
+                    Log.e("API", "Token no disponible para obtener conversación de chat")
+                    return@withContext null
+                }
+                
+                // URL correcta para obtener la conversación
+                val url = URL("$BASE_URL/chat/conversation/$friendId")
+                
+                Log.d("API", "URL para obtener conversación de chat: $url")
+                
+                val connection = url.openConnection() as HttpURLConnection
+                connection.apply {
+                    requestMethod = "GET"
+                    setRequestProperty("Content-Type", "application/json")
+                    setRequestProperty("Authorization", "Bearer $token")
+                    connectTimeout = 15000
+                    readTimeout = 15000
+                }
+                
+                val responseCode = connection.responseCode
+                Log.d("API", "Código de respuesta getChatConversation: $responseCode")
+                
+                if (responseCode in 200..299) {
+                    val response = connection.inputStream.bufferedReader().use { it.readText() }
+                    Log.d("API", "Respuesta getChatConversation: $response")
+                    return@withContext JSONObject(response)
+                } else {
+                    val errorStream = connection.errorStream
+                    val errorBody = errorStream?.bufferedReader()?.use { it.readText() } ?: "No error message"
+                    Log.e("API", "Error en getChatConversation: $errorBody")
+                    return@withContext null
+                }
+            } catch (e: Exception) {
+                Log.e("API", "Excepción en getChatConversation: ${e.message}", e)
+                return@withContext null
+            }
+        }
+    }
+
+    /**
+     * Envía un mensaje a un amigo.
+     * 
+     * @param friendId ID del amigo a quien se envía el mensaje
+     * @param message Texto del mensaje a enviar
+     * @param context Contexto para obtener el token de autenticación
+     * @return JSONObject con la respuesta del servidor o null si hay un error
+     */
+    suspend fun sendChatMessage(friendId: String, message: String, context: Context): JSONObject? {
+        return withContext(Dispatchers.IO) {
+            try {
+                val sharedPreferences = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+                val token = sharedPreferences.getString("auth_token", null)
+                
+                if (token.isNullOrEmpty()) {
+                    Log.e("API", "Token no disponible para enviar mensaje de chat")
+                    return@withContext null
+                }
+                
+                // URL correcta para enviar un mensaje
+                val url = URL("$BASE_URL/chat/send")
+                
+                Log.d("API", "URL para enviar mensaje de chat: $url")
+                
+                val connection = url.openConnection() as HttpURLConnection
+                connection.apply {
+                    requestMethod = "POST"
+                    setRequestProperty("Content-Type", "application/json")
+                    setRequestProperty("Authorization", "Bearer $token")
+                    doOutput = true
+                    connectTimeout = 15000
+                    readTimeout = 15000
+                }
+                
+                // Usar exactamente los nombres que el backend espera según documentación
+                val jsonBody = JSONObject().apply {
+                    put("user2_id", friendId)
+                    put("message", message)  // Cambiado de "txt_message" a "message"
+                }
+                
+                // Imprimir para depuración
+                Log.d("API", "Enviando mensaje: ${jsonBody.toString()}")
+                
+                // Enviamos el cuerpo JSON
+                connection.outputStream.use { os ->
+                    os.write(jsonBody.toString().toByteArray(Charsets.UTF_8))
+                    os.flush()
+                }
+                
+                val responseCode = connection.responseCode
+                Log.d("API", "Código de respuesta sendChatMessage: $responseCode")
+                
+                if (responseCode in 200..299) {
+                    val response = connection.inputStream.bufferedReader().use { it.readText() }
+                    Log.d("API", "Respuesta sendChatMessage: $response")
+                    return@withContext JSONObject(response)
+                } else {
+                    val errorStream = connection.errorStream
+                    val errorBody = errorStream?.bufferedReader()?.use { it.readText() } ?: "No error message"
+                    Log.e("API", "Error en sendChatMessage: $errorBody")
+                    return@withContext null
+                }
+            } catch (e: Exception) {
+                Log.e("API", "Excepción en sendChatMessage: ${e.message}", e)
+                return@withContext null
+            }
+        }
+    }
+
+    /**
+     * Marca un mensaje como leído.
+     * 
+     * @param messageId ID del mensaje a marcar como leído
+     * @param context Contexto para obtener el token de autenticación
+     * @return Boolean indicando si la operación fue exitosa
+     */
+    suspend fun markMessageAsRead(messageId: String, context: Context): Boolean {
+        return withContext(Dispatchers.IO) {
+            try {
+                val sharedPreferences = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+                val token = sharedPreferences.getString("auth_token", null)
+                
+                if (token.isNullOrEmpty()) {
+                    Log.e("API", "Token no disponible para marcar mensaje como leído")
+                    return@withContext false
+                }
+                
+                // URL correcta para marcar mensaje como leído
+                val url = URL("$BASE_URL/chat/markAsRead/$messageId")
+                
+                Log.d("API", "URL para marcar mensaje como leído: $url")
+                
+                val connection = url.openConnection() as HttpURLConnection
+                connection.apply {
+                    requestMethod = "PUT"
+                    setRequestProperty("Content-Type", "application/json")
+                    setRequestProperty("Authorization", "Bearer $token")
+                    connectTimeout = 15000
+                    readTimeout = 15000
+                }
+                
+                val responseCode = connection.responseCode
+                Log.d("API", "Código de respuesta markMessageAsRead: $responseCode")
+                
+                return@withContext responseCode in 200..299
+            } catch (e: Exception) {
+                Log.e("API", "Excepción en markMessageAsRead: ${e.message}", e)
+                return@withContext false
+            }
+        }
+    }
 }
