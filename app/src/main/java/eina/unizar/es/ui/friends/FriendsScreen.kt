@@ -48,6 +48,7 @@ import coil.request.ImageRequest
 import eina.unizar.es.R
 import eina.unizar.es.data.model.network.ApiClient
 import eina.unizar.es.ui.player.MusicPlayerViewModel
+import eina.unizar.es.ui.user.UserColorManager
 import eina.unizar.es.ui.user.UserProfileMenu
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -72,7 +73,8 @@ data class Friend(
 fun FriendsScreen(navController: NavController, playerViewModel: MusicPlayerViewModel) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
-    
+    val colorManager = remember { UserColorManager(context) }
+
     // Variables de estado para la UI
     var isLoading by remember { mutableStateOf(true) }
     var searchQuery by remember { mutableStateOf("") }
@@ -85,12 +87,12 @@ fun FriendsScreen(navController: NavController, playerViewModel: MusicPlayerView
     var expandedReceivedRequests by remember { mutableStateOf(true) }
     var expandedSentRequests by remember { mutableStateOf(true) }
     var expandedFriends by remember { mutableStateOf(true) }
-    
+
     // Estado para controlar el diálogo de búsqueda de amigos
     var showAddFriendDialog by remember { mutableStateOf(false) }
-    
+
     var isRefreshing by remember { mutableStateOf(false) }
-    
+
     // Función para recargar todos los datos de la pantalla
     fun refreshData() {
         coroutineScope.launch {
@@ -226,10 +228,11 @@ fun FriendsScreen(navController: NavController, playerViewModel: MusicPlayerView
                                 Friend(
                                     id = user.getString("id"),
                                     name = user.getString("nickname"),
-                                    photo = user.optString("user_picture", ""),
+                                    photo = user.getString("user_picture"),
                                     isPendingRequest = false
                                 )
                             )
+                            Log.d("SearchFriends", "Usuario encontrado: ${user.getString("nickname")} ${user.getString("id")} ${user.getString("user_picture")}")
                         } catch (e: Exception) {
                             Log.e("SearchFriends", "Error procesando usuario: ${e.message}", e)
                         }
@@ -434,7 +437,7 @@ fun FriendsScreen(navController: NavController, playerViewModel: MusicPlayerView
         coroutineScope.launch {
             try {
                 Log.d("RejectFriendRequest", "Rechazando solicitud de: $friendId")
-                
+
                 val response = ApiClient.rejectFriendRequest(friendId, context)
                 
                 if (response != null) {
@@ -622,24 +625,31 @@ fun FriendsScreen(navController: NavController, playerViewModel: MusicPlayerView
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     // Avatar
-                                    if (user.photo.isEmpty()) {
+                                    if (user.photo == "null") {
+                                        val userProfileColor = remember(user.id) {
+                                            colorManager.getUserProfileColor(user.id)
+                                        }
+                                        
                                         Box(
                                             modifier = Modifier
-                                                .size(40.dp)
-                                                .background(MaterialTheme.colorScheme.primary, CircleShape)
+                                                .size(48.dp)
+                                                .background(userProfileColor, CircleShape)
                                                 .clip(CircleShape),
                                             contentAlignment = Alignment.Center
                                         ) {
+                                            // Añade un log para depuración
+                                            Log.d("FriendsScreen", "Mostrando inicial para ${user.name} con ID ${user.id}, color: $userProfileColor")
+                                            
                                             Text(
                                                 text = user.name.take(1).uppercase(),
-                                                color = MaterialTheme.colorScheme.onPrimary,
-                                                fontWeight = FontWeight.Bold
+                                                style = MaterialTheme.typography.bodyLarge,
+                                                color = Color.White
                                             )
                                         }
                                     } else {
                                         AsyncImage(
-                                            model = ImageRequest.Builder(LocalContext.current)
-                                                .data(user.photo)
+                                            model = ImageRequest.Builder(context)
+                                                .data(ApiClient.getImageUrl(user.photo))
                                                 .crossfade(true)
                                                 .build(),
                                             contentDescription = "Foto de perfil",
@@ -775,6 +785,8 @@ fun FriendsScreen(navController: NavController, playerViewModel: MusicPlayerView
                             Column {
                                 friendRequests.forEach { friend ->
                                     FriendRequestItem(
+                                        colorManager = colorManager,
+                                        context = context,
                                         friend = friend,
                                         onAccept = {
                                             acceptFriendRequest(friend.id, friend.name, friend.photo)
@@ -818,6 +830,8 @@ fun FriendsScreen(navController: NavController, playerViewModel: MusicPlayerView
                             Column {
                                 sentRequests.forEach { friend ->
                                     SentRequestItem(
+                                        colorManager = colorManager,
+                                        context = context,
                                         friend = friend,
                                         onCancel = {
                                             cancelFriendRequest(friend.id)
@@ -860,6 +874,8 @@ fun FriendsScreen(navController: NavController, playerViewModel: MusicPlayerView
                                     FriendItem(
                                         navController = navController,
                                         friend = friend,
+                                        colorManager = colorManager,
+                                        context = context,
                                         onClick = {
                                             try {
                                                 val encodedName = URLEncoder.encode(friend.name, "UTF-8")
@@ -953,6 +969,8 @@ fun ExpandableSection(
 
 @Composable
 fun FriendRequestItem(
+    colorManager: UserColorManager,
+    context: Context,
     friend: Friend,
     onAccept: () -> Unit,
     onReject: () -> Unit
@@ -972,24 +990,32 @@ fun FriendRequestItem(
             verticalAlignment = Alignment.CenterVertically
         ) {
             // Avatar del amigo
-            if (friend.photo.isEmpty()) {
+            if (friend.photo == "null") {
+                // Usar UserColorManager para obtener un color persistente
+                val friendProfileColor = remember(friend.id) {
+                    colorManager.getUserProfileColor(friend.id)
+                }
+                
                 Box(
                     modifier = Modifier
                         .size(48.dp)
-                        .background(MaterialTheme.colorScheme.primary, CircleShape)
+                        .background(friendProfileColor, CircleShape)
                         .clip(CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
+                    // Añade un log para depuración
+                    Log.d("FriendsScreen", "Mostrando inicial para ${friend.name} con ID ${friend.id}, color: $friendProfileColor")
+                    
                     Text(
                         text = friend.name.take(1).uppercase(),
-                        color = MaterialTheme.colorScheme.onPrimary,
-                        fontWeight = FontWeight.Bold
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = Color.White
                     )
                 }
             } else {
                 AsyncImage(
-                    model = ImageRequest.Builder(LocalContext.current)
-                        .data(friend.photo)
+                    model = ImageRequest.Builder(context)
+                        .data(ApiClient.getImageUrl(friend.photo))
                         .crossfade(true)
                         .build(),
                     contentDescription = "Foto de perfil",
@@ -1044,6 +1070,8 @@ fun FriendRequestItem(
 fun FriendItem(
     navController: NavController,
     friend: Friend,
+    colorManager: UserColorManager, // recibir como parámetro
+    context: Context,
     onClick: () -> Unit,
     onDeleteConfirmed: () -> Unit
 ) {
@@ -1103,24 +1131,32 @@ fun FriendItem(
         ) {
             // Avatar con indicador de estado
             Box {
-                if (friend.photo.isEmpty()) {
+                Log.d("FriendsScreen", "Mostrando avatar para ${friend.name} con ID ${friend.id} con foto ${friend.photo}")
+                if (friend.photo == "null") {
+                    val friendProfileColor = remember(friend.id) {
+                        colorManager.getUserProfileColor(friend.id)
+                    }
+
                     Box(
                         modifier = Modifier
                             .size(48.dp)
-                            .background(MaterialTheme.colorScheme.primary, CircleShape)
+                            .background(friendProfileColor, CircleShape)
                             .clip(CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
+                        // Añade un log para depuración
+                        Log.d("FriendsScreen", "Mostrando inicial para ${friend.name} con ID ${friend.id}, color: $friendProfileColor")
+
                         Text(
                             text = friend.name.take(1).uppercase(),
-                            color = MaterialTheme.colorScheme.onPrimary,
-                            fontWeight = FontWeight.Bold
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = Color.White
                         )
                     }
                 } else {
                     AsyncImage(
-                        model = ImageRequest.Builder(LocalContext.current)
-                            .data(friend.photo)
+                        model = ImageRequest.Builder(context)
+                            .data(ApiClient.getImageUrl(friend.photo))
                             .crossfade(true)
                             .build(),
                         contentDescription = "Foto de perfil",
@@ -1238,6 +1274,8 @@ fun FriendItem(
 
 @Composable
 fun SentRequestItem(
+    colorManager: UserColorManager,
+    context: Context,
     friend: Friend,
     onCancel: () -> Unit
 ) {
@@ -1260,21 +1298,38 @@ fun SentRequestItem(
                     .background(MaterialTheme.colorScheme.secondaryContainer),
                 contentAlignment = Alignment.Center
             ) {
-                if (friend.photo.isNotEmpty()) {
+                if (friend.photo == "null") {
+                    val friendProfileColor = remember(friend.id) {
+                        colorManager.getUserProfileColor(friend.id)
+                    }
+                    
+                    Box(
+                        modifier = Modifier
+                            .size(48.dp)
+                            .background(friendProfileColor, CircleShape)
+                            .clip(CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        // Añade un log para depuración
+                        Log.d("FriendsScreen", "Mostrando inicial para ${friend.name} con ID ${friend.id}, color: $friendProfileColor")
+                        
+                        Text(
+                            text = friend.name.take(1).uppercase(),
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = Color.White
+                        )
+                    }
+                } else {
                     AsyncImage(
-                        model = ImageRequest.Builder(LocalContext.current)
-                            .data(friend.photo)
+                        model = ImageRequest.Builder(context)
+                            .data(ApiClient.getImageUrl(friend.photo))
                             .crossfade(true)
                             .build(),
                         contentDescription = "Foto de perfil",
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier
+                            .size(48.dp)
+                            .clip(CircleShape),
                         contentScale = ContentScale.Crop
-                    )
-                } else {
-                    Text(
-                        text = friend.name.firstOrNull()?.toString() ?: "?",
-                        style = MaterialTheme.typography.headlineMedium,
-                        color = MaterialTheme.colorScheme.onSecondaryContainer
                     )
                 }
             }

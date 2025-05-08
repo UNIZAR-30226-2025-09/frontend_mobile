@@ -38,7 +38,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONException
-import org.json.JSONObject
 import java.net.URLDecoder
 import java.text.SimpleDateFormat
 import java.util.*
@@ -96,6 +95,7 @@ fun ChatScreen(
     
     // Estado para scroll
     val scrollState = rememberLazyListState()
+    var isScrollAtBottom by remember { mutableStateOf(true) }
     
     // Color del perfil del amigo
     val colorManager = remember { UserColorManager(context) }
@@ -107,7 +107,18 @@ fun ChatScreen(
     suspend fun scrollToBottom() {
         if (messages.isNotEmpty()) {
             scrollState.animateScrollToItem(messages.size - 1)
+            isScrollAtBottom = true
         }
+    }
+    
+    // Listener para detectar si el scroll está al final
+    LaunchedEffect(scrollState, messages) {
+        snapshotFlow { scrollState.firstVisibleItemIndex }
+            .collect { firstVisibleIndex ->
+                val atBottom = messages.isEmpty() || 
+                    (firstVisibleIndex + scrollState.layoutInfo.visibleItemsInfo.size >= messages.size - 1)
+                isScrollAtBottom = atBottom
+            }
     }
     
     // Obtener ID del usuario actual
@@ -119,7 +130,7 @@ fun ChatScreen(
         }
     }
     
-    // Función para cargar mensajes
+    // Función para cargar mensajes con mejora de scroll
     suspend fun loadMessages() {
         if (friendId == null) {
             isLoading = false
@@ -129,6 +140,10 @@ fun ChatScreen(
         
         try {
             Log.d("ChatScreen", "Cargando mensajes de chat con amigo ID: $friendId")
+            
+            // Guardar el número actual de mensajes para comparación
+            val currentMessageCount = messages.size
+            val userWasAtBottom = isScrollAtBottom
             
             val response = ApiClient.getChatConversation(friendId, context)
             
@@ -170,8 +185,15 @@ fun ChatScreen(
                     Log.d("ChatScreen", "Cargados ${messages.size} mensajes")
                     error = null
                     
-                    // Desplazarse al final si hay mensajes
-                    if (messages.isNotEmpty()) {
+                    // Desplazarse al final solo si:
+                    // 1. No había mensajes antes (primera carga)
+                    // 2. Hay nuevos mensajes y el usuario estaba ya en el final
+                    // 3. El usuario era quien estaba enviando un mensaje (isScrollAtBottom será true)
+                    val shouldScrollToBottom = currentMessageCount == 0 || 
+                                              (messages.size > currentMessageCount && userWasAtBottom)
+                    
+                    if (shouldScrollToBottom) {
+                        Log.d("ChatScreen", "Auto-scrolling to bottom: initialLoad=${currentMessageCount == 0}, newMessages=${messages.size > currentMessageCount}, wasAtBottom=$userWasAtBottom")
                         scrollToBottom()
                     }
                 }
@@ -349,7 +371,7 @@ fun ChatScreen(
                                     Text(
                                         text = friendInitials,
                                         color = Color.White,
-                                        fontWeight = FontWeight.Bold
+                                        style = MaterialTheme.typography.bodyLarge
                                     )
                                 }
                             } else {
@@ -591,7 +613,7 @@ fun ChatScreen(
                 }
                 
                 // Botón para ir al final (si hay suficientes mensajes)
-                if (messages.size > 10) {
+                if (messages.size > 10 && !isScrollAtBottom) {
                     FloatingActionButton(
                         onClick = { 
                             coroutineScope.launch { 
