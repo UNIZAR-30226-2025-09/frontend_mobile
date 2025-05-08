@@ -371,7 +371,7 @@ fun ChatScreen(
                                     Text(
                                         text = friendInitials,
                                         color = Color.White,
-                                        fontWeight = FontWeight.Bold
+                                        style = MaterialTheme.typography.bodyLarge
                                     )
                                 }
                             } else {
