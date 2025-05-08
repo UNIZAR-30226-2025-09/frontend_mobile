@@ -132,11 +132,28 @@ fun AppNavigator(navController: NavHostController, paymentSheet: PaymentSheet, i
                     )
                 }
                 composable(
-                    "chat/{friendId}",
-                    arguments = listOf(navArgument("friendId") { type = NavType.StringType } )
+                    "chat/{friendId}/{friendName}?friendPhoto={friendPhoto}",
+                    arguments = listOf(
+                        navArgument("friendId") { type = NavType.StringType },
+                        navArgument("friendName") { type = NavType.StringType },
+                        navArgument("friendPhoto") { 
+                            type = NavType.StringType
+                            nullable = true
+                            defaultValue = null
+                        }
+                    )
                 ) { backStackEntry ->
                     val friendId = backStackEntry.arguments?.getString("friendId")
-                    ChatScreen(navController, friendId, playerViewModel) 
+                    val friendName = backStackEntry.arguments?.getString("friendName")
+                    val friendPhoto = backStackEntry.arguments?.getString("friendPhoto")
+                    
+                    ChatScreen(
+                        navController = navController,
+                        friendId = friendId,
+                        friendName = friendName,
+                        friendPhoto = friendPhoto,
+                        playerViewModel = playerViewModel
+                    )
                 }
 
                 composable(

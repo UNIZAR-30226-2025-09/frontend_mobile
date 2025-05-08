@@ -1,6 +1,7 @@
 package eina.unizar.es.ui.friends
 
 import android.content.Context
+import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
@@ -44,6 +45,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import eina.unizar.es.R
 import eina.unizar.es.data.model.network.ApiClient
 import eina.unizar.es.ui.player.MusicPlayerViewModel
 import eina.unizar.es.ui.user.UserProfileMenu
@@ -856,16 +858,26 @@ fun FriendsScreen(navController: NavController, playerViewModel: MusicPlayerView
                             Column {
                                 friends.forEach { friend ->
                                     FriendItem(
+                                        navController = navController,
                                         friend = friend,
                                         onClick = {
-                                            val encodedName = URLEncoder.encode(friend.name, "UTF-8")
-                                            val encodedPhoto = if (friend.photo.isNotEmpty()) {
-                                                URLEncoder.encode(friend.photo, "UTF-8")
-                                            } else {
-                                                ""
+                                            try {
+                                                val encodedName = URLEncoder.encode(friend.name, "UTF-8")
+                                                val route = if (friend.photo.isNotEmpty()) {
+                                                    val encodedPhoto = URLEncoder.encode(friend.photo, "UTF-8")
+                                                    "chat/${friend.id}/$encodedName?friendPhoto=$encodedPhoto"
+                                                } else {
+                                                    "chat/${friend.id}/$encodedName"
+                                                }
+                                                navController.navigate(route)
+                                            } catch (e: Exception) {
+                                                Log.e("Navigation", "Error al navegar al chat: ${e.message}", e)
+                                                Toast.makeText(
+                                                    context,
+                                                    "Error al abrir el chat: ${e.message}",
+                                                    Toast.LENGTH_SHORT
+                                                ).show()
                                             }
-                                            
-                                            navController.navigate("chat/${friend.id}/$encodedName/$encodedPhoto")
                                         },
                                         onDeleteConfirmed = {
                                             removeFriend(friend.id)
@@ -1030,6 +1042,7 @@ fun FriendRequestItem(
 
 @Composable
 fun FriendItem(
+    navController: NavController,
     friend: Friend,
     onClick: () -> Unit,
     onDeleteConfirmed: () -> Unit
@@ -1164,9 +1177,18 @@ fun FriendItem(
             // Botones de acción
             Row {
                 // Icono para chatear
-                IconButton(onClick = onClick) {
+                IconButton(onClick = {
+                    val encodedName = URLEncoder.encode(friend.name, "UTF-8")
+                    val route = if (friend.photo.isNotEmpty()) {
+                        val encodedPhoto = URLEncoder.encode(friend.photo, "UTF-8")
+                        "chat/${friend.id}/$encodedName?friendPhoto=$encodedPhoto"
+                    } else {
+                        "chat/${friend.id}/$encodedName"
+                    }
+                    navController.navigate(route)
+                }) {
                     Icon(
-                        Icons.Default.Chat,
+                        imageVector = Icons.Default.Chat,
                         contentDescription = "Chat",
                         tint = MaterialTheme.colorScheme.primary
                     )
