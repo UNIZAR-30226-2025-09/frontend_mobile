@@ -558,15 +558,18 @@ class MusicPlayerViewModel : ViewModel() {
         }
     }
 
-    // Crear un listener como propiedad de clase para poder eliminarlo después
-    private val playerListener = object : Player.Listener {
-        override fun onIsPlayingChanged(isPlaying: Boolean) {
-            _currentSong.value = _currentSong.value?.copy(isPlaying = isPlaying)
-            if (isPlaying) {
-                startProgressTracking()
-            }
-        }
+    // Función para verificar si la canción actual es un anuncio
+    private fun isAdvertisement(song: CurrentSong?): Boolean {
+        // Verificar por características específicas de anuncios
+        return song?.artist == "Vibra" ||
+                song?.photo == "defaultx.jpg" ||
+                song?.id?.toIntOrNull() == -1 ||
+                song?.title == "Anuncio Vibra"
+    }
 
+    // Crear un listener como propiedad de clase para poder eliminarlo después
+    // Reemplaza la definición actual del playerListener con esta versión corregida
+    private val playerListener = object : Player.Listener {
         override fun onPlaybackStateChanged(playbackState: Int) {
             if (playbackState == Player.STATE_READY) {
                 startProgressTracking()
@@ -619,9 +622,25 @@ class MusicPlayerViewModel : ViewModel() {
                                 Log.d("MusicPlayerViewModel", "Reproduciendo siguiente de la cola: ${nextQueueSong.name} (Artista: $artistName)")
                             } else {
                                 // Si no hay canciones en la cola, pasar a la siguiente de la lista normal
-                                val index = (currentIndex + 1) % songList.size
-                                currentIndex = index
-                                val nextSong = songList[index]
+                                var nextIndex = (currentIndex + 1) % songList.size
+                                var nextSong = songList[nextIndex]
+
+                                // Verificar si la siguiente canción es un anuncio o "Mi vecinita"
+                                var attempts = 0
+                                val maxAttempts = songList.size  // Límite para evitar bucle infinito
+
+                                while ((isAdvertisement(nextSong) ||
+                                            nextSong.title.contains("Mi vecinita", ignoreCase = true)) &&
+                                    attempts < maxAttempts) {
+                                    // Saltar esta canción y pasar a la siguiente
+                                    Log.d("MusicPlayerViewModel", "Saltando anuncio o Mi vecinita: ${nextSong.title}")
+                                    nextIndex = (nextIndex + 1) % songList.size
+                                    nextSong = songList[nextIndex]
+                                    attempts++
+                                }
+
+                                // Actualizar el índice y la canción actual
+                                currentIndex = nextIndex
 
                                 // Formatear la URL correctamente
                                 val formattedUrl = formatSongUrl(nextSong.url)
@@ -641,10 +660,61 @@ class MusicPlayerViewModel : ViewModel() {
                                 Log.d("MusicPlayerViewModel", "Reproduciendo siguiente de la lista: ${nextSong.title}")
                             }
                         } catch (e: Exception) {
-                            // Error handling code...
+                            Log.e("MusicPlayerViewModel", "Error al reproducir siguiente canción: ${e.message}")
                         }
                     }
                 }
+            }
+        }
+
+        override fun onIsPlayingChanged(isPlaying: Boolean) {
+            _currentSong.value = _currentSong.value?.copy(isPlaying = isPlaying)
+            if (isPlaying) {
+                // Comprobar si es un anuncio que viene de la lista normal y no de la cola
+                val currentSong = _currentSong.value
+                if (isAdvertisement(currentSong) && _currentAd.value == null &&
+                    _songsQueue.value.firstOrNull()?.id.toString() != currentSong?.id
+                ) {
+                    Log.d("MusicPlayerViewModel", "Detectado anuncio en reproducción automática")
+
+                    viewModelScope.launch {
+                        // Esperar un breve momento para garantizar que la transición sea suave
+                        delay(200)
+
+                        // Si estamos dentro de una lista de reproducción, avanzar a la siguiente canción no-anuncio
+                        if (songList.isNotEmpty()) {
+                            // Buscar la siguiente canción que no sea anuncio
+                            var searchIndex = (currentIndex + 1) % songList.size
+                            var candidateSong = songList[searchIndex]
+                            var attempts = 0
+
+                            while ((isAdvertisement(candidateSong) ||
+                                        candidateSong.title.contains("Mi vecinita", ignoreCase = true)) &&
+                                attempts < songList.size) {
+                                searchIndex = (searchIndex + 1) % songList.size
+                                candidateSong = songList[searchIndex]
+                                attempts++
+                                Log.d("MusicPlayerViewModel", "Evaluando candidato: ${candidateSong.title}")
+                            }
+
+                            // Actualizar índice y reproducir la canción segura
+                            currentIndex = searchIndex
+                            _currentSong.value = candidateSong.copy(isPlaying = true, progress = 0f)
+
+                            Log.d("MusicPlayerViewModel", "Saltando a canción segura: ${candidateSong.title}")
+
+                            // Reinicializar el reproductor
+                            exoPlayer?.clearMediaItems()
+                            exoPlayer?.setMediaItem(MediaItem.fromUri(formatSongUrl(candidateSong.url)))
+                            exoPlayer?.prepare()
+                            exoPlayer?.play()
+
+                            // Cargar estado de me gusta para la nueva canción
+                            loadLikedStatus(candidateSong.id)
+                        }
+                    }
+                }
+                startProgressTracking()
             }
         }
     }
@@ -835,26 +905,61 @@ class MusicPlayerViewModel : ViewModel() {
         } else {
             // Comportamiento original si no hay cola
             if (songList.isEmpty()) return
-            currentIndex = (currentIndex + 1) % songList.size
-            val song = songList[currentIndex]
 
-            // Actualizar el estado antes de inicializar el reproductor
-            _currentSong.value = song.copy(isPlaying = true, progress = 0f)
-            initializePlayer(context, song.url)
-            loadLikedStatus(song.id)
+            // Calcular el próximo índice
+            val nextIndex = (currentIndex + 1) % songList.size
+            val nextSong = songList[nextIndex]
+
+            // Verificar si la siguiente canción es un anuncio y debe saltarse
+            if (isAdvertisement(nextSong)) {
+                Log.d("MusicPlayerViewModel", "Saltando anuncio automáticamente al avanzar")
+
+                // Saltamos otro índice más adelante para evitar el anuncio
+                currentIndex = (nextIndex + 1) % songList.size
+                val safeSong = songList[currentIndex]
+
+                // Actualizar el estado y reproducir
+                _currentSong.value = safeSong.copy(isPlaying = true, progress = 0f)
+                initializePlayer(context, safeSong.url)
+            } else {
+                // Comportamiento normal si no es anuncio
+                currentIndex = nextIndex
+                _currentSong.value = nextSong.copy(isPlaying = true, progress = 0f)
+                initializePlayer(context, nextSong.url)
+            }
+
+            loadLikedStatus(_currentSong.value?.id)
         }
     }
 
     // Function to pass to the previous song
     fun previousSong(context: Context) {
         if (songList.isEmpty()) return
-        currentIndex = (currentIndex - 1 + songList.size) % songList.size
-        val song = songList[currentIndex]
-        _currentSong.value = song.copy(isPlaying = true, progress = 0f)
-        initializePlayer(context, song.url)
 
-        // Load liked status for the new song
-        loadLikedStatus(song.id)
+        // Calcular el índice anterior
+        val previousIndex = (currentIndex - 1 + songList.size) % songList.size
+        val previousSong = songList[previousIndex]
+
+        // Verificar si la canción anterior es un anuncio
+        if (isAdvertisement(previousSong)) {
+            Log.d("MusicPlayerViewModel", "Saltando anuncio automáticamente al retroceder")
+
+            // Saltamos otro índice más hacia atrás para evitar el anuncio
+            currentIndex = (previousIndex - 1 + songList.size) % songList.size
+            val safeSong = songList[currentIndex]
+
+            // Actualizar el estado y reproducir
+            _currentSong.value = safeSong.copy(isPlaying = true, progress = 0f)
+            initializePlayer(context, safeSong.url)
+        } else {
+            // Comportamiento normal si no es anuncio
+            currentIndex = previousIndex
+            _currentSong.value = previousSong.copy(isPlaying = true, progress = 0f)
+            initializePlayer(context, previousSong.url)
+        }
+
+        // Cargar el estado de "me gusta" para la nueva canción
+        loadLikedStatus(_currentSong.value?.id)
     }
 
     // Function to release the player

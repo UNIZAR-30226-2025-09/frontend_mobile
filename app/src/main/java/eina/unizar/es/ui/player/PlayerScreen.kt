@@ -61,10 +61,12 @@ import com.example.musicapp.ui.theme.VibraBlue
 import com.example.musicapp.ui.theme.VibraDarkGrey
 import com.example.musicapp.ui.theme.VibraMediumGrey
 import eina.unizar.es.R
+import eina.unizar.es.data.model.network.ApiClient
 import eina.unizar.es.data.model.network.ApiClient.checkIfSongIsLiked
 import eina.unizar.es.data.model.network.ApiClient.getImageUrl
 import eina.unizar.es.ui.playlist.getArtistName
 import kotlinx.coroutines.launch
+import org.json.JSONObject
 import kotlin.math.abs
 
 @SuppressLint("UseOfNonLambdaOffsetOverload")
@@ -76,7 +78,6 @@ fun FloatingMusicPlayer(navController: NavController, viewModel: MusicPlayerView
     val coroutineScope = rememberCoroutineScope()
 
     // Estados para gestión de la interfaz
-    var artista by remember { mutableStateOf<String?>(null) }
     var offsetX by remember { mutableStateOf(0f) }
     var isDragging by remember { mutableStateOf(false) }
     var isChangingSong by remember { mutableStateOf(false) }
@@ -105,7 +106,31 @@ fun FloatingMusicPlayer(navController: NavController, viewModel: MusicPlayerView
         currentSong?.id?.let {
             viewModel.loadLikedStatus(it)
         }
-        artista = currentSong?.id?.let { getArtistName(it.toInt()) }.toString()
+    }
+
+    var idsArtistas by remember { mutableStateOf(listOf<Int>()) }
+    var nombresArtistas by remember { mutableStateOf(listOf<String>()) }
+
+    LaunchedEffect(currentSong?.id) {
+        launch {
+            val response = ApiClient.get("player/details/${currentSong?.id}")
+            response?.let {
+                val jsonObject = JSONObject(it)
+                val artistsArray = jsonObject.getJSONArray("artists")
+
+                val ids = mutableListOf<Int>()
+                val nombres = mutableListOf<String>()
+
+                for (i in 0 until artistsArray.length()) {
+                    val artistObject = artistsArray.getJSONObject(i)
+                    ids.add(artistObject.getInt("id"))
+                    nombres.add(artistObject.getString("name"))
+                }
+
+                idsArtistas = ids
+                nombresArtistas = nombres
+            }
+        }
     }
 
     currentSong?.let { song ->
@@ -271,10 +296,10 @@ fun FloatingMusicPlayer(navController: NavController, viewModel: MusicPlayerView
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
-                        artista?.let {
+                        nombresArtistas.let {
                             if (it.isNotEmpty()) {
                                 Text(
-                                    text = it,
+                                    text = it.joinToString(", "),
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.Light,
                                     maxLines = 1,

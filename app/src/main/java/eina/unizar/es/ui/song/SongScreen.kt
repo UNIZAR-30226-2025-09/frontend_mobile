@@ -30,12 +30,15 @@ import eina.unizar.es.ui.player.MusicPlayerViewModel
 import androidx.compose.animation.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.musicapp.ui.theme.VibraBlue
 import com.example.musicapp.ui.theme.VibraDarkGrey
 import com.example.musicapp.ui.theme.VibraLightGrey
 import com.example.musicapp.ui.theme.VibraMediumGrey
+import eina.unizar.es.data.model.network.ApiClient
 import eina.unizar.es.data.model.network.ApiClient.getImageUrl
 import eina.unizar.es.ui.artist.SongOptionsBottomSheetContent
 import eina.unizar.es.ui.navbar.BottomNavigationBar
@@ -43,6 +46,7 @@ import eina.unizar.es.ui.playlist.getArtistName
 import eina.unizar.es.ui.song.Song
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import org.json.JSONObject
 
 // Añade este enum class para manejar los estados del shuffle
 enum class ShuffleMode {
@@ -63,13 +67,30 @@ fun SongScreen(navController: NavController, playerViewModel: MusicPlayerViewMod
     val isLooping by playerViewModel.isLooping.collectAsState()
 
     val scrollState = rememberScrollState()
-    var artista by remember { mutableStateOf<String?>(null) }
     var showSongOptionsBottomSheet by remember { mutableStateOf(false) }
 
-    LaunchedEffect(currentSong?.id){
-        if (currentSong?.id != null) {
-            artista = getArtistName(currentSong?.id!!.toInt())
-            Log.d("Nombre", "Nombre : " + artista)
+    var idsArtistas by remember { mutableStateOf(listOf<Int>()) }
+    var nombresArtistas by remember { mutableStateOf(listOf<String>()) }
+
+    LaunchedEffect(currentSong?.id) {
+        launch {
+            val response = ApiClient.get("player/details/${currentSong?.id}")
+            response?.let {
+                val jsonObject = JSONObject(it)
+                val artistsArray = jsonObject.getJSONArray("artists")
+
+                val ids = mutableListOf<Int>()
+                val nombres = mutableListOf<String>()
+
+                for (i in 0 until artistsArray.length()) {
+                    val artistObject = artistsArray.getJSONObject(i)
+                    ids.add(artistObject.getInt("id"))
+                    nombres.add(artistObject.getString("name"))
+                }
+
+                idsArtistas = ids
+                nombresArtistas = nombres
+            }
         }
     }
 
@@ -135,9 +156,6 @@ fun SongScreen(navController: NavController, playerViewModel: MusicPlayerViewMod
 
                     // BottomSheet para opciones de la canción
                     if (showSongOptionsBottomSheet && currentSong != null) {
-                        // Usamos el artista ya cargado previamente
-                        val artistName = artista ?: "Artista desconocido"
-
                         if (currentSong?.title != "Anuncio Vibra") {
                             ModalBottomSheet(
                                 onDismissRequest = { showSongOptionsBottomSheet = false },
@@ -147,7 +165,7 @@ fun SongScreen(navController: NavController, playerViewModel: MusicPlayerViewMod
                                     songId = currentSong?.id.toString(),
                                     viewModel = playerViewModel,
                                     songTitle = currentSong?.title ?: "",
-                                    artistName = artistName,
+                                    artistName = nombresArtistas.toString(),
                                     onClick = {
                                         // Aquí puedes manejar la acción de añadir a la cola
                                         // Por ejemplo, puedes usar el ViewModel para añadir la canción a la cola
@@ -197,12 +215,14 @@ fun SongScreen(navController: NavController, playerViewModel: MusicPlayerViewMod
                                 fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
                             )
                             Spacer(modifier = Modifier.height(4.dp))
-                            artista?.let {
-                                Text(
-                                    text = it,
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    color = Color.White.copy(alpha = 0.7f)
-                                )
+                            nombresArtistas.let {
+                                if (it.isNotEmpty()) {
+                                    Text(
+                                        text = it.joinToString(", "),
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        color = Color.White.copy(alpha = 0.7f)
+                                    )
+                                }
                             }
                         }
                     }
@@ -217,7 +237,7 @@ fun SongScreen(navController: NavController, playerViewModel: MusicPlayerViewMod
                     ) {
                         Slider(
                             value = currentSong?.progress ?: 0f,
-                            onValueChange = { playerViewModel.seekTo(it) },
+                            onValueChange = { if (currentSong?.title != "Anuncio Vibra") {playerViewModel.seekTo(it)} },
                             colors = SliderDefaults.colors(
                                 thumbColor = Color.White,
                                 activeTrackColor = Color.White,
