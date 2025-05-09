@@ -792,17 +792,30 @@ fun SongItem(
             .padding(horizontal = 16.dp, vertical = 6.dp)
             .clip(RoundedCornerShape(10.dp))
             .clickable {
-                if (isSencillo) {
-                    viewModel.loadSongsFromApi(songId = song.id.toString(), context = context, albumArtResId = R.drawable.defaultx)
-                } else if (isPlaylist) {
-                    viewModel.loadSongsFromPlaylist(
-                        playlistSongs = convertSongsToCurrentSongs(playlistSongs, R.drawable.defaultplaylist),
-                        songId = song.id.toString(),
-                        context,
-                        idPlaylist = idPlaylist
-                    )
-                } else {
-                    viewModel.loadSongsFromApi(songId = song.id.toString(), context = context, albumArtResId = R.drawable.defaultx)
+                if (currentSong?.title != "Anuncio Vibra") {
+                    if (isSencillo) {
+                        viewModel.loadSongsFromApi(
+                            songId = song.id.toString(),
+                            context = context,
+                            albumArtResId = R.drawable.defaultx
+                        )
+                    } else if (isPlaylist) {
+                        viewModel.loadSongsFromPlaylist(
+                            playlistSongs = convertSongsToCurrentSongs(
+                                playlistSongs,
+                                R.drawable.defaultplaylist
+                            ),
+                            songId = song.id.toString(),
+                            context,
+                            idPlaylist = idPlaylist
+                        )
+                    } else {
+                        viewModel.loadSongsFromApi(
+                            songId = song.id.toString(),
+                            context = context,
+                            albumArtResId = R.drawable.defaultx
+                        )
+                    }
                 }
             },
         color = cardBackgroundColor,

@@ -338,7 +338,38 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
         }
     }
 
-    val playlistAuthor = playlistInfo?.let { getPlaylistAuthor(it) }
+    var playlistAuthor by remember { mutableStateOf("Cargando...") }
+
+    // Usamos un scope de corrutina para manejar la operación asíncrona y cancelarla si es necesario
+    val scope = rememberCoroutineScope()
+
+    // Aseguramos que el efecto se ejecute cuando cambia la información de la playlist
+    LaunchedEffect(playlistInfo) {
+        // Limpiamos el autor cuando cambia la playlist
+        playlistAuthor = "Cargando..."
+
+        playlistInfo?.let { playlist ->
+            // Lanzamos en el scope de la corrutina para manejar mejor el ciclo de vida
+            scope.launch {
+                try {
+                    // Log para depuración
+                    Log.d("PlaylistAuthor", "Obteniendo autor para playlist: ${playlist.title}, idArtista: ${playlist.idArtista}")
+
+                    // Obtenemos el autor y actualizamos el estado
+                    val author = getPlaylistAuthor(playlist)
+                    playlistAuthor = author
+
+                    Log.d("PlaylistAuthor", "Autor obtenido: $author")
+                } catch (e: Exception) {
+                    Log.e("PlaylistAuthor", "Error en LaunchedEffect: ${e.message}", e)
+                    playlistAuthor = "Artista desconocido"
+                }
+            }
+        } ?: run {
+            playlistAuthor = "Artista desconocido"
+        }
+    }
+
     var songArtistMap by remember { mutableStateOf<Map<Song, String>>(emptyMap()) }
 
     LaunchedEffect(songs) {
@@ -456,13 +487,15 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                             )
                         }
 
-                        if (playlistAuthor != null && playlistInfo?.esAlbum != "album") {
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = playlistAuthor,
-                                color = secondaryTextColor,
-                                style = TextStyle(fontSize = 16.sp)
-                            )
+                        playlistAuthor?.let { author ->
+                            if (playlistInfo?.esAlbum != "album") {
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = author,
+                                    color = secondaryTextColor,
+                                    style = TextStyle(fontSize = 16.sp)
+                                )
+                            }
                         }
                         // Añadir descripción de la playlist al final
                         playlistInfo?.description?.takeIf { it.isNotBlank() && it != "Sencillo" && it != "null" }?.let { description ->
@@ -894,30 +927,30 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                 ) {
                     var urlAntes = playlistInfo?.imageUrl
                     val playlistImage = getImageUrl(urlAntes, "defaultplaylist.jpg")
-                    playlistInfo?.let {
-                        if (playlistAuthor != null) {
-                            BottomSheetContent(
-                                playlistInfo = it,
-                                playlistImage = playlistImage,
-                                playlistTitle = playlistInfo!!.title, // Reemplaza con el título
-                                playlistAuthor = playlistAuthor,
-                                playlistDescription = playlistInfo!!.description,
-                                isLikedPlaylist = isLikedPlaylist,
-                                onDismiss = { showBottomSheet = false },
-                                navController = navController,
-                                playlistId = playlistId,
-                                playlistMeGusta = playlistInfo!!.esAlbum,
-                                onRateClick = { showRatingDialog = true },
-                                onLikeUpdate = { newState ->
-                                    // Actualiza el estado en el componente padre
-                                    isLikedPlaylist = newState
-                                },
-                                onPlaylistUpdated = {
-                                    // Actualiza la playlist en el componente padre
-                                    playlistInfo = it
-                                }
-                            )
-                        }
+
+                    playlistInfo?.let { playlist ->
+                        // Log para debuggear valores justo antes de mostrar el BottomSheet
+                        Log.d("BottomSheet", "Mostrando BottomSheet con autor: $playlistAuthor")
+
+                        BottomSheetContent(
+                            playlistInfo = playlist,
+                            playlistImage = playlistImage,
+                            playlistTitle = playlist.title,
+                            playlistAuthor = playlistAuthor,
+                            playlistDescription = playlist.description,
+                            isLikedPlaylist = isLikedPlaylist,
+                            onDismiss = { showBottomSheet = false },
+                            navController = navController,
+                            playlistId = playlistId,
+                            playlistMeGusta = playlist.esAlbum,
+                            onRateClick = { showRatingDialog = true },
+                            onLikeUpdate = { newState ->
+                                isLikedPlaylist = newState
+                            },
+                            onPlaylistUpdated = { updatedPlaylist ->
+                                playlistInfo = updatedPlaylist
+                            }
+                        )
                     }
                 }
             }
@@ -1382,11 +1415,79 @@ suspend fun getArtistName(songId: Int): String {
     }
 }
 
-//Funcion para obtener el autor de la lista
-private fun getPlaylistAuthor(playlist: Playlist): String {
-    return when (playlist?.esAlbum) {
+//Función para obtener el autor de la lista
+private suspend fun getPlaylistAuthor(playlist: Playlist): String = withContext(Dispatchers.IO) {
+    when (playlist.esAlbum) {
         "Vibra" -> "Vibra"
-        "album" -> playlist.title?.let { "$it" } ?: "Álbum sin título"
+        "album" -> {
+            try {
+                if (!playlist.idArtista.isNullOrEmpty()) {
+                    // Log con información clara de la petición
+                    Log.d("PlaylistAuthor", "Solicitando artista con ID: ${playlist.idArtista}")
+
+                    // Obtener respuesta de la API
+                    val response = get("artist/${playlist.idArtista}")
+
+                    // Log de la respuesta completa (truncada para no sobrecargar logs)
+                    Log.d("PlaylistAuthor", "Respuesta recibida (primeros 200 caracteres): ${response?.take(200)}")
+
+                    if (!response.isNullOrEmpty()) {
+                        try {
+                            // Parsear el JSON y extraer información vital
+                            val responseJson = JSONObject(response)
+
+                            // Extraer y mostrar las claves de nivel superior para diagnóstico
+                            val keys = responseJson.keys().asSequence().toList()
+                            Log.d("PlaylistAuthor", "Claves en la respuesta JSON: $keys")
+
+                            // Intentar acceder al objeto 'artist'
+                            if (responseJson.has("artist")) {
+                                val artistObj = responseJson.getJSONObject("artist")
+
+                                // Mostrar las claves dentro del objeto artist
+                                val artistKeys = artistObj.keys().asSequence().toList()
+                                Log.d("PlaylistAuthor", "Claves en el objeto artist: $artistKeys")
+
+                                // Verificar y extraer el nombre
+                                if (artistObj.has("name")) {
+                                    val name = artistObj.getString("name")
+                                    Log.d("PlaylistAuthor", "Nombre de artista encontrado: $name")
+                                    return@withContext name
+                                } else {
+                                    Log.w("PlaylistAuthor", "El objeto artist NO contiene la clave 'name'")
+                                }
+                            } else {
+                                Log.w("PlaylistAuthor", "La respuesta NO contiene la clave 'artist'")
+
+                                // Intentar obtener el nombre directamente de la raíz (caso alternativo)
+                                if (responseJson.has("name")) {
+                                    val name = responseJson.getString("name")
+                                    Log.d("PlaylistAuthor", "Nombre encontrado en la raíz: $name")
+                                    return@withContext name
+                                }
+                            }
+
+                            // Si llegamos hasta aquí, no pudimos extraer el nombre correctamente
+                            Log.e("PlaylistAuthor", "No se pudo extraer el nombre del artista del JSON")
+                            "Artista no identificado"
+                        } catch (e: Exception) {
+                            Log.e("PlaylistAuthor", "Error al procesar el JSON: ${e.javaClass.simpleName}: ${e.message}")
+                            "Error en formato de datos"
+                        }
+                    } else {
+                        Log.w("PlaylistAuthor", "Respuesta vacía al solicitar artista")
+                        "Sin datos de artista"
+                    }
+                } else {
+                    Log.w("PlaylistAuthor", "ID de artista vacío o nulo")
+                    "Artista sin identificador"
+                }
+            } catch (e: Exception) {
+                Log.e("PlaylistAuthor", "Error general: ${e.javaClass.simpleName}: ${e.message}", e)
+                "Error de conexión"
+            }
+        }
+        "single" -> "Sencillo"
         null -> "Origen desconocido"
         else -> "Colección personalizada"
     }
