@@ -358,51 +358,33 @@ fun ChatScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         // Foto del amigo o iniciales
-                        Box {
-                            if (decodedFriendPhoto.isEmpty()) {
-                                // Mostrar iniciales con color de perfil
-                                Box(
-                                    modifier = Modifier
-                                        .size(40.dp)
-                                        .background(friendProfileColor, CircleShape)
-                                        .clip(CircleShape),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        text = friendInitials,
-                                        color = Color.White,
-                                        style = MaterialTheme.typography.bodyLarge
-                                    )
-                                }
-                            } else {
-                                // Mostrar foto
-                                AsyncImage(
-                                    model = ImageRequest.Builder(context)
-                                        .data(ApiClient.getImageUrl(decodedFriendPhoto))
-                                        .crossfade(true)
-                                        .build(),
-                                    contentDescription = "Foto de perfil",
-                                    modifier = Modifier
-                                        .size(40.dp)
-                                        .clip(CircleShape),
-                                    contentScale = ContentScale.Crop
-                                )
-                            }
-                            
-                            // Indicador de estado
+                        if (decodedFriendPhoto.isEmpty()) {
+                            // Mostrar iniciales con color de perfil
                             Box(
                                 modifier = Modifier
-                                    .size(12.dp)
-                                    .clip(CircleShape)
-                                    .background(
-                                        when (friendStatus) {
-                                            "online" -> Color(0xFF4CAF50)
-                                            "away" -> Color(0xFFFFC107)
-                                            else -> Color(0xFF9E9E9E)
-                                        }
-                                    )
-                                    .border(2.dp, MaterialTheme.colorScheme.background, CircleShape)
-                                    .align(Alignment.BottomEnd)
+                                    .size(40.dp)
+                                    .background(friendProfileColor, CircleShape)
+                                    .clip(CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = friendInitials,
+                                    color = Color.White,
+                                    style = MaterialTheme.typography.bodyLarge
+                                )
+                            }
+                        } else {
+                            // Mostrar foto
+                            AsyncImage(
+                                model = ImageRequest.Builder(context)
+                                    .data(ApiClient.getImageUrl(decodedFriendPhoto))
+                                    .crossfade(true)
+                                    .build(),
+                                contentDescription = "Foto de perfil",
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(CircleShape),
+                                contentScale = ContentScale.Crop
                             )
                         }
                         
