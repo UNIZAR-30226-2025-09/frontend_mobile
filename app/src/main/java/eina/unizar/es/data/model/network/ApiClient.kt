@@ -2312,47 +2312,4 @@ object ApiClient {
             }
         }
     }
-
-    /**
-     * Marca un mensaje como leído.
-     * 
-     * @param messageId ID del mensaje a marcar como leído
-     * @param context Contexto para obtener el token de autenticación
-     * @return Boolean indicando si la operación fue exitosa
-     */
-    suspend fun markMessageAsRead(messageId: String, context: Context): Boolean {
-        return withContext(Dispatchers.IO) {
-            try {
-                val sharedPreferences = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
-                val token = sharedPreferences.getString("auth_token", null)
-                
-                if (token.isNullOrEmpty()) {
-                    Log.e("API", "Token no disponible para marcar mensaje como leído")
-                    return@withContext false
-                }
-                
-                // URL correcta para marcar mensaje como leído
-                val url = URL("$BASE_URL/chat/markAsRead/$messageId")
-                
-                Log.d("API", "URL para marcar mensaje como leído: $url")
-                
-                val connection = url.openConnection() as HttpURLConnection
-                connection.apply {
-                    requestMethod = "PUT"
-                    setRequestProperty("Content-Type", "application/json")
-                    setRequestProperty("Authorization", "Bearer $token")
-                    connectTimeout = 15000
-                    readTimeout = 15000
-                }
-                
-                val responseCode = connection.responseCode
-                Log.d("API", "Código de respuesta markMessageAsRead: $responseCode")
-                
-                return@withContext responseCode in 200..299
-            } catch (e: Exception) {
-                Log.e("API", "Excepción en markMessageAsRead: ${e.message}", e)
-                return@withContext false
-            }
-        }
-    }
 }
