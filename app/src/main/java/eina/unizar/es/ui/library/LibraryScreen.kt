@@ -28,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -300,7 +301,6 @@ fun LibraryScreen(navController: NavController, playerViewModel: MusicPlayerView
                 }
                 else {
                     // Playlists Creadas section
-                    // Playlists Creadas section
                     if (playlists.isNotEmpty()) {
                         item {
                             Text(
@@ -465,18 +465,20 @@ fun LibraryItem(
                 .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Imagen de la playlist
+            // Imagen de la playlist - Modificada para expandirse completamente
             Box(
                 modifier = Modifier
                     .size(48.dp)
                     .clip(RoundedCornerShape(8.dp))
+                    .shadow(2.dp, RoundedCornerShape(8.dp))
             ) {
                 AsyncImage(
-                    model = getImageUrl(playlist.imageUrl, "defaultplaylist.jpg"),
+                    model = getImageUrl(playlist.imageUrl, "defaultplaylist.jpg")+ "?t=${System.currentTimeMillis()}",
                     placeholder = painterResource(R.drawable.defaultplaylist),
                     error = painterResource(R.drawable.defaultplaylist),
                     contentDescription = "Portada de playlist",
-                    modifier = Modifier.fillMaxSize()
+                    contentScale = ContentScale.Crop, // Esto es clave para que la imagen se expanda
+                    modifier = Modifier.fillMaxSize() // Ocupa todo el espacio disponible del Box
                 )
             }
 
