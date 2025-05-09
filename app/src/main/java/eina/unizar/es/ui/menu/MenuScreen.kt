@@ -261,7 +261,7 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
                         if(showAdvertPopup) {
                             LaunchedEffect(Unit) {
                                 while (true) {
-                                    delay(13000) // 13 segundos (media)
+                                    delay(35000) // 35 segundos (media)
                                     showPaymentDialog = true
                                 }
                             }
