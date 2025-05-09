@@ -1686,6 +1686,59 @@ object ApiClient {
     }
 
     /**
+     * Función para actualizar la imagen de portada de una playlist.
+     *
+     * @param playlistId ID de la playlist a actualizar.
+     * @param frontPageImage Imagen de portada en formato base64 (debe incluir el prefijo "data:image/...").
+     * @return JSONObject con la respuesta del servidor o `null` en caso de error.
+     */
+    suspend fun updatePlaylistImage(playlistId: Int, frontPageImage: String): JSONObject? {
+        return withContext(Dispatchers.IO) {
+            try {
+                val client = OkHttpClient()
+
+                // Crear el objeto JSON con solo la información de la imagen
+                val jsonBody = JSONObject().apply {
+                    put("front_page", frontPageImage)
+                }
+
+                val requestBody = jsonBody.toString()
+                    .toRequestBody("application/json".toMediaTypeOrNull())
+
+                val request = Request.Builder()
+                    .url("$BASE_URL/playlists/$playlistId")
+                    .put(requestBody)  // Usando PUT para actualizar un recurso existente
+                    .addHeader("Content-Type", "application/json")
+                    .build()
+
+                client.newCall(request).execute().use { response ->
+                    val responseBody = response.body?.string()
+
+                    if (!response.isSuccessful) {
+                        Log.e("API", "Error al actualizar imagen de playlist: código ${response.code}, cuerpo: $responseBody")
+                        if (responseBody != null) {
+                            // Devolver la respuesta de error para manejarla adecuadamente
+                            return@withContext JSONObject(responseBody)
+                        }
+                        null
+                    } else {
+                        Log.d("API", "Imagen de playlist actualizada: $responseBody")
+                        if (responseBody != null) {
+                            JSONObject(responseBody)
+                        } else {
+                            null
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("ApiClient", "Error en updatePlaylistImage: ${e.message}")
+                e.printStackTrace()
+                null
+            }
+        }
+    }
+
+    /**
      * Busca usuarios que pueden ser añadidos como amigos.
      */
     suspend fun searchNewFriends(context: Context): JSONArray? {

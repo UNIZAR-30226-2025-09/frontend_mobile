@@ -25,6 +25,8 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import coil.request.ImageRequest
+import coil.request.CachePolicy
 import androidx.navigation.NavController
 import com.stripe.android.paymentsheet.PaymentSheet
 import eina.unizar.es.R
@@ -747,16 +749,19 @@ fun HorizontalPlaylistCard(
                     )
                 }
 
+                val cacheBustedUrl = getImageUrl(playlist.imageUrl, "/defaultplaylist.jpg") + "?cacheBuster=${System.currentTimeMillis()}"
+
                 AsyncImage(
-                    model = getImageUrl(playlist.imageUrl, "/defaultplaylist.jpg"),
-                    contentDescription = "Portada de ${playlist.title}",
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(cacheBustedUrl)
+                        .diskCachePolicy(CachePolicy.DISABLED)
+                        .memoryCachePolicy(CachePolicy.DISABLED)
+                        .build(),
+                    contentDescription = "Portada de la playlist",
+                    placeholder = painterResource(R.drawable.defaultplaylist),
+                    error = painterResource(R.drawable.defaultplaylist),
                     contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize(),
-                    placeholder = painterResource(id = R.drawable.defaultplaylist),
-                    error = painterResource(id = R.drawable.defaultplaylist),
-                    onLoading = { isImageLoading = true },
-                    onSuccess = { isImageLoading = false },
-                    onError = { isImageLoading = false }
+                    modifier = Modifier.fillMaxSize()
                 )
             }
 
