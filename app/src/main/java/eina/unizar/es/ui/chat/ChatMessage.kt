@@ -12,8 +12,7 @@ import java.util.Date
  * @property content Contenido del mensaje
  * @property timestamp Fecha y hora en que se envió el mensaje
  * @property isRead Si el mensaje ha sido leído
- * @property sharedContent Contenido compartido opcional (canción, playlist, etc.)
- * @property isSending Opcional: para indicar estado de envío
+ * @property sharedContent Contenido compartido opcional (playlist en formato JSON)
  */
 data class ChatMessage(
     val id: String,
@@ -22,6 +21,5 @@ data class ChatMessage(
     val content: String,
     val timestamp: Date,
     val isRead: Boolean,
-    val sharedContent: String? = null,
-    val isSending: Boolean = false // Opcional: para indicar estado de envío
+    val sharedContent: String? = null // Nuevo campo para guardar info de playlist en formato JSON
 )
