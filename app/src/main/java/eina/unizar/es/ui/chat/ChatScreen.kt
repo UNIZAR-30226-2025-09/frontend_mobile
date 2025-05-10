@@ -21,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
@@ -729,6 +730,11 @@ fun ChatBubble(
     friendPhoto: String,
     friendProfileColor: Color
 ) {
+    // Obtener el ancho de la pantalla para calcular el 60%
+    val configuration = LocalConfiguration.current
+    val screenWidth = configuration.screenWidthDp.dp
+    val maxBubbleWidth = screenWidth * 0.6f  // 60% del ancho de la pantalla
+
     // Determinar si el mensaje fue enviado por el usuario actual
     val isFromCurrentUser = message.senderId == currentUserId
     
@@ -794,10 +800,11 @@ fun ChatBubble(
                 Spacer(modifier = Modifier.width(8.dp))
             }
             
-            // Burbuja de mensaje
+            // Burbuja de mensaje usando el ancho calculado
             Box(
                 modifier = Modifier
                     .weight(1f, fill = false)
+                    .widthIn(max = maxBubbleWidth)  // Aquí usamos el ancho relativo
                     .clip(
                         RoundedCornerShape(
                             topStart = 16.dp,
@@ -854,6 +861,11 @@ fun ChatBubble(
                         }
                     }
                 }
+            }
+            
+            // Spacer para mantener el espacio en el lado opuesto al avatar
+            if (isFromCurrentUser) {
+                Spacer(modifier = Modifier.width(8.dp))
             }
         }
     }
@@ -914,13 +926,12 @@ fun SharedPlaylistPreview(
         border = BorderStroke(1.dp, contentColor.copy(alpha = 0.2f))
     ) {
         Column(
-            modifier = Modifier.padding(bottom = 8.dp)
+            modifier = Modifier.padding(bottom = 4.dp)
         ) {
-            // Imagen de la playlist (más grande y atractiva)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(120.dp)
+                    .aspectRatio(1f)
             ) {
                 if (playlistImage.isNotEmpty()) {
                     AsyncImage(
@@ -956,15 +967,15 @@ fun SharedPlaylistPreview(
             ) {
                 Text(
                     text = "Playlist",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = contentColor.copy(alpha = 0.7f)
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
                 )
                 
                 Text(
                     text = playlistTitle,
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
-                    color = contentColor
+                    color = MaterialTheme.colorScheme.onBackground
                 )
             }
         }
