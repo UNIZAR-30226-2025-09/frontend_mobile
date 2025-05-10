@@ -985,7 +985,7 @@ fun BottomSheetContent(
     // Función para copiar al portapapeles
     fun copyToClipboard() {
         val clipboardManager = ContextCompat.getSystemService(context, ClipboardManager::class.java)
-        val clipData = ClipData.newPlainText("Enlace a playlist", fullShareUrl)
+        val clipData = ClipData.newPlainText("Enlace a playlist", fullDeepLink)
         clipboardManager?.setPrimaryClip(clipData)
         Toast.makeText(context, "Enlace copiado al portapapeles", Toast.LENGTH_SHORT).show()
         onDismiss()
@@ -1004,7 +1004,7 @@ fun BottomSheetContent(
             
             $webUrl
             
-            También puedes usar: $deepLink
+            También puedes usar este enlace dentro de la app: $deepLink
         """.trimIndent())
             type = "text/plain"
         }
