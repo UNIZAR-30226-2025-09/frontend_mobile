@@ -39,6 +39,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.engine.DiskCacheStrategy
+import com.example.musicapp.ui.theme.VibraBlue
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -424,15 +425,29 @@ fun ForgotPasswordDialog(
         title = {
             Text(
                 text = "Recuperar contraseña",
+                style = MaterialTheme.typography.titleLarge.copy(
+                    fontWeight = FontWeight.SemiBold
+                ),
                 color = Color.White,
-                modifier = Modifier.fillMaxWidth(),
-                textAlign = TextAlign.Center
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth()
             )
         },
+        modifier = Modifier
+            .widthIn(min = 320.dp, max = 500.dp),
         text = {
             Column(
                 modifier = Modifier.fillMaxWidth()
             ) {
+                Text(
+                    text = "Introduce el correo electrónico para recibir un enlace de recuperación",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = Color.White.copy(alpha = 0.7f),
+                    textAlign = TextAlign.Center
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
                 OutlinedTextField(
                     value = email,
                     onValueChange = { email = it },
@@ -464,18 +479,19 @@ fun ForgotPasswordDialog(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 // Botón Cancelar
-                Button(
+                OutlinedButton(
                     onClick = onDismiss,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color.Transparent,
-                        contentColor = Color.Gray
-                    ),
-                    border = BorderStroke(1.dp, Color.Gray),
-                    shape = RoundedCornerShape(24.dp),
-                    modifier = Modifier.weight(1f)
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.4f)),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp)
                 ) {
-                    Text("Cancelar",
-                        color = Color.White,)
+                    Text(
+                        text = "Cancelar",
+                        color = Color.White,
+                        fontWeight = FontWeight.Medium
+                    )
                 }
 
                 Spacer(modifier = Modifier.width(16.dp))
@@ -483,14 +499,16 @@ fun ForgotPasswordDialog(
                 // Botón Enviar
                 Button(
                     onClick = { onConfirm(email) },
+                    shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF79E2FF),
+                        containerColor = VibraBlue,
                         contentColor = Color.Black
                     ),
-                    shape = RoundedCornerShape(24.dp),
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp)
                 ) {
-                    Text("Enviar")
+                    Text("Enviar", fontWeight = FontWeight.SemiBold)
                 }
             }
         },
