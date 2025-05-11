@@ -47,6 +47,8 @@ import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment.Companion.Center
+import com.example.musicapp.ui.theme.VibraDarkGrey
+import com.example.musicapp.ui.theme.VibraLightGrey
 
 // Función que obtiene la inicial del nickname
 fun getInitial(nickname: String?): String {
@@ -174,13 +176,13 @@ fun UserProfileMenu(
                         Icon(
                             imageVector = if (isPremium) Icons.Outlined.Star else Icons.Outlined.Person,
                             contentDescription = null,
-                            tint = Color.White.copy(alpha = 0.9f),
+                            tint = Color(0xFF2A2A2A).copy(alpha = 0.9f),
                             modifier = Modifier.size(12.dp)
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
                             text = if (isPremium) "Premium" else "Gratuito",
-                            color = Color.White.copy(alpha = 0.9f),
+                            color = Color(0xFF2A2A2A).copy(alpha = 0.9f),
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Bold,
                             letterSpacing = 0.3.sp
