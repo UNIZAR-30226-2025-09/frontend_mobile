@@ -1,5 +1,6 @@
 package eina.unizar.es.ui.playlist
 
+
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -64,6 +65,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import androidx.core.content.ContextCompat
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
@@ -141,6 +143,10 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
     var sortOption by remember { mutableStateOf(SortOption.TITULO) }
     val likedSongsSet by playerViewModel.likedSongs.collectAsState()
     var showSearch by remember { mutableStateOf(false) }
+
+
+    // Variable para mantener la valoración del usuario
+    var userRating by remember { mutableStateOf<Float?>(null) }
 
     // Animation states
     val searchFieldWidth by animateDpAsState(
@@ -541,59 +547,62 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                                 )
                             }
                         }
-                        // Añadir descripción de la playlist al final
-                        playlistInfo?.description?.takeIf { it.isNotBlank() && it != "Sencillo" && it != "null" }?.let { description ->
-                            Row(
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            // Espacio para la descripción (se muestra o queda vacío)
+                            Box(
                                 modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                                verticalAlignment = Alignment.Bottom, // Alineación superior para mejor ajuste
-                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                    .weight(1f)
+                                    .padding(start = 24.dp, end = 12.dp)
                             ) {
-                                // Descripción flexible con múltiples líneas
-                                Text(
-                                    text = description,
-                                    style = MaterialTheme.typography.bodyMedium.copy(
-                                        color = secondaryTextColor,
-                                        lineHeight = 20.sp
-                                    ),
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .padding(start = 24.dp, end = 12.dp),
-                                    maxLines = 3, // Límite de líneas
-                                    overflow = TextOverflow.Ellipsis // Puntos suspensivos si es muy largo
-                                )
+                                // Mostrar la descripción solo si existe y no es "Sencillo" o "null"
+                                playlistInfo?.description?.takeIf { it.isNotBlank() && it != "Sencillo" && it != "null" }?.let { description ->
+                                    Text(
+                                        text = description,
+                                        style = MaterialTheme.typography.bodyMedium.copy(
+                                            color = secondaryTextColor,
+                                            lineHeight = 20.sp
+                                        ),
+                                        maxLines = 3, // Límite de líneas
+                                        overflow = TextOverflow.Ellipsis // Puntos suspensivos si es muy largo
+                                    )
+                                }
+                            }
 
-                                // Rating con fondo redondeado
-                                Box(
-                                    modifier = Modifier
-                                        .border(
-                                            width = 1.dp,
-                                            color = VibraBlue.copy(alpha = 0.3f),
-                                            shape = RoundedCornerShape(16.dp)
-                                        )
-                                        .background(
-                                            color = VibraBlue.copy(alpha = 0.1f),
-                                            shape = RoundedCornerShape(16.dp)
-                                        )
-                                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                            // Rating con fondo redondeado (siempre visible)
+                            Box(
+                                modifier = Modifier
+                                    .border(
+                                        width = 1.dp,
+                                        color = VibraBlue.copy(alpha = 0.3f),
+                                        shape = RoundedCornerShape(16.dp)
+                                    )
+                                    .background(
+                                        color = VibraBlue.copy(alpha = 0.1f),
+                                        shape = RoundedCornerShape(16.dp)
+                                    )
+                                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Star,
-                                            contentDescription = "Valoración promedio",
-                                            tint = VibraBlue,
-                                            modifier = Modifier.size(24.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        Text(
-                                            text = String.format("%.1f", averageRating),
-                                            color = VibraLightGrey,
-                                            style = TextStyle(fontSize = 16.sp)
-                                        )
-                                    }
+                                    Icon(
+                                        imageVector = Icons.Default.Star,
+                                        contentDescription = "Valoración promedio",
+                                        tint = VibraBlue,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = String.format("%.1f", averageRating),
+                                        color = VibraLightGrey,
+                                        style = TextStyle(fontSize = 16.sp)
+                                    )
                                 }
                             }
                         }
@@ -939,30 +948,46 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                     }
                 }
             }
-            StarRatingDialog(
-                showDialog = showRatingDialog,
-                onDismiss = { showRatingDialog = false },
-                onConfirm = { stars ->
-                    currentRating = stars
-                    // Lógica para guardar la valoración
-                    coroutineScope.launch {
-                        val ratingJson = JSONObject().apply {
-                            put("user_id", userId) // Aquí añadimos el user_id
-                            put("rating", currentRating)
-                        }
-                        val response = post("ratingPlaylist/${playlistId}/rate", ratingJson)
-                        if (response != null) {
-                            // Opcionalmente recargar el promedio después de valorar
-                            val ratingResponse = withContext(Dispatchers.IO) { get("ratingPlaylist/$playlistId/rating") }
-                            ratingResponse?.let {
-                                val json = JSONObject(it)
-                                val avgRating = json.optString("averageRating", "0.0")
-                                averageRating = avgRating.toDoubleOrNull() ?: 0.0 // Convertir a Double
+            //Valoracion actual de la lista
+            LaunchedEffect(userId) {
+                try {
+                    Log.d("Rating", "Usuario id: $userId, Playlist id: $playlistId")
+                    val rating = playlistId?.let { ApiClient.getUserRating(it, userId) }
+                    userRating = rating
+                    Log.d("Rating", "Valoracion de la lista: " + userRating)
+                } catch (e: Exception) {
+                    Log.e("PlaylistDetail", "Error al cargar la valoración: ${e.message}")
+                }
+            }
+
+            userRating?.let {
+                StarRatingDialog(
+                    showDialog = showRatingDialog,
+                    onDismiss = { showRatingDialog = false },
+                    onConfirm = { stars ->
+                        currentRating = stars
+                        userRating = stars.toFloat()
+                        // Lógica para guardar la valoración
+                        coroutineScope.launch {
+                            val ratingJson = JSONObject().apply {
+                                put("user_id", userId) // Aquí añadimos el user_id
+                                put("rating", currentRating)
+                            }
+                            val response = post("ratingPlaylist/${playlistId}/rate", ratingJson)
+                            if (response != null) {
+                                // Opcionalmente recargar el promedio después de valorar
+                                val ratingResponse = withContext(Dispatchers.IO) { get("ratingPlaylist/$playlistId/rating") }
+                                ratingResponse?.let {
+                                    val json = JSONObject(it)
+                                    val avgRating = json.optString("averageRating", "0.0")
+                                    averageRating = avgRating.toDoubleOrNull() ?: 0.0 // Convertir a Double
+                                }
                             }
                         }
-                    }
-                }
-            )
+                    },
+                    lastRating = it.toInt(),
+                )
+            }
             // Mostrar el BottomSheet de la playlist (fuera del items)
             if (showBottomSheet) {
                 ModalBottomSheet(
@@ -1075,10 +1100,7 @@ fun BottomSheetContent(
             ¡Escucha "$playlistTitle" en Vibra App!
             
             $webUrl
-            
-            También puedes usar este enlace dentro de la app: $deepLink
-        """.trimIndent())
-            type = "text/plain"
+            """.trimIndent())
         }
 
         context.startActivity(Intent.createChooser(shareIntent, "Compartir playlist"))
@@ -1562,9 +1584,13 @@ private suspend fun getPlaylistAuthor(playlist: Playlist): String = withContext(
 fun StarRatingDialog(
     showDialog: Boolean,
     onDismiss: () -> Unit,
-    onConfirm: (Int) -> Unit
+    onConfirm: (Int) -> Unit,
+    lastRating: Int = 1
 ) {
-    var selectedRating by remember { mutableStateOf(1) }
+    var selectedRating by remember(showDialog, lastRating) {
+        mutableStateOf(lastRating)
+    }
+
 
     if (showDialog) {
         AlertDialog(
@@ -1622,6 +1648,8 @@ fun StarRatingDialog(
 /*
 * Pop up para confirmar si quieres eliminar la lista
 */
+
+
 @Composable
 fun ConfirmationDialog(
     showDialog: Boolean,
@@ -1630,76 +1658,97 @@ fun ConfirmationDialog(
     onConfirm: () -> Unit
 ) {
     if (showDialog) {
-        AlertDialog(
-            onDismissRequest = onDismiss,
-            shape = RoundedCornerShape(16.dp),  // Bordes redondeados
-            title = {
-                Box(
-                    modifier = Modifier.fillMaxWidth(),
-                    contentAlignment = Alignment.Center
+        Dialog(
+            onDismissRequest = onDismiss
+        ) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .wrapContentHeight(),
+                shape = RoundedCornerShape(20.dp),
+                color = Color(0xFF202020)
+            ) {
+                Column(
+                    modifier = Modifier.padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
+                    // Título
                     Text(
                         text = "¿Eliminar playlist?",
                         style = MaterialTheme.typography.titleLarge.copy(
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.SemiBold
                         ),
                         color = Color.White,
-                        textAlign = TextAlign.Center
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
                     )
-                }
-            },
-            text = {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Nombre de la playlist
                     Text(
                         text = "\"$playlistName\"",
-                        style = MaterialTheme.typography.bodyLarge.copy(
+                        style = MaterialTheme.typography.titleMedium.copy(
                             fontWeight = FontWeight.Medium
                         ),
                         color = Color.White,
                         textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(bottom = 8.dp)
+                        modifier = Modifier.padding(bottom = 16.dp)
                     )
 
+                    // Advertencia
                     Text(
                         text = "Esta acción no se puede deshacer",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color.LightGray.copy(alpha = 0.8f),
+                        style = MaterialTheme.typography.titleSmall,
+                        color = Color.White.copy(alpha = 0.7f),
                         textAlign = TextAlign.Center
                     )
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    // Botones
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        // Botón cancelar
+                        OutlinedButton(
+                            onClick = onDismiss,
+                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.4f)),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(48.dp)
+                        ) {
+                            Text(
+                                text = "Cancelar",
+                                color = Color.White,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+
+                        // Botón eliminar
+                        Button(
+                            onClick = onConfirm,
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFFFF6B6B),
+                                contentColor = Color.White
+                            ),
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(48.dp)
+                        ) {
+                            Text(
+                                text = "Eliminar",
+                                color = Color.White,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
                 }
-            },
-            confirmButton = {
-                OutlinedButton(
-                    onClick = onConfirm,
-                    border = BorderStroke(1.dp, Color.Red),
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.padding(end = 8.dp)
-                ) {
-                    Text(
-                        text = "Eliminar",
-                        color = Color.Red,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            },
-            dismissButton = {
-                OutlinedButton(
-                    onClick = onDismiss,
-                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.5f)),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Text(
-                        text = "Cancelar",
-                        color = Color.White,
-                        fontWeight = FontWeight.Medium
-                    )
-                }
-            },
-            containerColor = Color(0xFF2A2A2A)
-        )
+            }
+        }
     }
 }
 
