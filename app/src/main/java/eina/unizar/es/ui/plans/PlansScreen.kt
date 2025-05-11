@@ -35,6 +35,7 @@ import kotlinx.coroutines.launch
 import org.json.JSONObject
 import kotlin.math.min
 
+
 @Composable
 fun PlansScreen(paymentSheet: PaymentSheet, navController: NavController,
                 isPremium: Boolean = false, playerViewModel: MusicPlayerViewModel,
@@ -50,10 +51,16 @@ fun PlansScreen(paymentSheet: PaymentSheet, navController: NavController,
     var changingToPremium by remember { mutableStateOf(false) }
     var paymentIntentClientSecret by remember { mutableStateOf<String?>(null) }
     val previousRoute = navController.previousBackStackEntry?.destination?.route
+    var showLoading by remember { mutableStateOf(true) } // Inicialmente mostrar el loading
+
+
 
 
     LaunchedEffect(Unit) {
-        isPremiumLocal = getPremiumStatus(context)!!
+        coroutineScope.launch {
+            isPremiumLocal = getPremiumStatus(context)!!
+            showLoading = false // Ocultar el loading después de la carga inicial
+        }
     }
 
     LaunchedEffect(Unit) {
@@ -75,79 +82,88 @@ fun PlansScreen(paymentSheet: PaymentSheet, navController: NavController,
             .background(Color(0xFF1E1E1E)),
         contentAlignment = Alignment.Center
     ) {
-        Column(
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(40.dp)
-        ) {
-            // Tarjeta Gratuita
-            PlanCard(
-                title = "Gratuito",
-                price = "0 € durante toda la vida",
-                monthlyPrice = "0 €/mes",
-                features = listOf(
-                    "Reproducción con anuncios",
-                    "Anuncios visuales y de audio",
-                    "Podrás saltar 5 canciones al día"
-                ),
-                buttonText = if (isPremiumLocal) "Pasar a Gratuito" else "Plan Actual",
-                buttonColor = Color(0xFFFFAFC1),
-                textColor = Color(0xFFFFAFC1),
-                iconResId = R.drawable.logorosa,
-                isCurrentPlan = !isPremiumLocal && !isViewOnlyLocal,
-                onClick = {
-                    if (previousRoute == "settings") {
-                        if (!isPremiumLocal) {
-                            Toast.makeText(context, "Ya eres usuario Gratuito", Toast.LENGTH_LONG)
-                                .show()
+        if (showLoading) {
+            // Mostrar el indicador de carga mientras showLoading sea true
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(color = Color.White)
+            }
+        } else {
+            // Mostrar el contenido de la pantalla solo cuando showLoading sea false
+            Column(
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(40.dp)
+            ) {
+                // Tarjeta Gratuita
+                PlanCard(
+                    title = "Gratuito",
+                    price = "0 € durante toda la vida",
+                    monthlyPrice = "0 €/mes",
+                    features = listOf(
+                        "Reproducción con anuncios",
+                        "Anuncios visuales y de audio",
+                        "Podrás saltar 5 canciones al día"
+                    ),
+                    buttonText = if (isPremiumLocal) "Pasar a Gratuito" else "Plan Actual",
+                    buttonColor = Color(0xFFFFAFC1),
+                    textColor = Color(0xFFFFAFC1),
+                    iconResId = R.drawable.logorosa,
+                    isCurrentPlan = !isPremiumLocal && !isViewOnlyLocal,
+                    onClick = {
+                        if (previousRoute == "settings") {
+                            if (!isPremiumLocal) {
+                                Toast.makeText(context, "Ya eres usuario Gratuito", Toast.LENGTH_LONG)
+                                    .show()
+                            } else {
+                                changingToPremium = false
+                                showDialog = true
+
+
+                            }
                         } else {
-                            changingToPremium = false
-                            showDialog = true
-
-
+                            navController.popBackStack()
                         }
-                    } else {
-                        navController.popBackStack()
-                    }
-                },
-                isViewOnly = isViewOnlyLocal
-            )
+                    },
+                    isViewOnly = isViewOnlyLocal
+                )
 
-            Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(24.dp))
 
-            // Tarjeta Premium
-            PlanCard(
-                title = "Premium",
-                price = "4,99 € al mes",
-                monthlyPrice = "4,99 €/mes",
-                features = listOf(
-                    "Experiencia libre de anuncios",
-                    "Saltar ilimitadas canciones al día",
-                    "Cancela cuando quieras"
-                ),
-                buttonText = if (!isPremiumLocal) "Pasar a Premium" else "Plan Actual",
-                buttonColor = Color(0xFFB0C4DE),
-                textColor = Color(0xFFB0C4DE),
-                iconResId = R.drawable.logoazul,
-                isCurrentPlan = isPremiumLocal && !isViewOnlyLocal,
-                onClick = {
-                    if (previousRoute == "settings") {
-                        if (isPremiumLocal) {
-                            Toast.makeText(context, "Ya eres usuario Premium", Toast.LENGTH_LONG).show()
+                // Tarjeta Premium
+                PlanCard(
+                    title = "Premium",
+                    price = "4,99 € al mes",
+                    monthlyPrice = "4,99 €/mes",
+                    features = listOf(
+                        "Experiencia libre de anuncios",
+                        "Saltar ilimitadas canciones al día",
+                        "Cancela cuando quieras"
+                    ),
+                    buttonText = if (!isPremiumLocal) "Pasar a Premium" else "Plan Actual",
+                    buttonColor = Color(0xFFB0C4DE),
+                    textColor = Color(0xFFB0C4DE),
+                    iconResId = R.drawable.logoazul,
+                    isCurrentPlan = isPremiumLocal && !isViewOnlyLocal,
+                    onClick = {
+                        if (previousRoute == "settings") {
+                            if (isPremiumLocal) {
+                                Toast.makeText(context, "Ya eres usuario Premium", Toast.LENGTH_LONG).show()
+                            } else {
+                                changingToPremium = true
+                                showDialog = true
+                            }
                         } else {
-                            changingToPremium = true
-                            showDialog = true
+                            navController.popBackStack()
                         }
-                    } else {
-                        navController.popBackStack()
-                    }
-                },
-                isViewOnly = isViewOnlyLocal
-            )
+                    },
+                    isViewOnly = isViewOnlyLocal
+                )
+            }
         }
-        // Diálogo de confirmación
+
+        // Diálogo de confirmación (se mantiene igual)
         if (showDialog) {
             AlertDialog(
                 onDismissRequest = { showDialog = false },
@@ -193,6 +209,7 @@ fun PlansScreen(paymentSheet: PaymentSheet, navController: NavController,
                             } else {
                                 // Lógica MEJORADA para Gratuito
                                 coroutineScope.launch {
+                                    val loadingJob = launch { showLoading = true } // Mostrar loading
                                     try {
                                         val jsonBody = JSONObject().apply {
                                             put("is_premium", false)
@@ -230,6 +247,9 @@ fun PlansScreen(paymentSheet: PaymentSheet, navController: NavController,
                                             "Error al cambiar a Gratuito: ${e.message}",
                                             Toast.LENGTH_LONG
                                         ).show()
+                                    } finally {
+                                        loadingJob.cancel() // Cancelar la corrutina de mostrar loading
+                                        showLoading = false // Asegurar que se oculta el loading
                                     }
                                 }
                             }

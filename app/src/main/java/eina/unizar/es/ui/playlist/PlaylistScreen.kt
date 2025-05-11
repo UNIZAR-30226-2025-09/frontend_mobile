@@ -1,5 +1,6 @@
 package eina.unizar.es.ui.playlist
 
+
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -57,6 +58,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import androidx.core.content.ContextCompat
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
@@ -1037,10 +1039,7 @@ fun BottomSheetContent(
             ¡Escucha "$playlistTitle" en Vibra App!
             
             $webUrl
-            
-            También puedes usar este enlace dentro de la app: $deepLink
-        """.trimIndent())
-            type = "text/plain"
+            """.trimIndent())
         }
 
         context.startActivity(Intent.createChooser(shareIntent, "Compartir playlist"))
@@ -1581,6 +1580,8 @@ fun StarRatingDialog(
 /*
 * Pop up para confirmar si quieres eliminar la lista
 */
+
+
 @Composable
 fun ConfirmationDialog(
     showDialog: Boolean,
@@ -1589,79 +1590,99 @@ fun ConfirmationDialog(
     onConfirm: () -> Unit
 ) {
     if (showDialog) {
-        AlertDialog(
-            onDismissRequest = onDismiss,
-            shape = RoundedCornerShape(16.dp),  // Bordes redondeados
-            title = {
-                Box(
-                    modifier = Modifier.fillMaxWidth(),
-                    contentAlignment = Alignment.Center
+        Dialog(
+            onDismissRequest = onDismiss
+        ) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .wrapContentHeight(),
+                shape = RoundedCornerShape(20.dp),
+                color = Color(0xFF202020)
+            ) {
+                Column(
+                    modifier = Modifier.padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
+                    // Título
                     Text(
                         text = "¿Eliminar playlist?",
                         style = MaterialTheme.typography.titleLarge.copy(
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.SemiBold
                         ),
                         color = Color.White,
-                        textAlign = TextAlign.Center
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
                     )
-                }
-            },
-            text = {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Nombre de la playlist
                     Text(
                         text = "\"$playlistName\"",
-                        style = MaterialTheme.typography.bodyLarge.copy(
+                        style = MaterialTheme.typography.titleMedium.copy(
                             fontWeight = FontWeight.Medium
                         ),
                         color = Color.White,
                         textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(bottom = 8.dp)
+                        modifier = Modifier.padding(bottom = 16.dp)
                     )
 
+                    // Advertencia
                     Text(
                         text = "Esta acción no se puede deshacer",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color.LightGray.copy(alpha = 0.8f),
+                        style = MaterialTheme.typography.titleSmall,
+                        color = Color.White.copy(alpha = 0.7f),
                         textAlign = TextAlign.Center
                     )
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    // Botones
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        // Botón cancelar
+                        OutlinedButton(
+                            onClick = onDismiss,
+                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.4f)),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(48.dp)
+                        ) {
+                            Text(
+                                text = "Cancelar",
+                                color = Color.White,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+
+                        // Botón eliminar
+                        Button(
+                            onClick = onConfirm,
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFFFF6B6B),
+                                contentColor = Color.White
+                            ),
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(48.dp)
+                        ) {
+                            Text(
+                                text = "Eliminar",
+                                color = Color.White,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
                 }
-            },
-            confirmButton = {
-                OutlinedButton(
-                    onClick = onConfirm,
-                    border = BorderStroke(1.dp, Color.Red),
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.padding(end = 8.dp)
-                ) {
-                    Text(
-                        text = "Eliminar",
-                        color = Color.Red,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            },
-            dismissButton = {
-                OutlinedButton(
-                    onClick = onDismiss,
-                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.5f)),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Text(
-                        text = "Cancelar",
-                        color = Color.White,
-                        fontWeight = FontWeight.Medium
-                    )
-                }
-            },
-            containerColor = Color(0xFF2A2A2A)
-        )
+            }
+        }
     }
 }
-
 // Primero, añadir un nuevo componente para mostrar la lista de amigos
 @Composable
 fun FriendSelectionDialog(
