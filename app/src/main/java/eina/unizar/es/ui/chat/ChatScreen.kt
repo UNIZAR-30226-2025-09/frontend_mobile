@@ -1,8 +1,9 @@
 package eina.unizar.es.ui.chat
 
 import android.util.Log
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -20,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
@@ -38,6 +40,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONException
+import org.json.JSONObject
 import java.net.URLDecoder
 import java.text.SimpleDateFormat
 import java.util.*
@@ -49,7 +52,10 @@ fun ChatScreen(
     friendId: String?,
     friendName: String?,
     friendPhoto: String?,
-    playerViewModel: MusicPlayerViewModel
+    playerViewModel: MusicPlayerViewModel,
+    sharePlaylistId: String? = null,
+    sharePlaylistTitle: String? = null,
+    sharePlaylistImage: String? = null
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
@@ -296,6 +302,87 @@ fun ChatScreen(
         }
     }
     
+    // Modifica la función sendPlaylistMessage en ChatScreen.kt
+    fun sendPlaylistMessage(playlistId: String, playlistTitle: String, playlistImage: String?) {
+        if (friendId == null) return
+        
+        // Mensaje más simple y amigable
+        val messageText = "¡Mira esta playlist!"
+        
+        // Crear JSON con información de la playlist
+        val sharedContent = JSONObject().apply {
+            put("type", "playlist")
+            put("id", playlistId)
+            put("title", playlistTitle)
+            if (!playlistImage.isNullOrEmpty()) {
+                put("image", playlistImage)
+            }
+        }.toString()
+        
+        // Generar ID temporal único
+        val tempId = "temp-${System.currentTimeMillis()}"
+        
+        // Mensaje temporal con la información estructurada
+        val tempMessage = ChatMessage(
+            id = tempId,
+            senderId = currentUserId,
+            receiverId = friendId,
+            content = messageText,  // Mensaje simple
+            timestamp = Date(),
+            isRead = false,
+            sharedContent = sharedContent  // Contenido enriquecido con datos de la playlist
+        )
+        
+        // Actualizar UI inmediatamente con mensaje temporal
+        messages = messages + tempMessage
+        
+        // Scroll al final
+        coroutineScope.launch {
+            scrollToBottom()
+        }
+        
+        // Enviar mensaje a la API
+        coroutineScope.launch {
+            try {
+                val response = ApiClient.sendChatMessageWithSharedContent(
+                    friendId, messageText, sharedContent, context
+                )
+                
+                if (response != null) {
+                    try {
+                        // Extraer el ID real del mensaje enviado
+                        val realMessageId = response.optString("messageId", "")
+                        if (realMessageId.isNotEmpty()) {
+                            withContext(Dispatchers.Main) {
+                                // Reemplazar el mensaje temporal con el real
+                                messages = messages.map { 
+                                    if (it.id == tempId) {
+                                        it.copy(id = realMessageId)
+                                    } else {
+                                        it
+                                    }
+                                }
+                                
+                                // Recargar después de un breve retraso
+                                delay(500)
+                                loadMessages()
+                            }
+                        } else {
+                            delay(1000)
+                            loadMessages()
+                        }
+                    } catch (e: Exception) {
+                        Log.e("ChatScreen", "Error actualizando mensaje compartido: ${e.message}")
+                        delay(1000)
+                        loadMessages()
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("ChatScreen", "Error enviando mensaje con playlist: ${e.message}")
+            }
+        }
+    }
+    
     // Cargar mensajes iniciales
     LaunchedEffect(friendId) {
         isLoading = true
@@ -313,6 +400,19 @@ fun ChatScreen(
                     Log.e("ChatScreen", "Error en polling de mensajes: ${e.message}")
                 }
             }
+        }
+    }
+    
+    // Efectuar el compartir playlist automáticamente si hay parámetros
+    LaunchedEffect(sharePlaylistId, sharePlaylistTitle) {
+        if (!sharePlaylistId.isNullOrEmpty() && !sharePlaylistTitle.isNullOrEmpty()) {
+            // Esperar a que se cargue el ID del usuario actual
+            delay(500) // Pequeña espera para asegurar que currentUserId está cargado
+            sendPlaylistMessage(
+                playlistId = sharePlaylistId,
+                playlistTitle = sharePlaylistTitle,
+                playlistImage = sharePlaylistImage
+            )
         }
     }
     
@@ -585,6 +685,7 @@ fun ChatScreen(
                 ) {
                     items(messages, key = { it.id }) { message ->
                         ChatBubble(
+                            navController = navController,
                             message = message,
                             currentUserId = currentUserId,
                             friendName = decodedFriendName,
@@ -622,12 +723,18 @@ fun ChatScreen(
 
 @Composable
 fun ChatBubble(
+    navController: NavController,
     message: ChatMessage,
     currentUserId: String,
     friendName: String,
     friendPhoto: String,
     friendProfileColor: Color
 ) {
+    // Obtener el ancho de la pantalla para calcular el 60%
+    val configuration = LocalConfiguration.current
+    val screenWidth = configuration.screenWidthDp.dp
+    val maxBubbleWidth = screenWidth * 0.6f  // 60% del ancho de la pantalla
+
     // Determinar si el mensaje fue enviado por el usuario actual
     val isFromCurrentUser = message.senderId == currentUserId
     
@@ -647,6 +754,11 @@ fun ChatBubble(
     // Formatear hora
     val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
     val timeString = timeFormat.format(message.timestamp)
+    
+    // Estado para controlar si el contenido compartido es válido
+    val sharedContentData = remember(message.sharedContent) {
+        parseSharedContent(message.sharedContent)
+    }
     
     // Burbuja de chat
     Column(
@@ -688,10 +800,11 @@ fun ChatBubble(
                 Spacer(modifier = Modifier.width(8.dp))
             }
             
-            // Burbuja de mensaje
+            // Burbuja de mensaje usando el ancho calculado
             Box(
                 modifier = Modifier
                     .weight(1f, fill = false)
+                    .widthIn(max = maxBubbleWidth)  // Aquí usamos el ancho relativo
                     .clip(
                         RoundedCornerShape(
                             topStart = 16.dp,
@@ -704,6 +817,20 @@ fun ChatBubble(
                     .padding(12.dp)
             ) {
                 Column {
+                    // Renderizar el contenido compartido si es válido
+                    if (sharedContentData != null) {
+                        SharedPlaylistPreview(
+                            navController = navController,
+                            playlistId = sharedContentData.id,
+                            playlistTitle = sharedContentData.title,
+                            playlistImage = sharedContentData.image,
+                            contentColor = textColor
+                        )
+                        
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
+                    
+                    // Mostrar el mensaje (texto)
                     Text(
                         text = message.content,
                         color = textColor,
@@ -734,6 +861,122 @@ fun ChatBubble(
                         }
                     }
                 }
+            }
+            
+            // Spacer para mantener el espacio en el lado opuesto al avatar
+            if (isFromCurrentUser) {
+                Spacer(modifier = Modifier.width(8.dp))
+            }
+        }
+    }
+}
+
+// Clase auxiliar para almacenar información de contenido compartido
+data class SharedContentInfo(
+    val type: String,
+    val id: String,
+    val title: String,
+    val image: String
+)
+
+// Función para procesar el contenido compartido fuera del composable
+fun parseSharedContent(sharedContent: String?): SharedContentInfo? {
+    if (sharedContent == null || sharedContent.isEmpty() || sharedContent == "null") {
+        return null
+    }
+    
+    return try {
+        val json = JSONObject(sharedContent)
+        
+        if (json.has("type") && json.getString("type") == "playlist") {
+            SharedContentInfo(
+                type = "playlist",
+                id = json.getString("id"),
+                title = json.getString("title"),
+                image = json.optString("image", "")
+            )
+        } else {
+            null
+        }
+    } catch (e: JSONException) {
+        Log.e("ChatBubble", "Error al parsear contenido compartido: ${e.message}")
+        null
+    }
+}
+
+@Composable
+fun SharedPlaylistPreview(
+    navController: NavController,
+    playlistId: String,
+    playlistTitle: String,
+    playlistImage: String,
+    contentColor: Color,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+
+    Surface(
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable {
+                // Navegar a la playlist al hacer clic
+                navController.navigate("playlist/$playlistId")
+            },
+        shape = RoundedCornerShape(8.dp),
+        border = BorderStroke(1.dp, contentColor.copy(alpha = 0.2f))
+    ) {
+        Column(
+            modifier = Modifier.padding(bottom = 4.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(1f)
+            ) {
+                if (playlistImage.isNotEmpty()) {
+                    AsyncImage(
+                        model = ImageRequest.Builder(context)
+                            .data(ApiClient.getImageUrl(playlistImage))
+                            .crossfade(true)
+                            .build(),
+                        contentDescription = "Imagen de playlist",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    // Imagen por defecto para playlists sin imagen
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(MaterialTheme.colorScheme.primaryContainer),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.MusicNote,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.size(48.dp)
+                        )
+                    }
+                }
+            }
+            
+            // Información de la playlist
+            Column(
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+            ) {
+                Text(
+                    text = "Playlist",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
+                )
+                
+                Text(
+                    text = playlistTitle,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
             }
         }
     }

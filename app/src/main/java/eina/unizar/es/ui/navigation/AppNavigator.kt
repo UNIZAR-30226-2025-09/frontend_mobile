@@ -151,13 +151,7 @@ fun AppNavigator(navController: NavHostController, paymentSheet: PaymentSheet, i
                     val friendName = backStackEntry.arguments?.getString("friendName")
                     val friendPhoto = backStackEntry.arguments?.getString("friendPhoto")
                     
-                    ChatScreen(
-                        navController = navController,
-                        friendId = friendId,
-                        friendName = friendName,
-                        friendPhoto = friendPhoto,
-                        playerViewModel = playerViewModel
-                    )
+                    ChatScreen(navController, friendId, friendName, friendPhoto, playerViewModel)
                 }
 
                 composable(
@@ -174,13 +168,7 @@ fun AppNavigator(navController: NavHostController, paymentSheet: PaymentSheet, i
                     arguments = listOf(navArgument("playlistId") { type = NavType.StringType })
                 ) { backStackEntry ->
                     val playlistId = backStackEntry.arguments?.getString("playlistId")
-                    PlaylistScreen(
-                        navController = navController,
-                        playlistId = playlistId,
-                        playerViewModel = playerViewModel,
-                        isSencillo = false,
-                        singleId = null
-                    )
+                    PlaylistScreen(navController, playlistId, playerViewModel, false, null)
                 }
 
                 // Para sencillos
@@ -189,18 +177,12 @@ fun AppNavigator(navController: NavHostController, paymentSheet: PaymentSheet, i
                     arguments = listOf(navArgument("songId") { type = NavType.StringType })
                 ) { backStackEntry ->
                     val songId = backStackEntry.arguments?.getString("songId")
-                    PlaylistScreen(
-                        navController = navController,
-                        playlistId = null,
-                        playerViewModel = playerViewModel,
-                        isSencillo = true,
-                        singleId = songId
-                    )
+                    PlaylistScreen(navController, null, playerViewModel, true, songId)
                 }
                 composable(
                     "song/{songId}",
                     arguments = listOf(navArgument("songId") { type = NavType.StringType } )
-                ) { backStackEntry ->
+                ) {
                     SongScreen(navController, playerViewModel)
                 }
             }

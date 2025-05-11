@@ -2475,4 +2475,128 @@ object ApiClient {
             }
         }
     }
+
+    /**
+     * Envía un mensaje de chat con contenido compartido (playlist, canción, etc).
+     * 
+     * @param friendId ID del amigo destinatario
+     * @param message Texto del mensaje
+     * @param sharedContent JSON en formato string con la información del contenido compartido
+     * @param context Contexto para obtener el token de autenticación
+     * @return ID del mensaje enviado o null si hay error
+     */
+    suspend fun sendChatMessageWithSharedContent(
+        friendId: String, 
+        message: String, 
+        sharedContent: String,
+        context: Context
+    ): JSONObject? {
+        return withContext(Dispatchers.IO) {
+            try {
+                val sharedPreferences = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+                val token = sharedPreferences.getString("auth_token", null)
+                
+                if (token.isNullOrEmpty()) {
+                    Log.e("API", "Token no disponible para enviar mensaje con contenido compartido")
+                    return@withContext null
+                }
+                
+                // URL para enviar mensajes
+                val url = URL("$BASE_URL/chat/send")
+                
+                Log.d("API", "URL para enviar mensaje con contenido compartido: $url")
+                
+                val connection = url.openConnection() as HttpURLConnection
+                connection.apply {
+                    requestMethod = "POST"
+                    setRequestProperty("Content-Type", "application/json")
+                    setRequestProperty("Authorization", "Bearer $token")
+                    doOutput = true
+                    connectTimeout = 15000
+                    readTimeout = 15000
+                }
+                
+                // Crear el cuerpo del mensaje con el contenido compartido
+                val jsonBody = JSONObject().apply {
+                    put("user2_id", friendId)
+                    put("message", message)
+                    put("shared_content", sharedContent)
+                }
+                
+                // Imprimir para depuración
+                Log.d("API", "Enviando mensaje con contenido: ${jsonBody}")
+                
+                // Enviamos el cuerpo JSON
+                connection.outputStream.use { os ->
+                    os.write(jsonBody.toString().toByteArray(Charsets.UTF_8))
+                    os.flush()
+                }
+                
+                val responseCode = connection.responseCode
+                Log.d("API", "Código de respuesta sendChatMessageWithSharedContent: $responseCode")
+                
+                if (responseCode in 200..299) {
+                    val response = connection.inputStream.bufferedReader().use { it.readText() }
+                    Log.d("API", "Respuesta sendChatMessageWithSharedContent: $response")
+                    return@withContext JSONObject(response)
+                } else {
+                    val errorStream = connection.errorStream
+                    val errorBody = errorStream?.bufferedReader()?.use { it.readText() } ?: "No error message"
+                    Log.e("API", "Error en sendChatMessageWithSharedContent: $errorBody")
+                    return@withContext null
+                }
+            } catch (e: Exception) {
+                Log.e("API", "Excepción en sendChatMessageWithSharedContent: ${e.message}", e)
+                return@withContext null
+            }
+        }
+    }
+
+    /**
+     * Obtiene información básica de una playlist para compartir.
+     * 
+     * @param playlistId ID de la playlist
+     * @param context Contexto para obtener el token de autenticación
+     * @return Información básica de la playlist o null si hay error
+     */
+    suspend fun getPlaylistShareInfo(playlistId: String, context: Context): JSONObject? {
+        return withContext(Dispatchers.IO) {
+            try {
+                val sharedPreferences = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+                val token = sharedPreferences.getString("auth_token", null)
+                
+                if (token.isNullOrEmpty()) {
+                    Log.e("API", "Token no disponible para obtener información de playlist")
+                    return@withContext null
+                }
+                
+                // URL para obtener información básica de la playlist
+                val url = URL("$BASE_URL/playlists/$playlistId/share-info")
+                
+                val connection = url.openConnection() as HttpURLConnection
+                connection.apply {
+                    requestMethod = "GET"
+                    setRequestProperty("Authorization", "Bearer $token")
+                    connectTimeout = 10000
+                    readTimeout = 10000
+                }
+                
+                val responseCode = connection.responseCode
+                
+                if (responseCode in 200..299) {
+                    val response = connection.inputStream.bufferedReader().use { it.readText() }
+                    Log.d("API", "Información de playlist para compartir: $response")
+                    return@withContext JSONObject(response)
+                } else {
+                    val errorStream = connection.errorStream
+                    val errorBody = errorStream?.bufferedReader()?.use { it.readText() } ?: "No error message"
+                    Log.e("API", "Error obteniendo información de playlist: $errorBody")
+                    return@withContext null
+                }
+            } catch (e: Exception) {
+                Log.e("API", "Excepción obteniendo información de playlist: ${e.message}", e)
+                return@withContext null
+            }
+        }
+    }
 }

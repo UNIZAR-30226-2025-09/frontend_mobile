@@ -1,27 +1,22 @@
 package eina.unizar.es.ui.playlist
 
-import android.annotation.SuppressLint
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
 import android.util.Log
-import android.widget.Space
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -29,11 +24,10 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
@@ -45,13 +39,13 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarOutline
+import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -61,7 +55,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
@@ -69,16 +62,16 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import com.example.musicapp.ui.theme.VibraBlack
+import com.example.musicapp.ui.theme.VibraBlue
+import com.example.musicapp.ui.theme.VibraLightGrey
 import eina.unizar.es.R
+import eina.unizar.es.data.model.network.ApiClient
 import eina.unizar.es.data.model.network.ApiClient.get
 import eina.unizar.es.data.model.network.ApiClient.delete
-import eina.unizar.es.ui.song.Song
-import org.json.JSONArray
-import org.json.JSONObject
-import androidx.media3.common.MediaItem
-import androidx.media3.exoplayer.ExoPlayer
 import eina.unizar.es.data.model.network.ApiClient.getLikedPlaylists
 import eina.unizar.es.data.model.network.ApiClient.getUserData
 import eina.unizar.es.data.model.network.ApiClient.likeUnlikePlaylist
@@ -92,12 +85,9 @@ import com.stripe.android.core.strings.resolvableString
 import eina.unizar.es.data.model.network.ApiClient
 import eina.unizar.es.data.model.network.ApiClient.checkIfSongIsLiked
 import eina.unizar.es.data.model.network.ApiClient.getImageUrl
-import eina.unizar.es.data.model.network.ApiClient.getLikedPlaylists
 import eina.unizar.es.data.model.network.ApiClient.getLikedSongsPlaylist
 import eina.unizar.es.data.model.network.ApiClient.getSongDetails
-import eina.unizar.es.data.model.network.ApiClient.getUserData
 import eina.unizar.es.data.model.network.ApiClient.isPlaylistOwner
-import eina.unizar.es.data.model.network.ApiClient.likeUnlikePlaylist
 import eina.unizar.es.data.model.network.ApiClient.likeUnlikeSong
 import eina.unizar.es.data.model.network.ApiClient.post
 import eina.unizar.es.data.model.network.ApiClient.recordPlaylistVisit
@@ -106,20 +96,20 @@ import eina.unizar.es.data.model.network.ApiClient.togglePlaylistType
 import eina.unizar.es.data.model.network.ApiClient.updatePlaylistImage
 import eina.unizar.es.data.model.network.ApiClient.uriToBase64
 import eina.unizar.es.ui.artist.SongOptionItem
-import eina.unizar.es.ui.navbar.BottomNavigationBar
-import eina.unizar.es.ui.player.FloatingMusicPlayer
 import eina.unizar.es.ui.player.MusicPlayerViewModel
 import eina.unizar.es.ui.search.SongItem
 import eina.unizar.es.ui.search.convertSongsToCurrentSongs
+import eina.unizar.es.ui.artist.SongOptionsBottomSheetContent
+import eina.unizar.es.ui.friends.Friend
+import eina.unizar.es.ui.song.Song
+import eina.unizar.es.ui.user.UserColorManager
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.nio.file.Files.delete
-import eina.unizar.es.ui.artist.SongOptionsBottomSheetContent
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.delay
-
+import org.json.JSONObject
+import java.net.URLEncoder
 
 // Criterios de ordenacion de canciones de una lista
 enum class SortOption {
@@ -1058,6 +1048,9 @@ fun BottomSheetContent(
     // Estado para controlar si mostrar las opciones de compartir
     var showShareOptions by remember { mutableStateOf(false) }
 
+    // Estado para mostrar el diálogo de selección de amigos
+    var showFriendSelectionDialog by remember { mutableStateOf(false) }
+
     // URL base para compartir
     val baseShareUrl = "https://vibra.eina.unizar.es/playlist/" // Usa HTTPS para compatibilidad universal
     val vibraDeepLink = "vibra://playlist/" // Para abrir directamente en la app si está instalada
@@ -1067,7 +1060,7 @@ fun BottomSheetContent(
     // Función para copiar al portapapeles
     fun copyToClipboard() {
         val clipboardManager = ContextCompat.getSystemService(context, ClipboardManager::class.java)
-        val clipData = ClipData.newPlainText("Enlace a playlist", fullShareUrl)
+        val clipData = ClipData.newPlainText("Enlace a playlist", fullDeepLink)
         clipboardManager?.setPrimaryClip(clipData)
         Toast.makeText(context, "Enlace copiado al portapapeles", Toast.LENGTH_SHORT).show()
         onDismiss()
@@ -1086,7 +1079,7 @@ fun BottomSheetContent(
             
             $webUrl
             
-            También puedes usar: $deepLink
+            También puedes usar este enlace dentro de la app: $deepLink
         """.trimIndent())
             type = "text/plain"
         }
@@ -1189,10 +1182,12 @@ fun BottomSheetContent(
                         })
                     } else {
                         // Si showShareOptions es true, mostrar las opciones de compartir
-                        SongOptionItem("Copiar enlace", onClick = { copyToClipboard() })
+                        SongOptionItem("Compartir con amigos", onClick = { 
+                            showFriendSelectionDialog = true
+                        })
                         Spacer(modifier = Modifier.height(8.dp))
                         SongOptionItem(
-                            text = "Compartir",
+                            text = "Compartir en otras apps",
                             onClick = {
                                 if (!playlistId.isNullOrEmpty() && !playlistTitle.isNullOrEmpty()) {
                                     sharePlaylist(playlistId, playlistTitle, context)
@@ -1439,8 +1434,26 @@ fun BottomSheetContent(
             }
         }
     )
-}
 
+    FriendSelectionDialog(
+        showDialog = showFriendSelectionDialog,
+        playlistId = playlistId ?: "",
+        playlistTitle = playlistTitle,
+        playlistImage = playlistImage,
+        onDismiss = { showFriendSelectionDialog = false },
+        navigateToChat = { friendId, friendName, message, sharedContent ->
+            val encodedName = URLEncoder.encode(friendName, "UTF-8")
+            val route = "chat/$friendId/$encodedName"
+            navController.navigate(route) {
+                launchSingleTop = true
+                restoreState = true
+            }
+            coroutineScope.launch {
+                ApiClient.sendChatMessageWithSharedContent(friendId, message, sharedContent, context)
+            }
+        }
+    )
+}
 
 suspend fun eliminarPlaylistEnBackend(
     playlistId: String
@@ -1818,6 +1831,204 @@ fun PlaylistCoverWithEdit(
                     modifier = Modifier.size(20.dp)
                 )
             }
+        }
+    }
+}
+
+// Primero, añadir un nuevo componente para mostrar la lista de amigos
+@Composable
+fun FriendSelectionDialog(
+    showDialog: Boolean,
+    playlistId: String,
+    playlistTitle: String,
+    playlistImage: String,
+    onDismiss: () -> Unit,
+    navigateToChat: (friendId: String, friendName: String, message: String, sharedContent: String) -> Unit
+) {
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+    var friends by remember { mutableStateOf<List<Friend>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(true) }
+
+    // Cargar la lista de amigos
+    LaunchedEffect(Unit) {
+        coroutineScope.launch {
+            try {
+                val friendsArray = ApiClient.getFriendsList(context)
+                if (friendsArray != null) {
+                    val friendsList = mutableListOf<Friend>()
+                    
+                    for (i in 0 until friendsArray.length()) {
+                        val friend = friendsArray.getJSONObject(i)
+                        friendsList.add(
+                            Friend(
+                                id = friend.getString("friendId"),
+                                name = friend.getString("nickname"),
+                                photo = friend.optString("user_picture", "")
+                            )
+                        )
+                    }
+                    
+                    friends = friendsList
+                }
+            } catch (e: Exception) {
+                Log.e("FriendSelection", "Error cargando amigos: ${e.message}")
+            } finally {
+                isLoading = false
+            }
+        }
+    }
+
+    // Crear el JSON de contenido compartido (nuevo)
+    val sharedContent = JSONObject().apply {
+        put("type", "playlist")
+        put("id", playlistId)
+        put("title", playlistTitle)
+        if (playlistImage.isNotEmpty()) {
+            put("image", playlistImage)
+        }
+    }.toString()
+
+    // Mensaje simple
+    val messageText = "¡Mira esta playlist!"
+
+    if (showDialog) {
+        AlertDialog(
+            onDismissRequest = onDismiss,
+            title = { 
+                Text(
+                    "Compartir con amigos",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onSurface
+                ) 
+            },
+            text = {
+                Column {
+                    if (isLoading) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(200.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(color = VibraBlue)
+                        }
+                    } else if (friends.isEmpty()) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 32.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                "No tienes amigos para compartir",
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                            )
+                        }
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(max = 300.dp)
+                        ) {
+                            items(friends) { friend ->
+                                FriendShareItem(
+                                    friend = friend,
+                                    colorManager = UserColorManager(context),
+                                    onClick = {
+                                        // Navegar al chat y enviar el mensaje con contenido compartido
+                                        navigateToChat(friend.id, friend.name, messageText, sharedContent)
+                                        onDismiss()
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = onDismiss) {
+                    Text("Cancelar", color = MaterialTheme.colorScheme.primary)
+                }
+            }
+        )
+    }
+}
+
+// Componente para mostrar un amigo en la lista
+@Composable
+fun FriendShareItem(
+    friend: Friend,
+    colorManager: UserColorManager,
+    onClick: () -> Unit
+) {
+    val context = LocalContext.current
+    
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 4.dp),
+        color = Color.Transparent
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Avatar del amigo
+            if (friend.photo == "null" || friend.photo.isEmpty()) {
+                val friendProfileColor = remember(friend.id) {
+                    colorManager.getUserProfileColor(friend.id)
+                }
+                
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .background(friendProfileColor, CircleShape)
+                        .clip(CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = friend.name.take(1).uppercase(),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.White
+                    )
+                }
+            } else {
+                AsyncImage(
+                    model = ImageRequest.Builder(context)
+                        .data(ApiClient.getImageUrl(friend.photo))
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = "Foto de perfil",
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape),
+                    contentScale = ContentScale.Crop
+                )
+            }
+            
+            Spacer(modifier = Modifier.width(16.dp))
+            
+            // Nombre del amigo
+            Text(
+                text = friend.name,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            
+            Spacer(modifier = Modifier.weight(1f))
+            
+            // Icono de enviar mensaje
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.Send,
+                contentDescription = "Enviar",
+                tint = VibraBlue,
+                modifier = Modifier.size(20.dp)
+            )
         }
     }
 }
