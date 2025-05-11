@@ -22,24 +22,20 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import coil.request.ImageRequest
+import coil.request.CachePolicy
 import androidx.navigation.NavController
 import com.stripe.android.paymentsheet.PaymentSheet
 import eina.unizar.es.R
 import eina.unizar.es.data.model.network.ApiClient.get
 import eina.unizar.es.ui.main.Rubik
 import eina.unizar.es.ui.user.UserProfileMenu
-import eina.unizar.es.ui.navbar.BottomNavigationBar
-import eina.unizar.es.ui.player.FloatingMusicPlayer
 import eina.unizar.es.ui.payments.PaymentScreen
 import eina.unizar.es.ui.playlist.Playlist
 import org.json.JSONArray
 import coil.compose.AsyncImage
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.layout.size
-import androidx.lifecycle.viewmodel.compose.viewModel
 import eina.unizar.es.data.model.network.ApiClient.getImageUrl
 import eina.unizar.es.data.model.network.ApiClient.getUserData
 import eina.unizar.es.ui.player.MusicPlayerViewModel
@@ -52,12 +48,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import com.example.musicapp.ui.theme.VibraBlue
-import com.example.musicapp.ui.theme.VibraDarkGrey
-import com.example.musicapp.ui.theme.VibraLightGrey
+import eina.unizar.es.data.model.network.ApiClient.processRecommendedPlaylists
 import com.example.musicapp.ui.theme.VibraMediumGrey
-import com.example.musicapp.ui.theme.VibraWhite
+import eina.unizar.es.data.model.network.ApiClient.getRecommendedPlaylistsForUser
 import eina.unizar.es.ui.artist.Artist
-import eina.unizar.es.ui.song.Song
 import kotlinx.coroutines.delay
 
 
@@ -87,10 +81,10 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
         }
     }
 
+    var playlistsOtrosUsuarios by remember { mutableStateOf<List<Playlist>>(emptyList()) }
     var playlists by remember { mutableStateOf<List<Playlist>>(emptyList()) }
     var albums by remember { mutableStateOf<List<Playlist>>(emptyList()) }
     var artists by remember { mutableStateOf<List<Artist>>(emptyList()) }
-    var songs by remember { mutableStateOf<List<Song>>(emptyList()) }
     var recentPlaylists by remember { mutableStateOf<List<Playlist>>(emptyList()) }
 
     // Cargar las playlists recientes (en un LaunchedEffect separado)
@@ -128,6 +122,39 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
         }
     }
 
+    // Dentro de MenuScreen añadimos estas variables
+    var recommendedPlaylists by remember { mutableStateOf<List<Playlist>>(emptyList()) }
+    var isLoadingRecommendations by remember { mutableStateOf(true) }
+
+    // Añadimos este LaunchedEffect para cargar las recomendaciones
+    LaunchedEffect(playerViewModel.getUserId()) {
+        val userId = playerViewModel.getUserId()
+        if (userId.isNotEmpty()) {
+            try {
+                Log.d("Recommendations", "Cargando recomendaciones para usuario: $userId")
+                val recommendations = getRecommendedPlaylistsForUser(context)
+                if (recommendations != null) {
+                    val processedRecommendations = processRecommendedPlaylists(recommendations)
+                    recommendedPlaylists = processedRecommendations?.take(10) ?: emptyList()
+                    Log.d("Recommendations", "Cargadas ${recommendedPlaylists.size} playlists recomendadas")
+                } else {
+                    Log.d("Recommendations", "No se pudieron obtener recomendaciones")
+                    // Usar playlists de otros usuarios como fallback
+                    recommendedPlaylists = playlistsOtrosUsuarios.take(10)
+                }
+            } catch (e: Exception) {
+                Log.e("Recommendations", "Error al cargar recomendaciones", e)
+                recommendedPlaylists = playlistsOtrosUsuarios.take(10)
+            } finally {
+                isLoadingRecommendations = false
+            }
+        } else {
+            isLoadingRecommendations = false
+            recommendedPlaylists = playlistsOtrosUsuarios.take(10)
+            Log.d("Recommendations", "No se pudieron cargar recomendaciones: userId vacío")
+        }
+    }
+
     // Cargar playlists desde el backend
     LaunchedEffect(Unit) {
         coroutineScope.launch {
@@ -144,11 +171,12 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
         val response = get("playlists")
         response?.let {
             val jsonArray = JSONArray(it)
-            val fetchedPlaylists = mutableListOf<Playlist>()
+            val allPlaylists = mutableListOf<Playlist>()
 
+            // Obtener todas las playlists disponibles
             for (i in 0 until jsonArray.length()) {
                 val jsonObject = jsonArray.getJSONObject(i)
-                fetchedPlaylists.add(
+                allPlaylists.add(
                     Playlist(
                         id = jsonObject.getString("id"),
                         title = jsonObject.getString("name"),
@@ -161,54 +189,46 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
                     )
                 )
             }
-            playlists = fetchedPlaylists
-        }
 
-        // Canciones de la parte superior de recomendaciones
-        val responseSS = get("songs")
-        responseSS?.let {
-            val jsonArray = JSONArray(it)
-            val fetchedSongs = mutableListOf<Song>()
+            // Separar álbumes y listas de reproducción
+            val albumsAux = mutableListOf<Playlist>()
+            val listasDeReproduccionAux = mutableListOf<Playlist>()
+            val listasOtrosUsuarios = mutableListOf<Playlist>()
 
-            for (i in 0 until 8) {
-                val jsonObject = jsonArray.getJSONObject(i)
-                fetchedSongs.add(
-                    Song(
-                        id = jsonObject.getInt("id"),
-                        name = jsonObject.getString("name"),
-                        duration = jsonObject.getInt("duration"),
-                        photo_video = jsonObject.getString("photo_video"),
-                        url_mp3 = jsonObject.getString("url_mp3"),
-                        letra = jsonObject.getString("lyrics")
-                    )
-                )
+            for (playlist in allPlaylists) {
+                if (playlist.esAlbum == "album") {
+                    albumsAux.add(playlist)
+                } else if (playlist.esAlbum == "Vibra") {
+                    listasDeReproduccionAux.add(playlist)
+                }
+                else if (playlist.esPublica == "public"){
+                    listasOtrosUsuarios.add(playlist)
+                }
             }
-            songs = fetchedSongs
+
+            // Mezclar para obtener orden aleatorio
+            albumsAux.shuffle()
+            listasDeReproduccionAux.shuffle()
+
+            // Asignar los resultados (se pueden limitar si se desea)
+            albums = albumsAux.take(10)
+            playlists = listasDeReproduccionAux.take(10)
+            playlistsOtrosUsuarios = listasOtrosUsuarios.take(10)
+
+            Log.d("Playlists", "Playlists aleatorias: ${playlists.map { it.title }.take(10)}")
+            Log.d("Albums", "Álbumes aleatorios: ${albums.map { it.title }.take(10)}")
         }
-
-        val albumsAux = mutableListOf<Playlist>()
-        val listasDeReproduccionAux = mutableListOf<Playlist>()
-
-        for (playlist in playlists) {
-            if (playlist.esAlbum == "album") {
-                albumsAux.add(playlist)
-            } else {
-                listasDeReproduccionAux.add(playlist)
-            }
-        }
-
-        albums = albumsAux
-        playlists = listasDeReproduccionAux
 
         // Canciones de la parte superior de recomendaciones
         val responseS = get("artist/artists")
         responseS?.let {
             val jsonArray = JSONArray(it)
-            val fetchedArtists = mutableListOf<Artist>()
+            val allArtists = mutableListOf<Artist>()
 
-            for (i in 0 until 8) {
+            // Primero obtener todos los artistas disponibles
+            for (i in 0 until jsonArray.length()) {
                 val jsonObject = jsonArray.getJSONObject(i)
-                fetchedArtists.add(
+                allArtists.add(
                     Artist(
                         id = jsonObject.getString("id"),
                         name = jsonObject.getString("name"),
@@ -217,7 +237,14 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
                     )
                 )
             }
-            Log.d("Artista", "Artistas: + " + fetchedArtists)
+
+            // Mezclar la lista para obtener un orden aleatorio
+            allArtists.shuffle()
+
+            // Tomar solo los primeros 8 (o menos si no hay suficientes)
+            val fetchedArtists = allArtists.take(10).toMutableList()
+
+            Log.d("Artista", "Artistas aleatorios: ${fetchedArtists.map { it.name }}")
             artists = fetchedArtists
         }
 
@@ -259,7 +286,7 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
                         if(showAdvertPopup) {
                             LaunchedEffect(Unit) {
                                 while (true) {
-                                    delay(13000) // 13 segundos (media)
+                                    delay(55000) // 55 segundos (media)
                                     showPaymentDialog = true
                                 }
                             }
@@ -310,22 +337,6 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp)
                 ) {
-                    /*
-                    // 1. Sección de Playlists recientemente visitadas
-                    if (isLoadingRecent) {
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(130.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(30.dp),
-                                color = VibraBlue
-                            )
-                        }
-                    } else */
                     if (recentPlaylists.isNotEmpty()) {
                         Column(
                             modifier = Modifier
@@ -419,14 +430,14 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
                             )
                         }
                     } else {
-                        // 3. Artistas recomendados
+                        // 3. Artistas populares
                         Spacer(modifier = Modifier.height(32.dp))
                         Text(
-                            "Artistas recomendados",
+                            "Artistas Populares",
                             color = MaterialTheme.colorScheme.onBackground,
                             style = MaterialTheme.typography.titleLarge
                         )
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(16.dp))
 
                         LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                             items(artists) { artist ->
@@ -488,11 +499,11 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
                         // 4. Álbumes populares
                         Spacer(modifier = Modifier.height(24.dp))
                         Text(
-                            "Álbumes populares",
+                            "Álbumes Populares",
                             color = MaterialTheme.colorScheme.onBackground,
                             style = MaterialTheme.typography.titleLarge
                         )
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(16.dp))
 
                         LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                             items(albums) { album ->
@@ -574,10 +585,25 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
                         )
                         Spacer(modifier = Modifier.height(12.dp))
 
-                        LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                            items(playlists) { playlist ->
-                                if (playlist?.esAlbum == "Vibra") {
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        if (isLoadingRecommendations) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(120.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(40.dp),
+                                    color = VibraBlue
+                                )
+                            }
+                        } else {
+                            LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                                items(recommendedPlaylists) { playlist ->
+                                    Column(
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        modifier = Modifier.width(120.dp)
+                                    ) {
                                         Card(
                                             modifier = Modifier
                                                 .size(120.dp)
@@ -599,9 +625,7 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
                                                     )
                                                 }
 
-                                                val urlAntes = playlist?.imageUrl
-                                                val playlistImage =
-                                                    getImageUrl(urlAntes, "/defaultplaylist.jpg")
+                                                val playlistImage = getImageUrl(playlist.imageUrl, "/defaultplaylist.jpg")
                                                 AsyncImage(
                                                     model = playlistImage,
                                                     contentDescription = "Portada de la playlist",
@@ -623,9 +647,171 @@ fun MenuScreen(navController: NavController, paymentSheet: PaymentSheet, isPremi
                                         }
                                         Spacer(modifier = Modifier.height(4.dp))
                                         Text(
-                                            playlist.title,
+                                            text = playlist.title,
                                             color = MaterialTheme.colorScheme.onSurface,
-                                            style = MaterialTheme.typography.bodyMedium
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                            textAlign = TextAlign.Center,
+                                            modifier = Modifier.fillMaxWidth()
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(24.dp))
+
+                        // 6. Playlists de Vibra
+                        Spacer(modifier = Modifier.height(24.dp))
+                        Text(
+                            "Playlists de Vibra",
+                            color = MaterialTheme.colorScheme.onBackground,
+                            style = MaterialTheme.typography.titleLarge
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                            items(playlists) { playlist ->
+                                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(120.dp)) {
+                                    Card(
+                                        modifier = Modifier
+                                            .size(120.dp)
+                                            .clickable {
+                                                navController.navigate("playlist/${playlist.id}")
+                                            },
+                                        colors = CardDefaults.cardColors(containerColor = Color.Transparent)
+                                    ) {
+                                        Box(
+                                            modifier = Modifier.fillMaxSize(),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            var isImageLoading by remember { mutableStateOf(true) }
+
+                                            if (isImageLoading) {
+                                                CircularProgressIndicator(
+                                                    modifier = Modifier.size(40.dp),
+                                                    color = VibraBlue
+                                                )
+                                            }
+
+                                            val playlistImage = getImageUrl(playlist.imageUrl, "/defaultplaylist.jpg")
+                                            AsyncImage(
+                                                model = playlistImage,
+                                                placeholder = painterResource(R.drawable.defaultplaylist),
+                                                error = painterResource(R.drawable.defaultplaylist),
+                                                contentDescription = "Portada de la playlist",
+                                                modifier = Modifier.clip(RoundedCornerShape(8.dp)),
+                                                onLoading = { isImageLoading = true },
+                                                onSuccess = {
+                                                    isImageLoading = false
+                                                    onImageLoaded()
+                                                },
+                                                onError = {
+                                                    isImageLoading = false
+                                                    onImageLoaded()
+                                                }
+                                            )
+                                        }
+                                    }
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = playlist.title,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        textAlign = TextAlign.Center,
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(24.dp))
+
+                        // 7. Playlists de otros usuarios
+                        Spacer(modifier = Modifier.height(24.dp))
+                        Text(
+                            "Playlists de Usuarios",
+                            color = MaterialTheme.colorScheme.onBackground,
+                            style = MaterialTheme.typography.titleLarge
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        if (playlistsOtrosUsuarios.isEmpty()) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(120.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "No hay playlists de usuarios disponibles",
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
+                        } else {
+                            LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                                items(playlistsOtrosUsuarios) { playlist ->
+                                    Column(
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        modifier = Modifier.width(120.dp)
+                                    ) {
+                                        Card(
+                                            modifier = Modifier
+                                                .size(120.dp)
+                                                .clickable {
+                                                    navController.navigate("playlist/${playlist.id}")
+                                                },
+                                            colors = CardDefaults.cardColors(containerColor = Color.Transparent)
+                                        ) {
+                                            Box(
+                                                modifier = Modifier.fillMaxSize(),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                var isImageLoading by remember { mutableStateOf(true) }
+
+                                                if (isImageLoading) {
+                                                    CircularProgressIndicator(
+                                                        modifier = Modifier.size(40.dp),
+                                                        color = VibraBlue
+                                                    )
+                                                }
+
+                                                val playlistImage = getImageUrl(playlist.imageUrl, "/defaultplaylist.jpg")
+                                                AsyncImage(
+                                                    model = playlistImage,
+                                                    contentDescription = "Portada de la playlist",
+                                                    placeholder = painterResource(R.drawable.defaultplaylist),
+                                                    error = painterResource(R.drawable.defaultplaylist),
+                                                    modifier = Modifier
+                                                        .fillMaxSize()
+                                                        .clip(RoundedCornerShape(8.dp)),
+                                                    contentScale = ContentScale.Crop,
+                                                    onLoading = { isImageLoading = true },
+                                                    onSuccess = {
+                                                        isImageLoading = false
+                                                        onImageLoaded()
+                                                    },
+                                                    onError = {
+                                                        isImageLoading = false
+                                                        onImageLoaded()
+                                                    }
+                                                )
+                                            }
+                                        }
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            text = playlist.title,
+                                            color = MaterialTheme.colorScheme.onSurface,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                            textAlign = TextAlign.Center,
+                                            modifier = Modifier.fillMaxWidth()
                                         )
                                     }
                                 }
@@ -747,16 +933,19 @@ fun HorizontalPlaylistCard(
                     )
                 }
 
+                val cacheBustedUrl = getImageUrl(playlist.imageUrl, "/defaultplaylist.jpg") + "?cacheBuster=${System.currentTimeMillis()}"
+
                 AsyncImage(
-                    model = getImageUrl(playlist.imageUrl, "/defaultplaylist.jpg"),
-                    contentDescription = "Portada de ${playlist.title}",
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(cacheBustedUrl)
+                        .diskCachePolicy(CachePolicy.DISABLED)
+                        .memoryCachePolicy(CachePolicy.DISABLED)
+                        .build(),
+                    contentDescription = "Portada de la playlist",
+                    placeholder = painterResource(R.drawable.defaultplaylist),
+                    error = painterResource(R.drawable.defaultplaylist),
                     contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize(),
-                    placeholder = painterResource(id = R.drawable.defaultplaylist),
-                    error = painterResource(id = R.drawable.defaultplaylist),
-                    onLoading = { isImageLoading = true },
-                    onSuccess = { isImageLoading = false },
-                    onError = { isImageLoading = false }
+                    modifier = Modifier.fillMaxSize()
                 )
             }
 

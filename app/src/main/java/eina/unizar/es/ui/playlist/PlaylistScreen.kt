@@ -1,12 +1,13 @@
 package eina.unizar.es.ui.playlist
 
-
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.util.Log
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateDpAsState
@@ -29,6 +30,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.MusicOff
@@ -47,6 +49,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathSegment
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -73,6 +76,14 @@ import eina.unizar.es.data.model.network.ApiClient.delete
 import eina.unizar.es.data.model.network.ApiClient.getLikedPlaylists
 import eina.unizar.es.data.model.network.ApiClient.getUserData
 import eina.unizar.es.data.model.network.ApiClient.likeUnlikePlaylist
+import kotlinx.coroutines.launch
+import coil.compose.AsyncImage
+import coil.compose.rememberAsyncImagePainter
+import com.example.musicapp.ui.theme.VibraBlack
+import com.example.musicapp.ui.theme.VibraBlue
+import com.example.musicapp.ui.theme.VibraLightGrey
+import com.stripe.android.core.strings.resolvableString
+import eina.unizar.es.data.model.network.ApiClient
 import eina.unizar.es.data.model.network.ApiClient.checkIfSongIsLiked
 import eina.unizar.es.data.model.network.ApiClient.getImageUrl
 import eina.unizar.es.data.model.network.ApiClient.getLikedSongsPlaylist
@@ -83,6 +94,8 @@ import eina.unizar.es.data.model.network.ApiClient.post
 import eina.unizar.es.data.model.network.ApiClient.recordPlaylistVisit
 import eina.unizar.es.data.model.network.ApiClient.updatePlaylist
 import eina.unizar.es.data.model.network.ApiClient.togglePlaylistType
+import eina.unizar.es.data.model.network.ApiClient.updatePlaylistImage
+import eina.unizar.es.data.model.network.ApiClient.uriToBase64
 import eina.unizar.es.ui.artist.SongOptionItem
 import eina.unizar.es.ui.player.MusicPlayerViewModel
 import eina.unizar.es.ui.search.SongItem
@@ -177,6 +190,7 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
     var songLikes by remember { mutableStateOf<Map<Int, Boolean>>(emptyMap()) }
     val coroutineScope = rememberCoroutineScope()
     var userId by remember { mutableStateOf("") }
+    var soyPropietario by remember { mutableStateOf(false) }
 
     // Función para cambiar el estado de "me gusta" de una canción
     fun toggleSongLike(songId: Int, userId: String) {
@@ -370,6 +384,24 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
         songArtistMap = artistNames
     }
 
+    LaunchedEffect(Unit) {
+        coroutineScope.launch  {
+            val userData = getUserData(context)
+            if (userData != null) {
+                userId =
+                    (userData["id"]
+                        ?: "Id").toString()  // Si no hay nickname, usa "Usuario"
+            }
+            // Verificar si el usuario es propietario de la playlist
+            soyPropietario = if (playlistId != null) {
+                isPlaylistOwner(playlistId, userId) ?: true
+            } else {
+                false
+            }
+            Log.d("BottomSheetContent", "Soy propietario: $soyPropietario")
+        }
+    }
+
     // Ordenar y filtrar canciones
     val sortedSongs = remember(songs, sortOption) {
         when (sortOption) {
@@ -449,16 +481,47 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                                 .padding(16.dp)
                                 .clip(RoundedCornerShape(8.dp))
                                 .shadow(8.dp)
-                        ) {
-                            val urlAntes = playlistInfo?.imageUrl
-                            AsyncImage(
-                                model = getImageUrl(urlAntes, "/defaultplaylist.jpg"),
-                                contentDescription = "Portada",
-                                placeholder = painterResource(R.drawable.defaultplaylist),
-                                error = painterResource(R.drawable.defaultplaylist),
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .alpha(imageAlpha)
+                        ){
+                            PlaylistCoverWithEdit(
+                                playlistId = playlistInfo?.id,
+                                playlistInfo = playlistInfo,
+                                onUpdateSuccess = { responseJson ->
+                                    // Actualizar el estado con la nueva URL de imagen
+                                    if (responseJson.has("image_url")) {
+                                        val newImageUrl = responseJson.getString("image_url")
+                                        // Actualizar el objeto playlistInfo con la nueva URL
+                                        playlistInfo = playlistInfo?.let { currentPlaylist ->
+                                            Playlist(
+                                                id = currentPlaylist.id,
+                                                title = currentPlaylist.title,
+                                                imageUrl = newImageUrl,
+                                                idAutor = currentPlaylist.idAutor,
+                                                idArtista = currentPlaylist.idArtista,
+                                                description = currentPlaylist.description,
+                                                esPublica = currentPlaylist.esPublica,
+                                                esAlbum = currentPlaylist.esAlbum
+                                            )
+                                        }
+                                    }
+
+                                    // Mostrar mensaje de éxito
+                                    Toast.makeText(
+                                        context,
+                                        "¡Imagen de portada actualizada correctamente!",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                },
+                                onUpdateError = { errorMessage ->
+                                    // Mostrar mensaje de error
+                                    Toast.makeText(
+                                        context,
+                                        errorMessage,
+                                        Toast.LENGTH_LONG
+                                    ).show()
+                                },
+                                modifier = Modifier.fillMaxSize(),
+                                // Permitir edición solo si el usuario es propietario de la playlist
+                                editEnabled = soyPropietario
                             )
                         }
 
@@ -934,7 +997,7 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                     sheetState = sheetState
                 ) {
                     var urlAntes = playlistInfo?.imageUrl
-                    val playlistImage = getImageUrl(urlAntes, "defaultplaylist.jpg")
+                    val playlistImage = getImageUrl(urlAntes, "defaultplaylist.jpg")+ "?t=${System.currentTimeMillis()}"
 
                     playlistInfo?.let { playlist ->
                         // Log para debuggear valores justo antes de mostrar el BottomSheet
@@ -1083,19 +1146,26 @@ fun BottomSheetContent(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            AsyncImage(
-                model = playlistImage,
-                contentDescription = "Portada de la playlist",
-                placeholder = painterResource(R.drawable.defaultplaylist), // Fallback local
-                error = painterResource(R.drawable.defaultplaylist),
+            Box(
                 modifier = Modifier
                     .size(50.dp)
-                    //.alpha(imageAlpha)
-                    .clip(RoundedCornerShape(8.dp)) // Opcional: añade esquinas redondeadas
+                    .clip(RoundedCornerShape(8.dp))
+                    .shadow(2.dp, RoundedCornerShape(8.dp))
+            ) {
+                AsyncImage(
+                    model = playlistImage + "?t=${System.currentTimeMillis()}", // Añade parámetro para evitar caché
+                    contentDescription = "Portada de la playlist",
+                    placeholder = painterResource(R.drawable.defaultplaylist),
+                    error = painterResource(R.drawable.defaultplaylist),
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
 
-            )
             Spacer(modifier = Modifier.width(8.dp))
-            Column {
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
                 Text(playlistTitle, color = textColor, fontSize = 16.sp)
                 Text("de $playlistAuthor", color = Color.Gray, fontSize = 12.sp)
             }
@@ -1683,6 +1753,136 @@ fun ConfirmationDialog(
         }
     }
 }
+
+@Composable
+fun PlaylistCoverWithEdit(
+    playlistId: String?,
+    playlistInfo: Playlist?,
+    onUpdateSuccess: (JSONObject) -> Unit = {},
+    onUpdateError: (String) -> Unit = {},
+    modifier: Modifier = Modifier,
+    editEnabled: Boolean = true
+) {
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+    var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
+    var isLoading by remember { mutableStateOf(false) }
+    var imageAlpha by remember { mutableStateOf(1f) }
+
+    val galleryLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let { imageUri ->
+            selectedImageUri = imageUri
+
+            coroutineScope.launch {
+                isLoading = true
+                imageAlpha = 0.5f
+                try {
+                    val base64Image = uriToBase64(context, imageUri)
+                    base64Image?.let {
+                        val numericPlaylistId = playlistId?.toIntOrNull() ?: 0
+                        val response = updatePlaylistImage(
+                            numericPlaylistId,
+                            base64Image
+                        )
+
+                        response?.let { jsonResponse ->
+                            if (jsonResponse.has("error")) {
+                                onUpdateError(jsonResponse.getString("error"))
+                            } else {
+                                onUpdateSuccess(jsonResponse)
+                            }
+                        } ?: onUpdateError("Error al actualizar la imagen")
+                    } ?: onUpdateError("No se pudo convertir la imagen")
+                } catch (e: Exception) {
+                    onUpdateError("Error: ${e.localizedMessage ?: "Error desconocido"}")
+                } finally {
+                    isLoading = false
+                    imageAlpha = 1f
+                }
+            }
+        }
+    }
+
+    // Aquí usamos el modifier recibido para ocupar todo el espacio disponible
+    Box(
+        modifier = modifier.fillMaxSize(),
+        contentAlignment = Alignment.BottomEnd
+    ) {
+        // Contenido de imagen según los estados
+        when {
+            isLoading -> {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    val urlAntes = playlistInfo?.imageUrl
+                    // Mantener la imagen anterior con opacidad reducida
+                    AsyncImage(
+                        model = getImageUrl(urlAntes, "/defaultplaylist.jpg"),
+                        contentDescription = "Portada",
+                        placeholder = painterResource(R.drawable.defaultplaylist),
+                        error = painterResource(R.drawable.defaultplaylist),
+                        contentScale = ContentScale.Crop, // Asegura que la imagen cubra todo el espacio
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .alpha(0.5f)
+                    )
+                    CircularProgressIndicator()
+                }
+            }
+            selectedImageUri != null -> {
+                // Mostrar imagen recién seleccionada
+                Image(
+                    painter = rememberAsyncImagePainter(selectedImageUri),
+                    contentDescription = "Nueva portada de playlist",
+                    contentScale = ContentScale.Crop, // Asegura que la imagen cubra todo el espacio
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .alpha(imageAlpha)
+                )
+            }
+            else -> {
+                // Mostrar la imagen actual
+                val urlAntes = playlistInfo?.imageUrl
+                AsyncImage(
+                    model = getImageUrl(urlAntes, "/defaultplaylist.jpg")+ "?t=${System.currentTimeMillis()}",
+                    contentDescription = "Portada",
+                    placeholder = painterResource(R.drawable.defaultplaylist),
+                    error = painterResource(R.drawable.defaultplaylist),
+                    contentScale = ContentScale.Crop, // Asegura que la imagen cubra todo el espacio
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .alpha(imageAlpha)
+                )
+            }
+        }
+
+        if (editEnabled) {
+            // Botón de edición
+            IconButton(
+                onClick = { galleryLauncher.launch("image/*") },
+                modifier = Modifier
+                    .padding(8.dp)
+                    .size(40.dp)
+                    .background(
+                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.85f),
+                        shape = CircleShape
+                    )
+                    .padding(4.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Edit,
+                    contentDescription = "Editar portada",
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        }
+    }
+}
+
 // Primero, añadir un nuevo componente para mostrar la lista de amigos
 @Composable
 fun FriendSelectionDialog(

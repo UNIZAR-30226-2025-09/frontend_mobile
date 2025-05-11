@@ -227,23 +227,19 @@ fun UserRegisterScreen(navController: NavController) {
                                 errorMessage = "El formato de correo no es valido"
                             } else {
                                 errorMessage = null
-                                coroutineScope.launch {
-                                    val loginSuccess = registerUser(
-                                        username,
-                                        email,
-                                        password,
-                                        confirmPassword,
-                                        context
-                                    )
-                                    if (loginSuccess) {
-                                        navController.navigate("login")
-                                        Toast.makeText(
-                                            context,
-                                            "Cuenta creada correctamente",
-                                            Toast.LENGTH_LONG
-                                        ).show()
-                                    }
+
+                                // Guardar datos en SharedPreferences
+                                val sharedPreferences = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+                                sharedPreferences.edit().apply {
+                                    putString("temp_username", username)
+                                    putString("temp_email", email)
+                                    putString("temp_password", password)
+                                    putString("temp_confirm_password", confirmPassword)
+                                    apply()
                                 }
+
+                                // Navegar a la pantalla de selección de estilo
+                                navController.navigate("styles")
                             }
                         },
                         colors = ButtonDefaults.buttonColors(
@@ -319,21 +315,27 @@ fun UserRegisterScreen(navController: NavController) {
 }
 
 /**
- * Realiza la petición de registro a la API y devuelve `true` si el registro fue exitoso.
- * Retorna `false` si hay un error o si las contraseñas no coinciden.
+ * Realiza la petición de registro a la API y devuelve un par con:
+ * - Boolean: true si el registro fue exitoso, false en caso contrario
+ * - String?: mensaje de error en caso de fallo, null si fue exitoso
  */
-suspend fun registerUser(username: String, email: String, password: String, confirmPassword: String,
-                         context: Context): Boolean {
+suspend fun registerUser(
+    username: String,
+    email: String,
+    password: String,
+    confirmPassword: String,
+    context: Context,
+    styleFav: String,
+): Pair<Boolean, String?> {
     if (password != confirmPassword) {
-        Toast.makeText(context, "Las contraseñas no coinciden", Toast.LENGTH_LONG).show()
-        return false
+        return Pair(false, "Las contraseñas no coinciden")
     }
 
     val jsonBody = JSONObject().apply {
         put("nickname", username)
         put("mail", email)
         put("password", password)
-        put("style_fav", "rock")
+        put("style_fav", styleFav)
     }
 
     Log.d("RegisterRequest", "JSON enviado: $jsonBody")
@@ -344,37 +346,31 @@ suspend fun registerUser(username: String, email: String, password: String, conf
         when (statusCode) {
             201 -> {
                 Log.d("RegisterSuccess", "Registro exitoso")
-                Toast.makeText(context, "Registro exitoso", Toast.LENGTH_SHORT).show()
-                true
+                Pair(true, null)
             }
             400 -> {
                 Log.e("RegisterError", "El correo ya está en uso")
-                Toast.makeText(context, "El correo electrónico ya está en uso", Toast.LENGTH_LONG).show()
-                false
+                Pair(false, "El correo electrónico ya está en uso")
             }
             409 -> {
                 Log.e("RegisterError", "El nombre de usuario ya está en uso")
-                Toast.makeText(context, "El nombre de usuario ya está en uso", Toast.LENGTH_LONG).show()
-                false
+                Pair(false, "El nombre de usuario ya está en uso")
             }
             in 500..599 -> {
                 val errorMessage = response ?: "Error del servidor"
                 Log.e("RegisterError", "Error del servidor ($statusCode): $errorMessage")
-                Toast.makeText(context, "Error del servidor: $errorMessage", Toast.LENGTH_LONG).show()
-                false
+                Pair(false, "Error del servidor: $errorMessage")
             }
             else -> {
                 val errorMessage = response ?: "Error desconocido"
                 Log.e("RegisterError", "Error inesperado ($statusCode): $errorMessage")
-                Toast.makeText(context, "Error inesperado: $errorMessage", Toast.LENGTH_LONG).show()
-                false
+                Pair(false, "Error inesperado: $errorMessage")
             }
         }
     } catch (e: Exception) {
         e.printStackTrace()
         Log.e("RegisterError", "Error de conexión: ${e.message}")
-        Toast.makeText(context, "Error de conexión: ${e.message}", Toast.LENGTH_LONG).show()
-        false
+        Pair(false, "Error de conexión: ${e.message}")
     }
 }
 
