@@ -83,7 +83,7 @@ fun UserProfileMenu(navController: NavController, viewModel: MusicPlayerViewMode
                 userPicture = userPicture,
                 initials = initials,
                 profileColor = profileColor,
-                fromMenu = true
+                fromMenu = true,
             )
         }
 
