@@ -4,6 +4,8 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.media.Image
+import android.net.Uri
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -17,6 +19,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -76,13 +79,7 @@ import eina.unizar.es.data.model.network.ApiClient.getLikedPlaylists
 import eina.unizar.es.data.model.network.ApiClient.getUserData
 import eina.unizar.es.data.model.network.ApiClient.likeUnlikePlaylist
 import kotlinx.coroutines.launch
-import coil.compose.AsyncImage
 import coil.compose.rememberAsyncImagePainter
-import com.example.musicapp.ui.theme.VibraBlack
-import com.example.musicapp.ui.theme.VibraBlue
-import com.example.musicapp.ui.theme.VibraLightGrey
-import com.stripe.android.core.strings.resolvableString
-import eina.unizar.es.data.model.network.ApiClient
 import eina.unizar.es.data.model.network.ApiClient.checkIfSongIsLiked
 import eina.unizar.es.data.model.network.ApiClient.getImageUrl
 import eina.unizar.es.data.model.network.ApiClient.getLikedSongsPlaylist
@@ -1799,7 +1796,7 @@ fun PlaylistCoverWithEdit(
                 // Mostrar la imagen actual
                 val urlAntes = playlistInfo?.imageUrl
                 AsyncImage(
-                    model = getImageUrl(urlAntes, "/defaultplaylist.jpg")+ "?t=${System.currentTimeMillis()}",
+                    model = getImageUrl(urlAntes, "/defaultplaylist.jpg"), //+ "?t=${System.currentTimeMillis()}"
                     contentDescription = "Portada",
                     placeholder = painterResource(R.drawable.defaultplaylist),
                     error = painterResource(R.drawable.defaultplaylist),
