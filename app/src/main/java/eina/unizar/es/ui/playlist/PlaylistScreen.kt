@@ -1100,6 +1100,7 @@ fun BottomSheetContent(
             
             $webUrl
             """.trimIndent())
+            type = "text/plain"
         }
 
         context.startActivity(Intent.createChooser(shareIntent, "Compartir playlist"))
