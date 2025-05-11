@@ -191,7 +191,6 @@ fun UserStyleScreen(
                     }
 
                     // Botón Continuar MODIFICADO para usar registerUser
-                    // Botón Continuar con gestión de errores mejorada
                     Button(
                         onClick = {
                             selectedGenre?.let { genre ->
@@ -253,14 +252,6 @@ fun UserStyleScreen(
                                 color = Color.Black,
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Medium
-                            )
-
-                            Spacer(modifier = Modifier.width(8.dp))
-
-                            Text(
-                                text = "→",
-                                color = Color.Black,
-                                fontSize = 18.sp
                             )
                         }
                     }
