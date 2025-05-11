@@ -374,6 +374,7 @@ fun ProfileImagePicker(
                     modifier = Modifier
                         .fillMaxSize()
                         .clip(CircleShape)
+                        .border(2.dp, VibraBlue, CircleShape)
                         .background(Color.LightGray),
                     contentAlignment = Alignment.Center
                 ) {
@@ -386,6 +387,7 @@ fun ProfileImagePicker(
                     painter = rememberAsyncImagePainter(selectedImageUri),
                     contentDescription = "Nueva imagen de perfil",
                     modifier = Modifier
+                        .border(2.dp, VibraBlue, CircleShape)
                         .fillMaxSize()
                         .clip(CircleShape),
                     contentScale = ContentScale.Crop
@@ -393,7 +395,7 @@ fun ProfileImagePicker(
             }
             !userPicture.isNullOrBlank() && !imageLoadFailed -> {
                 // Prioridad 2: Mostrar imagen del servidor si existe y no ha fallado
-                val imageUrl = getImageUrl(userPicture ?: "", "/defaultuser.jpg")
+                val imageUrl = getImageUrl(userPicture ?: "", "/defaultuser.jpg")+ "?t=${System.currentTimeMillis()}"
 
                 AsyncImage(
                     model = ImageRequest.Builder(context)
@@ -403,6 +405,7 @@ fun ProfileImagePicker(
                     contentDescription = "Imagen de perfil actual",
                     modifier = Modifier
                         .fillMaxSize()
+                        .border(2.dp, VibraBlue, CircleShape)
                         .clip(CircleShape),
                     contentScale = ContentScale.Crop,
                     onError = { imageLoadFailed = true }
@@ -413,6 +416,7 @@ fun ProfileImagePicker(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
+                        .border(2.dp, VibraBlue, CircleShape)
                         .background(color = profileColor, shape = CircleShape),
                     contentAlignment = Alignment.Center
                 ) {

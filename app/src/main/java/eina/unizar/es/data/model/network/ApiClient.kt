@@ -24,10 +24,10 @@ import java.io.ByteArrayOutputStream
 import java.io.DataOutputStream
 
 object ApiClient {
-    //const val BASE_URL = "http://10.0.2.2/request/api" // Usa la IP local del backend
-    //const val BASE_URL_IMG = "http://10.0.2.2/request"
-    const val BASE_URL = "http://164.90.160.181/request/api" // Usa la IP publica (nube) del backend
-    const val BASE_URL_IMG = "http://164.90.160.181/request"
+    const val BASE_URL = "http://10.0.2.2/request/api" // Usa la IP local del backend
+    const val BASE_URL_IMG = "http://10.0.2.2/request"
+    //const val BASE_URL = "http://164.90.160.181/request/api" // Usa la IP publica (nube) del backend
+    //const val BASE_URL_IMG = "http://164.90.160.181/request"
 
 
 
@@ -1683,6 +1683,169 @@ object ApiClient {
                 null
             }
         }
+    }
+
+    /**
+     * Función para actualizar la imagen de portada de una playlist.
+     *
+     * @param playlistId ID de la playlist a actualizar.
+     * @param frontPageImage Imagen de portada en formato base64 (debe incluir el prefijo "data:image/...").
+     * @return JSONObject con la respuesta del servidor o `null` en caso de error.
+     */
+    suspend fun updatePlaylistImage(playlistId: Int, frontPageImage: String): JSONObject? {
+        return withContext(Dispatchers.IO) {
+            try {
+                val client = OkHttpClient()
+
+                // Crear el objeto JSON con solo la información de la imagen
+                val jsonBody = JSONObject().apply {
+                    put("front_page", frontPageImage)
+                }
+
+                val requestBody = jsonBody.toString()
+                    .toRequestBody("application/json".toMediaTypeOrNull())
+
+                val request = Request.Builder()
+                    .url("$BASE_URL/playlists/$playlistId")
+                    .put(requestBody)  // Usando PUT para actualizar un recurso existente
+                    .addHeader("Content-Type", "application/json")
+                    .build()
+
+                client.newCall(request).execute().use { response ->
+                    val responseBody = response.body?.string()
+
+                    if (!response.isSuccessful) {
+                        Log.e("API", "Error al actualizar imagen de playlist: código ${response.code}, cuerpo: $responseBody")
+                        if (responseBody != null) {
+                            // Devolver la respuesta de error para manejarla adecuadamente
+                            return@withContext JSONObject(responseBody)
+                        }
+                        null
+                    } else {
+                        Log.d("API", "Imagen de playlist actualizada: $responseBody")
+                        if (responseBody != null) {
+                            JSONObject(responseBody)
+                        } else {
+                            null
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("ApiClient", "Error en updatePlaylistImage: ${e.message}")
+                e.printStackTrace()
+                null
+            }
+        }
+    }
+
+    /**
+     * Función para obtener playlists recomendadas basadas en los estilos favoritos del usuario.
+     *
+     * @param context Contexto de la aplicación para acceder a SharedPreferences.
+     * @return JSONObject con las playlists recomendadas o `null` en caso de error.
+     */
+    suspend fun getRecommendedPlaylistsForUser(context: Context): JSONObject? {
+        return withContext(Dispatchers.IO) {
+            try {
+                // Obtener el token desde SharedPreferences
+                val sharedPreferences = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+                val token = sharedPreferences.getString("auth_token", null)
+
+                if (token.isNullOrEmpty()) {
+                    Log.e("API", "Token no disponible para obtener playlists recomendadas")
+                    return@withContext null
+                }
+
+                val client = OkHttpClient()
+
+                // No necesitamos enviar datos en el cuerpo ya que la API extrae toda la información
+                // necesaria del token JWT (ID de usuario y estilos favoritos)
+                val requestBody = "{}".toRequestBody("application/json".toMediaTypeOrNull())
+
+                val request = Request.Builder()
+                    .url("$BASE_URL/user/recommended-playlists")
+                    .get()
+                    .addHeader("Content-Type", "application/json")
+                    .addHeader("Accept", "application/json")
+                    .addHeader("Authorization", "Bearer $token")
+                    .build()
+
+                Log.d("API", "Solicitando playlists recomendadas para el usuario")
+
+                client.newCall(request).execute().use { response ->
+                    val responseBody = response.body?.string()
+
+                    if (!response.isSuccessful) {
+                        Log.e("API", "Error al obtener playlists recomendadas: código ${response.code}, cuerpo: $responseBody")
+                        if (responseBody != null) {
+                            // Devolver la respuesta de error para manejarla adecuadamente
+                            return@withContext JSONObject(responseBody)
+                        }
+                        null
+                    } else {
+                        Log.d("API", "Playlists recomendadas obtenidas: $responseBody")
+                        if (responseBody != null) {
+                            JSONObject(responseBody)
+                        } else {
+                            null
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("ApiClient", "Error en getRecommendedPlaylistsForUser: ${e.message}")
+                e.printStackTrace()
+                null
+            }
+        }
+    }
+
+    /**
+     * Función que procesa el JSON de respuesta de playlists recomendadas.
+     *
+     * @param response El objeto JSONObject devuelto por getRecommendedPlaylistsForUser.
+     * @return Lista de objetos Playlist o lista vacía si hay error.
+     */
+    fun processRecommendedPlaylists(response: JSONObject?): List<Playlist> {
+        if (response == null) return emptyList()
+
+        val recommendedPlaylists = mutableListOf<Playlist>()
+
+        try {
+            // Verificamos si existe la clave "recommendedPlaylists" en el JSON
+            if (response.has("recommendedPlaylists")) {
+                val playlistsArray = response.getJSONArray("recommendedPlaylists")
+
+                for (i in 0 until playlistsArray.length()) {
+                    val playlistObj = playlistsArray.getJSONObject(i)
+
+                    // Extracción segura de campos con valores por defecto
+                    val playlist = Playlist(
+                        id = playlistObj.optString("id", ""),
+                        title = playlistObj.optString("name", "Sin título"),
+                        idAutor = playlistObj.optString("user_id", ""),
+                        idArtista = playlistObj.optString("artist_id", ""),
+                        description = playlistObj.optString("description", ""),
+                        esPublica = playlistObj.optString("type", "public"),
+                        esAlbum = playlistObj.optString("typeP", "playlist"),
+                        imageUrl = playlistObj.optString("front_page", "")
+                    )
+
+                    // Solo añadimos playlists que tienen id válido
+                    if (playlist.id.isNotEmpty()) {
+                        recommendedPlaylists.add(playlist)
+                        Log.d("Recommendations", "Agregada playlist: ${playlist.title} con ID: ${playlist.id}")
+                    }
+                }
+            } else {
+                Log.w("Recommendations", "El JSON no contiene la clave 'recommendedPlaylists'")
+            }
+
+        } catch (e: Exception) {
+            Log.e("Recommendations", "Error procesando playlists recomendadas: ${e.message}", e)
+        }
+
+        Log.d("Recommendations", "Total de playlists procesadas: ${recommendedPlaylists.size}")
+        return recommendedPlaylists
     }
 
     /**

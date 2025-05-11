@@ -667,8 +667,6 @@ fun SongOptionsBottomSheetContent(
             SongOptionItem("Añadir a lista", onClick = { showAddToPlaylistDialog = true })
             Spacer(modifier = Modifier.height(8.dp))
             SongOptionItem("Añadir a la cola", onClick = onClick)
-            Spacer(modifier = Modifier.height(8.dp))
-            SongOptionItem("Compartir", onClick = { /* Acción de compartir */ })
         }
         Spacer(modifier = Modifier.height(16.dp))
     }
