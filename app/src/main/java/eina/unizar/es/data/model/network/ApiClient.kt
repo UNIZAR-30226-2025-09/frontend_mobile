@@ -2436,4 +2436,50 @@ object ApiClient {
             }
         }
     }
+
+
+    /**
+     * Obtiene la valoración dada por un usuario específico a una playlist.
+     * GET /api/ratingPlaylist/:id/user-rating?userId=X
+     *
+     * @param playlistId ID de la playlist
+     * @param userId ID del usuario
+     * @return Float con la valoración (0.0 si no hay valoración) o null si hay error
+     */
+    suspend fun getUserRating(playlistId: String, userId: String): Float? = withContext(Dispatchers.IO) {
+        try {
+            val endpoint = "ratingPlaylist/$playlistId/user-rating?userId=$userId"
+            val url = URL("$BASE_URL/$endpoint")
+            val connection = url.openConnection() as HttpURLConnection
+            connection.requestMethod = "GET"
+            connection.setRequestProperty("Accept", "application/json")
+
+            val responseCode = connection.responseCode
+            println("Código de respuesta (getUserRating): $responseCode")
+
+            if (responseCode == HttpURLConnection.HTTP_OK) {
+                // Leer la respuesta
+                val response = connection.inputStream.bufferedReader().readText()
+                println("Respuesta del servidor (getUserRating): $response")
+
+                // Parsear la respuesta JSON para obtener el valor de userRating
+                val jsonResponse = JSONObject(response)
+                val userRating = jsonResponse.optDouble("userRating", 0.0).toFloat()
+                Log.d("Rating", "Valoración del usuario: $userRating")
+
+                return@withContext userRating
+            } else {
+                println("Error al obtener valoración: código $responseCode")
+                connection.errorStream?.bufferedReader()?.use { errorReader ->
+                    val errorResponse = errorReader.readText()
+                    println("Mensaje de error: $errorResponse")
+                }
+                return@withContext null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            println("Error al obtener valoración del usuario: ${e.message}")
+            return@withContext null
+        }
+    }
 }

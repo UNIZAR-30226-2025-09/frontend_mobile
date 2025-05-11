@@ -131,6 +131,10 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
     val likedSongsSet by playerViewModel.likedSongs.collectAsState()
     var showSearch by remember { mutableStateOf(false) }
 
+
+    // Variable para mantener la valoración del usuario
+    var userRating by remember { mutableStateOf<Float?>(null) }
+
     // Animation states
     val searchFieldWidth by animateDpAsState(
         targetValue = if (showSearch) 200.dp else 0.dp,
@@ -480,59 +484,62 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                                 )
                             }
                         }
-                        // Añadir descripción de la playlist al final
-                        playlistInfo?.description?.takeIf { it.isNotBlank() && it != "Sencillo" && it != "null" }?.let { description ->
-                            Row(
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            // Espacio para la descripción (se muestra o queda vacío)
+                            Box(
                                 modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                                verticalAlignment = Alignment.Bottom, // Alineación superior para mejor ajuste
-                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                    .weight(1f)
+                                    .padding(start = 24.dp, end = 12.dp)
                             ) {
-                                // Descripción flexible con múltiples líneas
-                                Text(
-                                    text = description,
-                                    style = MaterialTheme.typography.bodyMedium.copy(
-                                        color = secondaryTextColor,
-                                        lineHeight = 20.sp
-                                    ),
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .padding(start = 24.dp, end = 12.dp),
-                                    maxLines = 3, // Límite de líneas
-                                    overflow = TextOverflow.Ellipsis // Puntos suspensivos si es muy largo
-                                )
+                                // Mostrar la descripción solo si existe y no es "Sencillo" o "null"
+                                playlistInfo?.description?.takeIf { it.isNotBlank() && it != "Sencillo" && it != "null" }?.let { description ->
+                                    Text(
+                                        text = description,
+                                        style = MaterialTheme.typography.bodyMedium.copy(
+                                            color = secondaryTextColor,
+                                            lineHeight = 20.sp
+                                        ),
+                                        maxLines = 3, // Límite de líneas
+                                        overflow = TextOverflow.Ellipsis // Puntos suspensivos si es muy largo
+                                    )
+                                }
+                            }
 
-                                // Rating con fondo redondeado
-                                Box(
-                                    modifier = Modifier
-                                        .border(
-                                            width = 1.dp,
-                                            color = VibraBlue.copy(alpha = 0.3f),
-                                            shape = RoundedCornerShape(16.dp)
-                                        )
-                                        .background(
-                                            color = VibraBlue.copy(alpha = 0.1f),
-                                            shape = RoundedCornerShape(16.dp)
-                                        )
-                                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                            // Rating con fondo redondeado (siempre visible)
+                            Box(
+                                modifier = Modifier
+                                    .border(
+                                        width = 1.dp,
+                                        color = VibraBlue.copy(alpha = 0.3f),
+                                        shape = RoundedCornerShape(16.dp)
+                                    )
+                                    .background(
+                                        color = VibraBlue.copy(alpha = 0.1f),
+                                        shape = RoundedCornerShape(16.dp)
+                                    )
+                                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Star,
-                                            contentDescription = "Valoración promedio",
-                                            tint = VibraBlue,
-                                            modifier = Modifier.size(24.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        Text(
-                                            text = String.format("%.1f", averageRating),
-                                            color = VibraLightGrey,
-                                            style = TextStyle(fontSize = 16.sp)
-                                        )
-                                    }
+                                    Icon(
+                                        imageVector = Icons.Default.Star,
+                                        contentDescription = "Valoración promedio",
+                                        tint = VibraBlue,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = String.format("%.1f", averageRating),
+                                        color = VibraLightGrey,
+                                        style = TextStyle(fontSize = 16.sp)
+                                    )
                                 }
                             }
                         }
@@ -878,30 +885,46 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                     }
                 }
             }
-            StarRatingDialog(
-                showDialog = showRatingDialog,
-                onDismiss = { showRatingDialog = false },
-                onConfirm = { stars ->
-                    currentRating = stars
-                    // Lógica para guardar la valoración
-                    coroutineScope.launch {
-                        val ratingJson = JSONObject().apply {
-                            put("user_id", userId) // Aquí añadimos el user_id
-                            put("rating", currentRating)
-                        }
-                        val response = post("ratingPlaylist/${playlistId}/rate", ratingJson)
-                        if (response != null) {
-                            // Opcionalmente recargar el promedio después de valorar
-                            val ratingResponse = withContext(Dispatchers.IO) { get("ratingPlaylist/$playlistId/rating") }
-                            ratingResponse?.let {
-                                val json = JSONObject(it)
-                                val avgRating = json.optString("averageRating", "0.0")
-                                averageRating = avgRating.toDoubleOrNull() ?: 0.0 // Convertir a Double
+            //Valoracion actual de la lista
+            LaunchedEffect(userId) {
+                try {
+                    Log.d("Rating", "Usuario id: $userId, Playlist id: $playlistId")
+                    val rating = playlistId?.let { ApiClient.getUserRating(it, userId) }
+                    userRating = rating
+                    Log.d("Rating", "Valoracion de la lista: " + userRating)
+                } catch (e: Exception) {
+                    Log.e("PlaylistDetail", "Error al cargar la valoración: ${e.message}")
+                }
+            }
+
+            userRating?.let {
+                StarRatingDialog(
+                    showDialog = showRatingDialog,
+                    onDismiss = { showRatingDialog = false },
+                    onConfirm = { stars ->
+                        currentRating = stars
+                        userRating = stars.toFloat()
+                        // Lógica para guardar la valoración
+                        coroutineScope.launch {
+                            val ratingJson = JSONObject().apply {
+                                put("user_id", userId) // Aquí añadimos el user_id
+                                put("rating", currentRating)
+                            }
+                            val response = post("ratingPlaylist/${playlistId}/rate", ratingJson)
+                            if (response != null) {
+                                // Opcionalmente recargar el promedio después de valorar
+                                val ratingResponse = withContext(Dispatchers.IO) { get("ratingPlaylist/$playlistId/rating") }
+                                ratingResponse?.let {
+                                    val json = JSONObject(it)
+                                    val avgRating = json.optString("averageRating", "0.0")
+                                    averageRating = avgRating.toDoubleOrNull() ?: 0.0 // Convertir a Double
+                                }
                             }
                         }
-                    }
-                }
-            )
+                    },
+                    lastRating = it.toInt(),
+                )
+            }
             // Mostrar el BottomSheet de la playlist (fuera del items)
             if (showBottomSheet) {
                 ModalBottomSheet(
@@ -1494,9 +1517,13 @@ private suspend fun getPlaylistAuthor(playlist: Playlist): String = withContext(
 fun StarRatingDialog(
     showDialog: Boolean,
     onDismiss: () -> Unit,
-    onConfirm: (Int) -> Unit
+    onConfirm: (Int) -> Unit,
+    lastRating: Int = 1
 ) {
-    var selectedRating by remember { mutableStateOf(1) }
+    var selectedRating by remember(showDialog, lastRating) {
+        mutableStateOf(lastRating)
+    }
+
 
     if (showDialog) {
         AlertDialog(
