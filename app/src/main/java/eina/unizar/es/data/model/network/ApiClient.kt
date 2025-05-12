@@ -198,67 +198,87 @@ object ApiClient {
 
 
     /**
-     * Performs a user logout by making an API request to invalidate the session token.
+     * Cierra la sesión del usuario actualizando su estado de conexión a 'false' en el servidor.
      *
-     * This function:
-     * 1. Retrieves the authentication token from SharedPreferences
-     * 2. Makes a POST request to the logout endpoint with the token
-     * 3. Clears the stored token upon successful logout
-     * 4. Navigates back to the login screen
-     * 5. Displays appropriate Toast messages for success or failure
+     * Esta función:
+     * 1. Recupera el token de autenticación desde SharedPreferences
+     * 2. Envía el token al servidor para actualizar el estado de conexión del usuario
+     * 3. Elimina el token almacenado localmente
+     * 4. Navega de vuelta a la pantalla de inicio de sesión
+     * 5. Muestra mensajes adecuados según el resultado de la operación
      *
-     * @param context The application context used to access SharedPreferences and display Toast messages
-     * @param navController The NavController used to navigate to the login screen after logout
-     *
-     * @throws Exception If there's an error during the network request or token processing
+     * @param context El contexto de la aplicación para acceder a SharedPreferences y mostrar mensajes
+     * @param navController El NavController para navegar a la pantalla de inicio de sesión
      */
     suspend fun logoutUser(context: Context, navController: NavController) {
         withContext(Dispatchers.IO) {
             try {
-                val sharedPreferences =
-                    context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+                // Obtiene el token de SharedPreferences
+                val sharedPreferences = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
                 val token = sharedPreferences.getString("auth_token", null)
 
-                if (token.isNullOrEmpty()) {
-                    Log.e("Logout", "No hay token guardado, no se puede cerrar sesión")
+                // Envía la solicitud de cierre de sesión al servidor
+                val client = OkHttpClient()
+                val request = Request.Builder()
+                    .url("$BASE_URL/user/logout")
+                    .header("Authorization", "Bearer $token")
+                    .post("".toRequestBody(null))
+                    .build()
+
+                client.newCall(request).execute().use { response ->
+                    // Incluso si hay error, procedemos con el cierre de sesión local
+                    Log.d("Logout", "Respuesta del servidor: ${response.code}")
+
+                    // Elimina el token y otros datos de usuario de SharedPreferences
                     withContext(Dispatchers.Main) {
-                        Toast.makeText(context, "Error: No has iniciado sesión", Toast.LENGTH_LONG)
-                            .show()
-                    }
-                    return@withContext
-                }
+                        sharedPreferences.edit().apply {
+                            remove("auth_token")
+                            remove("user_id")
+                            remove("user_name")
+                            remove("user_email")
+                            remove("user_picture")
+                            remove("is_premium")
+                            apply()
+                        }
 
-                val jsonBody = JSONObject()  // No enviamos datos, solo la petición con el token
-                val headers = mutableMapOf<String, String>("Authorization" to "Bearer $token")
-
-                val response = ApiClient.postWithHeaders("user/logout", jsonBody, context, headers)
-
-                if (response != null) {
-                    // Eliminar el token de SharedPreferences
-                    sharedPreferences.edit().remove("auth_token").apply()
-
-                    Log.d("Logout", "Sesión cerrada correctamente")
-
-                    withContext(Dispatchers.Main) {
-                        Toast.makeText(context, "Sesión cerrada correctamente", Toast.LENGTH_LONG)
-                            .show()
-
-                        // Navegar al login y limpiar historial de navegación
+                        // Navega a la pantalla de inicio de sesión
                         navController.navigate("login") {
                             popUpTo(0) { inclusive = true }
                         }
-                    }
-                } else {
-                    Log.e("Logout", "Error al cerrar sesión: respuesta nula")
-                    withContext(Dispatchers.Main) {
-                        Toast.makeText(context, "Error al cerrar sesión", Toast.LENGTH_LONG).show()
+
+                        // Muestra un mensaje de éxito
+                        Toast.makeText(
+                            context,
+                            "Sesión cerrada correctamente",
+                            Toast.LENGTH_SHORT
+                        ).show()
                     }
                 }
             } catch (e: Exception) {
-                Log.e("LogoutError", "Error cerrando sesión: ${e.message}")
+                Log.e("Logout", "Error al cerrar sesión: ${e.message}")
+
+                // Aún con error, cerramos sesión localmente
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(context, "Error inesperado al cerrar sesión", Toast.LENGTH_LONG)
-                        .show()
+                    val sharedPreferences = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+                    sharedPreferences.edit().apply {
+                        remove("auth_token")
+                        remove("user_id")
+                        remove("user_name")
+                        remove("user_email")
+                        remove("user_picture")
+                        remove("is_premium")
+                        apply()
+                    }
+
+                    navController.navigate("login") {
+                        popUpTo(0) { inclusive = true }
+                    }
+
+                    Toast.makeText(
+                        context,
+                        "Sesión cerrada correctamente",
+                        Toast.LENGTH_SHORT
+                    ).show()
                 }
             }
         }
@@ -1686,6 +1706,169 @@ object ApiClient {
     }
 
     /**
+     * Función para actualizar la imagen de portada de una playlist.
+     *
+     * @param playlistId ID de la playlist a actualizar.
+     * @param frontPageImage Imagen de portada en formato base64 (debe incluir el prefijo "data:image/...").
+     * @return JSONObject con la respuesta del servidor o `null` en caso de error.
+     */
+    suspend fun updatePlaylistImage(playlistId: Int, frontPageImage: String): JSONObject? {
+        return withContext(Dispatchers.IO) {
+            try {
+                val client = OkHttpClient()
+
+                // Crear el objeto JSON con solo la información de la imagen
+                val jsonBody = JSONObject().apply {
+                    put("front_page", frontPageImage)
+                }
+
+                val requestBody = jsonBody.toString()
+                    .toRequestBody("application/json".toMediaTypeOrNull())
+
+                val request = Request.Builder()
+                    .url("$BASE_URL/playlists/$playlistId")
+                    .put(requestBody)  // Usando PUT para actualizar un recurso existente
+                    .addHeader("Content-Type", "application/json")
+                    .build()
+
+                client.newCall(request).execute().use { response ->
+                    val responseBody = response.body?.string()
+
+                    if (!response.isSuccessful) {
+                        Log.e("API", "Error al actualizar imagen de playlist: código ${response.code}, cuerpo: $responseBody")
+                        if (responseBody != null) {
+                            // Devolver la respuesta de error para manejarla adecuadamente
+                            return@withContext JSONObject(responseBody)
+                        }
+                        null
+                    } else {
+                        Log.d("API", "Imagen de playlist actualizada: $responseBody")
+                        if (responseBody != null) {
+                            JSONObject(responseBody)
+                        } else {
+                            null
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("ApiClient", "Error en updatePlaylistImage: ${e.message}")
+                e.printStackTrace()
+                null
+            }
+        }
+    }
+
+    /**
+     * Función para obtener playlists recomendadas basadas en los estilos favoritos del usuario.
+     *
+     * @param context Contexto de la aplicación para acceder a SharedPreferences.
+     * @return JSONObject con las playlists recomendadas o `null` en caso de error.
+     */
+    suspend fun getRecommendedPlaylistsForUser(context: Context): JSONObject? {
+        return withContext(Dispatchers.IO) {
+            try {
+                // Obtener el token desde SharedPreferences
+                val sharedPreferences = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+                val token = sharedPreferences.getString("auth_token", null)
+
+                if (token.isNullOrEmpty()) {
+                    Log.e("API", "Token no disponible para obtener playlists recomendadas")
+                    return@withContext null
+                }
+
+                val client = OkHttpClient()
+
+                // No necesitamos enviar datos en el cuerpo ya que la API extrae toda la información
+                // necesaria del token JWT (ID de usuario y estilos favoritos)
+                val requestBody = "{}".toRequestBody("application/json".toMediaTypeOrNull())
+
+                val request = Request.Builder()
+                    .url("$BASE_URL/user/recommended-playlists")
+                    .get()
+                    .addHeader("Content-Type", "application/json")
+                    .addHeader("Accept", "application/json")
+                    .addHeader("Authorization", "Bearer $token")
+                    .build()
+
+                Log.d("API", "Solicitando playlists recomendadas para el usuario")
+
+                client.newCall(request).execute().use { response ->
+                    val responseBody = response.body?.string()
+
+                    if (!response.isSuccessful) {
+                        Log.e("API", "Error al obtener playlists recomendadas: código ${response.code}, cuerpo: $responseBody")
+                        if (responseBody != null) {
+                            // Devolver la respuesta de error para manejarla adecuadamente
+                            return@withContext JSONObject(responseBody)
+                        }
+                        null
+                    } else {
+                        Log.d("API", "Playlists recomendadas obtenidas: $responseBody")
+                        if (responseBody != null) {
+                            JSONObject(responseBody)
+                        } else {
+                            null
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("ApiClient", "Error en getRecommendedPlaylistsForUser: ${e.message}")
+                e.printStackTrace()
+                null
+            }
+        }
+    }
+
+    /**
+     * Función que procesa el JSON de respuesta de playlists recomendadas.
+     *
+     * @param response El objeto JSONObject devuelto por getRecommendedPlaylistsForUser.
+     * @return Lista de objetos Playlist o lista vacía si hay error.
+     */
+    fun processRecommendedPlaylists(response: JSONObject?): List<Playlist> {
+        if (response == null) return emptyList()
+
+        val recommendedPlaylists = mutableListOf<Playlist>()
+
+        try {
+            // Verificamos si existe la clave "recommendedPlaylists" en el JSON
+            if (response.has("recommendedPlaylists")) {
+                val playlistsArray = response.getJSONArray("recommendedPlaylists")
+
+                for (i in 0 until playlistsArray.length()) {
+                    val playlistObj = playlistsArray.getJSONObject(i)
+
+                    // Extracción segura de campos con valores por defecto
+                    val playlist = Playlist(
+                        id = playlistObj.optString("id", ""),
+                        title = playlistObj.optString("name", "Sin título"),
+                        idAutor = playlistObj.optString("user_id", ""),
+                        idArtista = playlistObj.optString("artist_id", ""),
+                        description = playlistObj.optString("description", ""),
+                        esPublica = playlistObj.optString("type", "public"),
+                        esAlbum = playlistObj.optString("typeP", "playlist"),
+                        imageUrl = playlistObj.optString("front_page", "")
+                    )
+
+                    // Solo añadimos playlists que tienen id válido
+                    if (playlist.id.isNotEmpty()) {
+                        recommendedPlaylists.add(playlist)
+                        Log.d("Recommendations", "Agregada playlist: ${playlist.title} con ID: ${playlist.id}")
+                    }
+                }
+            } else {
+                Log.w("Recommendations", "El JSON no contiene la clave 'recommendedPlaylists'")
+            }
+
+        } catch (e: Exception) {
+            Log.e("Recommendations", "Error procesando playlists recomendadas: ${e.message}", e)
+        }
+
+        Log.d("Recommendations", "Total de playlists procesadas: ${recommendedPlaylists.size}")
+        return recommendedPlaylists
+    }
+
+    /**
      * Busca usuarios que pueden ser añadidos como amigos.
      */
     suspend fun searchNewFriends(context: Context): JSONArray? {
@@ -2434,6 +2617,52 @@ object ApiClient {
                 Log.e("API", "Excepción obteniendo información de playlist: ${e.message}", e)
                 return@withContext null
             }
+        }
+    }
+
+
+    /**
+     * Obtiene la valoración dada por un usuario específico a una playlist.
+     * GET /api/ratingPlaylist/:id/user-rating?userId=X
+     *
+     * @param playlistId ID de la playlist
+     * @param userId ID del usuario
+     * @return Float con la valoración (0.0 si no hay valoración) o null si hay error
+     */
+    suspend fun getUserRating(playlistId: String, userId: String): Float? = withContext(Dispatchers.IO) {
+        try {
+            val endpoint = "ratingPlaylist/$playlistId/user-rating?userId=$userId"
+            val url = URL("$BASE_URL/$endpoint")
+            val connection = url.openConnection() as HttpURLConnection
+            connection.requestMethod = "GET"
+            connection.setRequestProperty("Accept", "application/json")
+
+            val responseCode = connection.responseCode
+            println("Código de respuesta (getUserRating): $responseCode")
+
+            if (responseCode == HttpURLConnection.HTTP_OK) {
+                // Leer la respuesta
+                val response = connection.inputStream.bufferedReader().readText()
+                println("Respuesta del servidor (getUserRating): $response")
+
+                // Parsear la respuesta JSON para obtener el valor de userRating
+                val jsonResponse = JSONObject(response)
+                val userRating = jsonResponse.optDouble("userRating", 0.0).toFloat()
+                Log.d("Rating", "Valoración del usuario: $userRating")
+
+                return@withContext userRating
+            } else {
+                println("Error al obtener valoración: código $responseCode")
+                connection.errorStream?.bufferedReader()?.use { errorReader ->
+                    val errorResponse = errorReader.readText()
+                    println("Mensaje de error: $errorResponse")
+                }
+                return@withContext null
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            println("Error al obtener valoración del usuario: ${e.message}")
+            return@withContext null
         }
     }
 }

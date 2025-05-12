@@ -4,8 +4,12 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.media.Image
+import android.net.Uri
 import android.util.Log
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateDpAsState
@@ -15,6 +19,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -28,6 +33,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.MusicOff
@@ -46,6 +52,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathSegment
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -57,6 +64,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import androidx.core.content.ContextCompat
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
@@ -71,6 +79,8 @@ import eina.unizar.es.data.model.network.ApiClient.delete
 import eina.unizar.es.data.model.network.ApiClient.getLikedPlaylists
 import eina.unizar.es.data.model.network.ApiClient.getUserData
 import eina.unizar.es.data.model.network.ApiClient.likeUnlikePlaylist
+import kotlinx.coroutines.launch
+import coil.compose.rememberAsyncImagePainter
 import eina.unizar.es.data.model.network.ApiClient.checkIfSongIsLiked
 import eina.unizar.es.data.model.network.ApiClient.getImageUrl
 import eina.unizar.es.data.model.network.ApiClient.getLikedSongsPlaylist
@@ -81,6 +91,8 @@ import eina.unizar.es.data.model.network.ApiClient.post
 import eina.unizar.es.data.model.network.ApiClient.recordPlaylistVisit
 import eina.unizar.es.data.model.network.ApiClient.updatePlaylist
 import eina.unizar.es.data.model.network.ApiClient.togglePlaylistType
+import eina.unizar.es.data.model.network.ApiClient.updatePlaylistImage
+import eina.unizar.es.data.model.network.ApiClient.uriToBase64
 import eina.unizar.es.ui.artist.SongOptionItem
 import eina.unizar.es.ui.player.MusicPlayerViewModel
 import eina.unizar.es.ui.search.SongItem
@@ -131,6 +143,10 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
     val likedSongsSet by playerViewModel.likedSongs.collectAsState()
     var showSearch by remember { mutableStateOf(false) }
 
+
+    // Variable para mantener la valoración del usuario
+    var userRating by remember { mutableStateOf<Float?>(null) }
+
     // Animation states
     val searchFieldWidth by animateDpAsState(
         targetValue = if (showSearch) 200.dp else 0.dp,
@@ -171,6 +187,7 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
     var songLikes by remember { mutableStateOf<Map<Int, Boolean>>(emptyMap()) }
     val coroutineScope = rememberCoroutineScope()
     var userId by remember { mutableStateOf("") }
+    var soyPropietario by remember { mutableStateOf(false) }
 
     // Función para cambiar el estado de "me gusta" de una canción
     fun toggleSongLike(songId: Int, userId: String) {
@@ -364,6 +381,24 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
         songArtistMap = artistNames
     }
 
+    LaunchedEffect(Unit) {
+        coroutineScope.launch  {
+            val userData = getUserData(context)
+            if (userData != null) {
+                userId =
+                    (userData["id"]
+                        ?: "Id").toString()  // Si no hay nickname, usa "Usuario"
+            }
+            // Verificar si el usuario es propietario de la playlist
+            soyPropietario = if (playlistId != null) {
+                isPlaylistOwner(playlistId, userId) ?: true
+            } else {
+                false
+            }
+            Log.d("BottomSheetContent", "Soy propietario: $soyPropietario")
+        }
+    }
+
     // Ordenar y filtrar canciones
     val sortedSongs = remember(songs, sortOption) {
         when (sortOption) {
@@ -443,16 +478,47 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                                 .padding(16.dp)
                                 .clip(RoundedCornerShape(8.dp))
                                 .shadow(8.dp)
-                        ) {
-                            val urlAntes = playlistInfo?.imageUrl
-                            AsyncImage(
-                                model = getImageUrl(urlAntes, "/defaultplaylist.jpg"),
-                                contentDescription = "Portada",
-                                placeholder = painterResource(R.drawable.defaultplaylist),
-                                error = painterResource(R.drawable.defaultplaylist),
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .alpha(imageAlpha)
+                        ){
+                            PlaylistCoverWithEdit(
+                                playlistId = playlistInfo?.id,
+                                playlistInfo = playlistInfo,
+                                onUpdateSuccess = { responseJson ->
+                                    // Actualizar el estado con la nueva URL de imagen
+                                    if (responseJson.has("image_url")) {
+                                        val newImageUrl = responseJson.getString("image_url")
+                                        // Actualizar el objeto playlistInfo con la nueva URL
+                                        playlistInfo = playlistInfo?.let { currentPlaylist ->
+                                            Playlist(
+                                                id = currentPlaylist.id,
+                                                title = currentPlaylist.title,
+                                                imageUrl = newImageUrl,
+                                                idAutor = currentPlaylist.idAutor,
+                                                idArtista = currentPlaylist.idArtista,
+                                                description = currentPlaylist.description,
+                                                esPublica = currentPlaylist.esPublica,
+                                                esAlbum = currentPlaylist.esAlbum
+                                            )
+                                        }
+                                    }
+
+                                    // Mostrar mensaje de éxito
+                                    Toast.makeText(
+                                        context,
+                                        "¡Imagen de portada actualizada correctamente!",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                },
+                                onUpdateError = { errorMessage ->
+                                    // Mostrar mensaje de error
+                                    Toast.makeText(
+                                        context,
+                                        errorMessage,
+                                        Toast.LENGTH_LONG
+                                    ).show()
+                                },
+                                modifier = Modifier.fillMaxSize(),
+                                // Permitir edición solo si el usuario es propietario de la playlist
+                                editEnabled = soyPropietario
                             )
                         }
 
@@ -480,59 +546,62 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                                 )
                             }
                         }
-                        // Añadir descripción de la playlist al final
-                        playlistInfo?.description?.takeIf { it.isNotBlank() && it != "Sencillo" && it != "null" }?.let { description ->
-                            Row(
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            // Espacio para la descripción (se muestra o queda vacío)
+                            Box(
                                 modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                                verticalAlignment = Alignment.Bottom, // Alineación superior para mejor ajuste
-                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                    .weight(1f)
+                                    .padding(start = 24.dp, end = 12.dp)
                             ) {
-                                // Descripción flexible con múltiples líneas
-                                Text(
-                                    text = description,
-                                    style = MaterialTheme.typography.bodyMedium.copy(
-                                        color = secondaryTextColor,
-                                        lineHeight = 20.sp
-                                    ),
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .padding(start = 24.dp, end = 12.dp),
-                                    maxLines = 3, // Límite de líneas
-                                    overflow = TextOverflow.Ellipsis // Puntos suspensivos si es muy largo
-                                )
+                                // Mostrar la descripción solo si existe y no es "Sencillo" o "null"
+                                playlistInfo?.description?.takeIf { it.isNotBlank() && it != "Sencillo" && it != "null" }?.let { description ->
+                                    Text(
+                                        text = description,
+                                        style = MaterialTheme.typography.bodyMedium.copy(
+                                            color = secondaryTextColor,
+                                            lineHeight = 20.sp
+                                        ),
+                                        maxLines = 3, // Límite de líneas
+                                        overflow = TextOverflow.Ellipsis // Puntos suspensivos si es muy largo
+                                    )
+                                }
+                            }
 
-                                // Rating con fondo redondeado
-                                Box(
-                                    modifier = Modifier
-                                        .border(
-                                            width = 1.dp,
-                                            color = VibraBlue.copy(alpha = 0.3f),
-                                            shape = RoundedCornerShape(16.dp)
-                                        )
-                                        .background(
-                                            color = VibraBlue.copy(alpha = 0.1f),
-                                            shape = RoundedCornerShape(16.dp)
-                                        )
-                                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                            // Rating con fondo redondeado (siempre visible)
+                            Box(
+                                modifier = Modifier
+                                    .border(
+                                        width = 1.dp,
+                                        color = VibraBlue.copy(alpha = 0.3f),
+                                        shape = RoundedCornerShape(16.dp)
+                                    )
+                                    .background(
+                                        color = VibraBlue.copy(alpha = 0.1f),
+                                        shape = RoundedCornerShape(16.dp)
+                                    )
+                                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Star,
-                                            contentDescription = "Valoración promedio",
-                                            tint = VibraBlue,
-                                            modifier = Modifier.size(24.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        Text(
-                                            text = String.format("%.1f", averageRating),
-                                            color = VibraLightGrey,
-                                            style = TextStyle(fontSize = 16.sp)
-                                        )
-                                    }
+                                    Icon(
+                                        imageVector = Icons.Default.Star,
+                                        contentDescription = "Valoración promedio",
+                                        tint = VibraBlue,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = String.format("%.1f", averageRating),
+                                        color = VibraLightGrey,
+                                        style = TextStyle(fontSize = 16.sp)
+                                    )
                                 }
                             }
                         }
@@ -878,30 +947,46 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                     }
                 }
             }
-            StarRatingDialog(
-                showDialog = showRatingDialog,
-                onDismiss = { showRatingDialog = false },
-                onConfirm = { stars ->
-                    currentRating = stars
-                    // Lógica para guardar la valoración
-                    coroutineScope.launch {
-                        val ratingJson = JSONObject().apply {
-                            put("user_id", userId) // Aquí añadimos el user_id
-                            put("rating", currentRating)
-                        }
-                        val response = post("ratingPlaylist/${playlistId}/rate", ratingJson)
-                        if (response != null) {
-                            // Opcionalmente recargar el promedio después de valorar
-                            val ratingResponse = withContext(Dispatchers.IO) { get("ratingPlaylist/$playlistId/rating") }
-                            ratingResponse?.let {
-                                val json = JSONObject(it)
-                                val avgRating = json.optString("averageRating", "0.0")
-                                averageRating = avgRating.toDoubleOrNull() ?: 0.0 // Convertir a Double
+            //Valoracion actual de la lista
+            LaunchedEffect(userId) {
+                try {
+                    Log.d("Rating", "Usuario id: $userId, Playlist id: $playlistId")
+                    val rating = playlistId?.let { ApiClient.getUserRating(it, userId) }
+                    userRating = rating
+                    Log.d("Rating", "Valoracion de la lista: " + userRating)
+                } catch (e: Exception) {
+                    Log.e("PlaylistDetail", "Error al cargar la valoración: ${e.message}")
+                }
+            }
+
+            userRating?.let {
+                StarRatingDialog(
+                    showDialog = showRatingDialog,
+                    onDismiss = { showRatingDialog = false },
+                    onConfirm = { stars ->
+                        currentRating = stars
+                        userRating = stars.toFloat()
+                        // Lógica para guardar la valoración
+                        coroutineScope.launch {
+                            val ratingJson = JSONObject().apply {
+                                put("user_id", userId) // Aquí añadimos el user_id
+                                put("rating", currentRating)
+                            }
+                            val response = post("ratingPlaylist/${playlistId}/rate", ratingJson)
+                            if (response != null) {
+                                // Opcionalmente recargar el promedio después de valorar
+                                val ratingResponse = withContext(Dispatchers.IO) { get("ratingPlaylist/$playlistId/rating") }
+                                ratingResponse?.let {
+                                    val json = JSONObject(it)
+                                    val avgRating = json.optString("averageRating", "0.0")
+                                    averageRating = avgRating.toDoubleOrNull() ?: 0.0 // Convertir a Double
+                                }
                             }
                         }
-                    }
-                }
-            )
+                    },
+                    lastRating = it.toInt(),
+                )
+            }
             // Mostrar el BottomSheet de la playlist (fuera del items)
             if (showBottomSheet) {
                 ModalBottomSheet(
@@ -909,7 +994,7 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                     sheetState = sheetState
                 ) {
                     var urlAntes = playlistInfo?.imageUrl
-                    val playlistImage = getImageUrl(urlAntes, "defaultplaylist.jpg")
+                    val playlistImage = getImageUrl(urlAntes, "defaultplaylist.jpg")+ "?t=${System.currentTimeMillis()}"
 
                     playlistInfo?.let { playlist ->
                         // Log para debuggear valores justo antes de mostrar el BottomSheet
@@ -1014,9 +1099,7 @@ fun BottomSheetContent(
             ¡Escucha "$playlistTitle" en Vibra App!
             
             $webUrl
-            
-            También puedes usar este enlace dentro de la app: $deepLink
-        """.trimIndent())
+            """.trimIndent())
             type = "text/plain"
         }
 
@@ -1061,19 +1144,26 @@ fun BottomSheetContent(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            AsyncImage(
-                model = playlistImage,
-                contentDescription = "Portada de la playlist",
-                placeholder = painterResource(R.drawable.defaultplaylist), // Fallback local
-                error = painterResource(R.drawable.defaultplaylist),
+            Box(
                 modifier = Modifier
                     .size(50.dp)
-                    //.alpha(imageAlpha)
-                    .clip(RoundedCornerShape(8.dp)) // Opcional: añade esquinas redondeadas
+                    .clip(RoundedCornerShape(8.dp))
+                    .shadow(2.dp, RoundedCornerShape(8.dp))
+            ) {
+                AsyncImage(
+                    model = playlistImage + "?t=${System.currentTimeMillis()}", // Añade parámetro para evitar caché
+                    contentDescription = "Portada de la playlist",
+                    placeholder = painterResource(R.drawable.defaultplaylist),
+                    error = painterResource(R.drawable.defaultplaylist),
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
 
-            )
             Spacer(modifier = Modifier.width(8.dp))
-            Column {
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
                 Text(playlistTitle, color = textColor, fontSize = 16.sp)
                 Text("de $playlistAuthor", color = Color.Gray, fontSize = 12.sp)
             }
@@ -1247,7 +1337,18 @@ fun BottomSheetContent(
         if (showEditPlaylistDialog) {
             AlertDialog(
                 onDismissRequest = { showEditPlaylistDialog = false },
-                title = { Text("Editar playlist", color = MaterialTheme.colorScheme.onBackground) },
+                title = {
+                    Text(
+                        text = "Editar Playlist",
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontWeight = FontWeight.SemiBold
+                        ),
+                        color = Color.White,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                },
+                containerColor = Color(0xFF1E1E1E),
                 text = {
                     Column {
                         OutlinedTextField(
@@ -1264,6 +1365,8 @@ fun BottomSheetContent(
                                 .padding(bottom = 8.dp)
                         )
 
+                        Spacer(modifier = Modifier.height(16.dp))
+
                         OutlinedTextField(
                             value = newPlaylistDescription,
                             onValueChange = { newPlaylistDescription = it },
@@ -1279,61 +1382,96 @@ fun BottomSheetContent(
                     }
                 },
                 confirmButton = {
-                    Button(
-                        onClick = {
-                            if (newPlaylistName.isNotEmpty() && newPlaylistDescription.isNotEmpty()) {
-                                CoroutineScope(Dispatchers.IO).launch {
-                                    try {
-                                        // Manejo seguro del ID
-                                        val id = playlistId?.toInt() ?: throw NumberFormatException("ID inválido")
+                    Row(horizontalArrangement = Arrangement.End) {
+                        Spacer(modifier = Modifier.width(48.dp))
+                        Button(
+                            onClick = {
+                                if (newPlaylistName.isNotEmpty() && newPlaylistDescription.isNotEmpty()) {
+                                    CoroutineScope(Dispatchers.IO).launch {
+                                        try {
+                                            // Manejo seguro del ID
+                                            val id = playlistId?.toInt()
+                                                ?: throw NumberFormatException("ID inválido")
 
-                                        // Validación de la URL de imagen
-                                        val safeImageUrl = if (playlistImage.isNullOrBlank()) {
-                                            "defaultplaylist.jpg"
-                                        } else {
-                                            playlistImage
-                                        }
-                                        Log.d("Error", "Id de la lista editada: " + id)
-                                        val (code, message) = updatePlaylist(
-                                            id = id,
-                                            name = newPlaylistName,
-                                            description = newPlaylistDescription,
-                                            frontPage = safeImageUrl,
-                                            context = context
-                                        )
-
-                                        withContext(Dispatchers.Main) {
-                                            when (code) {
-                                                200 -> Toast.makeText(context, "Playlist actualizada", Toast.LENGTH_SHORT).show()
-                                                404 -> Toast.makeText(context, "Playlist no encontrada", Toast.LENGTH_LONG).show()
-                                                else -> Toast.makeText(context, "Error: ${message ?: "Código $code"}", Toast.LENGTH_LONG).show()
+                                            // Validación de la URL de imagen
+                                            val safeImageUrl = if (playlistImage.isNullOrBlank()) {
+                                                "defaultplaylist.jpg"
+                                            } else {
+                                                playlistImage
                                             }
-                                            showEditPlaylistDialog = false
-                                        }
-                                    } catch (e: NumberFormatException) {
-                                        withContext(Dispatchers.Main) {
-                                            Toast.makeText(context, "ID de playlist inválido", Toast.LENGTH_LONG).show()
-                                        }
-                                    } catch (e: Exception) {
-                                        withContext(Dispatchers.Main) {
-                                            Toast.makeText(context, "Error de conexión", Toast.LENGTH_LONG).show()
+                                            Log.d("Error", "Id de la lista editada: " + id)
+                                            val (code, message) = updatePlaylist(
+                                                id = id,
+                                                name = newPlaylistName,
+                                                description = newPlaylistDescription,
+                                                frontPage = safeImageUrl,
+                                                context = context
+                                            )
+
+                                            withContext(Dispatchers.Main) {
+                                                when (code) {
+                                                    200 -> Toast.makeText(
+                                                        context,
+                                                        "Playlist actualizada",
+                                                        Toast.LENGTH_SHORT
+                                                    ).show()
+
+                                                    404 -> Toast.makeText(
+                                                        context,
+                                                        "Playlist no encontrada",
+                                                        Toast.LENGTH_LONG
+                                                    ).show()
+
+                                                    else -> Toast.makeText(
+                                                        context,
+                                                        "Error: ${message ?: "Código $code"}",
+                                                        Toast.LENGTH_LONG
+                                                    ).show()
+                                                }
+                                                showEditPlaylistDialog = false
+                                            }
+                                        } catch (e: NumberFormatException) {
+                                            withContext(Dispatchers.Main) {
+                                                Toast.makeText(
+                                                    context,
+                                                    "ID de playlist inválido",
+                                                    Toast.LENGTH_LONG
+                                                ).show()
+                                            }
+                                        } catch (e: Exception) {
+                                            withContext(Dispatchers.Main) {
+                                                Toast.makeText(
+                                                    context,
+                                                    "Error de conexión",
+                                                    Toast.LENGTH_LONG
+                                                ).show()
+                                            }
                                         }
                                     }
                                 }
-                            }
-                        },
-                        enabled = newPlaylistName.isNotEmpty() && newPlaylistDescription.isNotEmpty(),
-                        colors = ButtonDefaults.buttonColors(containerColor = VibraBlue)
-                    ) {
-                        Text("Guardar", color = VibraBlack)
+                            },
+                            enabled = newPlaylistName.isNotEmpty() && newPlaylistDescription.isNotEmpty(),
+                            colors = ButtonDefaults.buttonColors(containerColor = VibraBlue),
+                            modifier = Modifier
+                                .height(48.dp),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text("Guardar", color = VibraBlack, fontWeight = FontWeight.SemiBold)
+                        }
                     }
                 },
                 dismissButton = {
-                    Button(
-                        onClick = { showEditPlaylistDialog = false },
-                        colors = ButtonDefaults.buttonColors(containerColor = VibraLightGrey)
-                    ) {
-                        Text("Cancelar", color = VibraBlack)
+                    Row(horizontalArrangement = Arrangement.Start) {
+                        Button(
+                            onClick = { showEditPlaylistDialog = false },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E1E1E)),
+                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.4f)),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier
+                                .height(48.dp)
+                        ) {
+                            Text("Cancelar", color = Color.White, fontWeight = FontWeight.Medium)
+                        }
                     }
                 }
             )
@@ -1494,9 +1632,13 @@ private suspend fun getPlaylistAuthor(playlist: Playlist): String = withContext(
 fun StarRatingDialog(
     showDialog: Boolean,
     onDismiss: () -> Unit,
-    onConfirm: (Int) -> Unit
+    onConfirm: (Int) -> Unit,
+    lastRating: Int = 1
 ) {
-    var selectedRating by remember { mutableStateOf(1) }
+    var selectedRating by remember(showDialog, lastRating) {
+        mutableStateOf(lastRating)
+    }
+
 
     if (showDialog) {
         AlertDialog(
@@ -1554,6 +1696,8 @@ fun StarRatingDialog(
 /*
 * Pop up para confirmar si quieres eliminar la lista
 */
+
+
 @Composable
 fun ConfirmationDialog(
     showDialog: Boolean,
@@ -1562,76 +1706,226 @@ fun ConfirmationDialog(
     onConfirm: () -> Unit
 ) {
     if (showDialog) {
-        AlertDialog(
-            onDismissRequest = onDismiss,
-            shape = RoundedCornerShape(16.dp),  // Bordes redondeados
-            title = {
-                Box(
-                    modifier = Modifier.fillMaxWidth(),
-                    contentAlignment = Alignment.Center
+        Dialog(
+            onDismissRequest = onDismiss
+        ) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .wrapContentHeight(),
+                shape = RoundedCornerShape(20.dp),
+                color = Color(0xFF202020)
+            ) {
+                Column(
+                    modifier = Modifier.padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
+                    // Título
                     Text(
                         text = "¿Eliminar playlist?",
                         style = MaterialTheme.typography.titleLarge.copy(
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.SemiBold
                         ),
                         color = Color.White,
-                        textAlign = TextAlign.Center
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
                     )
-                }
-            },
-            text = {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Nombre de la playlist
                     Text(
                         text = "\"$playlistName\"",
-                        style = MaterialTheme.typography.bodyLarge.copy(
+                        style = MaterialTheme.typography.titleMedium.copy(
                             fontWeight = FontWeight.Medium
                         ),
                         color = Color.White,
                         textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(bottom = 8.dp)
+                        modifier = Modifier.padding(bottom = 16.dp)
                     )
 
+                    // Advertencia
                     Text(
                         text = "Esta acción no se puede deshacer",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color.LightGray.copy(alpha = 0.8f),
+                        style = MaterialTheme.typography.titleSmall,
+                        color = Color.White.copy(alpha = 0.7f),
                         textAlign = TextAlign.Center
                     )
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    // Botones
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        // Botón cancelar
+                        OutlinedButton(
+                            onClick = onDismiss,
+                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.4f)),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(48.dp)
+                        ) {
+                            Text(
+                                text = "Cancelar",
+                                color = Color.White,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+
+                        // Botón eliminar
+                        Button(
+                            onClick = onConfirm,
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFFFF6B6B),
+                                contentColor = Color.White
+                            ),
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(48.dp)
+                        ) {
+                            Text(
+                                text = "Eliminar",
+                                color = Color.White,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
                 }
-            },
-            confirmButton = {
-                OutlinedButton(
-                    onClick = onConfirm,
-                    border = BorderStroke(1.dp, Color.Red),
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.padding(end = 8.dp)
+            }
+        }
+    }
+}
+
+@Composable
+fun PlaylistCoverWithEdit(
+    playlistId: String?,
+    playlistInfo: Playlist?,
+    onUpdateSuccess: (JSONObject) -> Unit = {},
+    onUpdateError: (String) -> Unit = {},
+    modifier: Modifier = Modifier,
+    editEnabled: Boolean = true
+) {
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+    var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
+    var isLoading by remember { mutableStateOf(false) }
+    var imageAlpha by remember { mutableStateOf(1f) }
+
+    val galleryLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let { imageUri ->
+            selectedImageUri = imageUri
+
+            coroutineScope.launch {
+                isLoading = true
+                imageAlpha = 0.5f
+                try {
+                    val base64Image = uriToBase64(context, imageUri)
+                    base64Image?.let {
+                        val numericPlaylistId = playlistId?.toIntOrNull() ?: 0
+                        val response = updatePlaylistImage(
+                            numericPlaylistId,
+                            base64Image
+                        )
+
+                        response?.let { jsonResponse ->
+                            if (jsonResponse.has("error")) {
+                                onUpdateError(jsonResponse.getString("error"))
+                            } else {
+                                onUpdateSuccess(jsonResponse)
+                            }
+                        } ?: onUpdateError("Error al actualizar la imagen")
+                    } ?: onUpdateError("No se pudo convertir la imagen")
+                } catch (e: Exception) {
+                    onUpdateError("Error: ${e.localizedMessage ?: "Error desconocido"}")
+                } finally {
+                    isLoading = false
+                    imageAlpha = 1f
+                }
+            }
+        }
+    }
+
+    // Aquí usamos el modifier recibido para ocupar todo el espacio disponible
+    Box(
+        modifier = modifier.fillMaxSize(),
+        contentAlignment = Alignment.BottomEnd
+    ) {
+        // Contenido de imagen según los estados
+        when {
+            isLoading -> {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = "Eliminar",
-                        color = Color.Red,
-                        fontWeight = FontWeight.Bold
+                    val urlAntes = playlistInfo?.imageUrl
+                    // Mantener la imagen anterior con opacidad reducida
+                    AsyncImage(
+                        model = getImageUrl(urlAntes, "/defaultplaylist.jpg"),
+                        contentDescription = "Portada",
+                        placeholder = painterResource(R.drawable.defaultplaylist),
+                        error = painterResource(R.drawable.defaultplaylist),
+                        contentScale = ContentScale.Crop, // Asegura que la imagen cubra todo el espacio
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .alpha(0.5f)
                     )
+                    CircularProgressIndicator()
                 }
-            },
-            dismissButton = {
-                OutlinedButton(
-                    onClick = onDismiss,
-                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.5f)),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Text(
-                        text = "Cancelar",
-                        color = Color.White,
-                        fontWeight = FontWeight.Medium
+            }
+            selectedImageUri != null -> {
+                // Mostrar imagen recién seleccionada
+                Image(
+                    painter = rememberAsyncImagePainter(selectedImageUri),
+                    contentDescription = "Nueva portada de playlist",
+                    contentScale = ContentScale.Crop, // Asegura que la imagen cubra todo el espacio
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .alpha(imageAlpha)
+                )
+            }
+            else -> {
+                // Mostrar la imagen actual
+                val urlAntes = playlistInfo?.imageUrl
+                AsyncImage(
+                    model = getImageUrl(urlAntes, "/defaultplaylist.jpg"), //+ "?t=${System.currentTimeMillis()}"
+                    contentDescription = "Portada",
+                    placeholder = painterResource(R.drawable.defaultplaylist),
+                    error = painterResource(R.drawable.defaultplaylist),
+                    contentScale = ContentScale.Crop, // Asegura que la imagen cubra todo el espacio
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .alpha(imageAlpha)
+                )
+            }
+        }
+
+        if (editEnabled) {
+            // Botón de edición
+            IconButton(
+                onClick = { galleryLauncher.launch("image/*") },
+                modifier = Modifier
+                    .padding(8.dp)
+                    .size(40.dp)
+                    .background(
+                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.85f),
+                        shape = CircleShape
                     )
-                }
-            },
-            containerColor = Color(0xFF2A2A2A)
-        )
+                    .padding(4.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Edit,
+                    contentDescription = "Editar portada",
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        }
     }
 }
 

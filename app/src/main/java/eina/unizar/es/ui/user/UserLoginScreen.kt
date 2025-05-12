@@ -39,6 +39,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.engine.DiskCacheStrategy
+import com.example.musicapp.ui.theme.VibraBlue
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -47,9 +48,9 @@ import kotlinx.coroutines.withContext
 fun UserLoginScreen(navController: NavController, returnTo: String = "") {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    var showError by remember { mutableStateOf(false) } // Nuevo estado para el error
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
+    var errorMessage by remember { mutableStateOf<String?>(null) }
 
     var showForgotPasswordDialog by remember { mutableStateOf(false) }
     var dialogEmail by remember { mutableStateOf("") }
@@ -58,8 +59,6 @@ fun UserLoginScreen(navController: NavController, returnTo: String = "") {
         .currentBackStackEntry
         ?.arguments
         ?.getString("returnTo") ?: ""
-
-
 
     LaunchedEffect(Unit) {
         val sharedPreferences = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
@@ -112,7 +111,7 @@ fun UserLoginScreen(navController: NavController, returnTo: String = "") {
                         .fillMaxWidth()
                         .padding(24.dp)
                 ) {
-                    // Resto del contenido sin cambios...
+                    // Logo
                     Icon(
                         painter = painterResource(id = R.drawable.logoblanco),
                         contentDescription = "Logo de Vibra",
@@ -130,59 +129,81 @@ fun UserLoginScreen(navController: NavController, returnTo: String = "") {
                         modifier = Modifier.padding(top = 0.dp, bottom = 16.dp)
                     )
 
-                Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
 
-                OutlinedTextField(
-                    value = email,
-                    onValueChange = { email = it },
-                    placeholder = { Text("Correo electrónico") },
-                    singleLine = true,
-                    textStyle = TextStyle(color = Color.White),
-                    leadingIcon = { Icon(Icons.Default.Email, contentDescription = "Email Icon") },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = TextFieldDefaults.outlinedTextFieldColors(
-                        cursorColor = Color.White,
-                        focusedBorderColor = Color.Gray,
-                        unfocusedBorderColor = Color.DarkGray
-                    ),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email)
-                )
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                OutlinedTextField(
-                    value = password,
-                    onValueChange = { password = it },
-                    placeholder = { Text("********") },
-                    singleLine = true,
-                    textStyle = TextStyle(color = Color.White),
-                    leadingIcon = { Icon(Icons.Default.Lock, contentDescription = "Password Icon") },
-                    visualTransformation = PasswordVisualTransformation(),
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = TextFieldDefaults.outlinedTextFieldColors(
-                        cursorColor = Color.White,
-                        focusedBorderColor = Color.Gray,
-                        unfocusedBorderColor = Color.DarkGray
-                    ),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
-                )
-
-                if (showError) { // Mostrar el error si showError es true
-                    Text(
-                        text = "Correo o contraseña incorrectos.",
-                        color = Color(0xFFFF6B6B),
-                        modifier = Modifier.padding(top = 8.dp)
+                    OutlinedTextField(
+                        value = email,
+                        onValueChange = {
+                            email = it
+                            errorMessage = null // Limpiar error cuando el usuario escribe
+                        },
+                        placeholder = { Text("Correo electrónico") },
+                        singleLine = true,
+                        textStyle = TextStyle(color = Color.White),
+                        leadingIcon = {
+                            Icon(
+                                Icons.Default.Email,
+                                contentDescription = "Email Icon"
+                            )
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = TextFieldDefaults.outlinedTextFieldColors(
+                            cursorColor = Color.White,
+                            focusedBorderColor = Color.Gray,
+                            unfocusedBorderColor = Color.DarkGray
+                        ),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email)
                     )
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    OutlinedTextField(
+                        value = password,
+                        onValueChange = {
+                            password = it
+                            errorMessage = null // Limpiar error cuando el usuario escribe
+                        },
+                        placeholder = { Text("********") },
+                        singleLine = true,
+                        textStyle = TextStyle(color = Color.White),
+                        leadingIcon = {
+                            Icon(
+                                Icons.Default.Lock,
+                                contentDescription = "Password Icon"
+                            )
+                        },
+                        visualTransformation = PasswordVisualTransformation(),
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = TextFieldDefaults.outlinedTextFieldColors(
+                            cursorColor = Color.White,
+                            focusedBorderColor = Color.Gray,
+                            unfocusedBorderColor = Color.DarkGray
+                        ),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
+                    )
+
+
+                    errorMessage?.let {
+                        Text(
+                            text = it,
+                            color = Color(0xFFFF5252), // Rojo más suave
+                            fontSize = 14.sp,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 8.dp)
+                        )
+                    }
                 }
 
-                Spacer(modifier = Modifier.height(30.dp))
+                Spacer(modifier = Modifier.height(5.dp))
 
+                // Botón Continuar con ancho reducido
                 Button(
                     onClick = {
                         coroutineScope.launch {
-                            val loginSuccess = loginUser(context, email, password)
+                            val (loginSuccess, error) = loginUser(context, email, password)
                             if (loginSuccess) {
-                                if (!returnToRoute.isEmpty()) {
+                                if (returnToRoute.isNotEmpty()) {
                                     navController.navigate(returnToRoute) {
                                         popUpTo("login") { inclusive = true }
                                     }
@@ -196,9 +217,9 @@ fun UserLoginScreen(navController: NavController, returnTo: String = "") {
                                     "Sesión iniciada con éxito",
                                     Toast.LENGTH_LONG
                                 ).show()
-                                showError = false // Ocultar el mensaje de error si el login es correcto.
+                                errorMessage = null
                             } else {
-                                showError = true
+                                errorMessage = error
                             }
                         }
                     },
@@ -208,8 +229,9 @@ fun UserLoginScreen(navController: NavController, returnTo: String = "") {
                     ),
                     shape = RoundedCornerShape(24.dp),
                     modifier = Modifier
-                        .fillMaxWidth()
+                        .fillMaxWidth(0.9f) // Reducir el ancho al 70%
                         .height(50.dp)
+                        .align(Alignment.CenterHorizontally) // Centrar horizontalmente
                 ) {
                     Text(
                         text = "Continuar",
@@ -223,7 +245,8 @@ fun UserLoginScreen(navController: NavController, returnTo: String = "") {
                 Text(
                     text = "o",
                     fontSize = 14.sp,
-                    color = Color.Gray
+                    color = Color.Gray,
+                    modifier = Modifier.align(Alignment.CenterHorizontally) // Centrar horizontalmente
                 )
 
                 Spacer(modifier = Modifier.height(12.dp))
@@ -239,57 +262,69 @@ fun UserLoginScreen(navController: NavController, returnTo: String = "") {
                     text = registerText,
                     fontSize = 13.sp,
                     color = Color.Gray,
-                    modifier = Modifier.clickable { navController.navigate("register") }
-                        .padding(8.dp),
+                    textAlign = TextAlign.Center, // Alinear texto centrado
+                    modifier = Modifier
+                        .clickable { navController.navigate("register") }
+                        .padding(8.dp)
+                        .fillMaxWidth() // Ocupar todo el ancho para poder centrarlo
+                        .align(Alignment.CenterHorizontally), // Centrar horizontalmente
                 )
 
                 Text(
                     text = "¿Has olvidado tu contraseña?",
                     color = Color.White,
-                    textAlign = TextAlign.Center,
+                    textAlign = TextAlign.Center, // Ya tenía alineación centrada
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier
-                        //.align(Alignment.End)
                         .clickable {
-                            coroutineScope.launch {
-                                Log.d("Email", "El email de recuperacion es: " + email)
-                                dialogEmail = email // Pre-carga el email si ya estaba escrito
-                                showForgotPasswordDialog = true
-                            }
+                            dialogEmail = email // Pre-carga el email si ya estaba escrito
+                            showForgotPasswordDialog = true
                         }
                         .padding(top = 4.dp)
+                        .fillMaxWidth() // Ocupar todo el ancho para poder centrarlo
+                        .align(Alignment.CenterHorizontally) // Centrar horizontalmente
                 )
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(32.dp))
             }
         }
-        // Diálogo de recuperación (mantener tal como está)
-        if (showForgotPasswordDialog) {
-            ForgotPasswordDialog(
-                onDismiss = {
-                    showForgotPasswordDialog = false
-                    dialogEmail = ""
-                },
-                onConfirm = { emailValue ->
-                    dialogEmail = emailValue
-                    coroutineScope.launch {
-                        handleForgotPassword(context, emailValue)
-                        showForgotPasswordDialog = false
-                    }
-                },
-                initialEmail = dialogEmail
-            )
-        }
     }
-}
+
+    // Diálogo de recuperación de contraseña
+    if (showForgotPasswordDialog) {
+        ForgotPasswordDialog(
+            onDismiss = {
+                showForgotPasswordDialog = false
+                dialogEmail = ""
+            },
+            onConfirm = { emailValue ->
+                dialogEmail = emailValue
+                coroutineScope.launch {
+                    handleForgotPassword(context, emailValue)
+                    showForgotPasswordDialog = false
+                }
+            },
+            initialEmail = dialogEmail
+        )
+    }
 }
 
 /**
- * Realiza la petición de login a la API y devuelve `true` si las credenciales son correctas.
+ * Realiza la petición de login a la API y devuelve un par con:
+ * - Boolean: true si las credenciales son correctas, false en caso contrario
+ * - String?: mensaje de error en caso de fallo, null si fue exitoso
  */
-suspend fun loginUser(context: Context, email: String, password: String): Boolean {
+suspend fun loginUser(context: Context, email: String, password: String): Pair<Boolean, String?> {
     return withContext(Dispatchers.IO) {
+        if (email.isBlank()) {
+            return@withContext Pair(false, "El correo electrónico no puede estar vacío")
+        }
+
+        if (password.isBlank()) {
+            return@withContext Pair(false, "La contraseña no puede estar vacía")
+        }
+
         val jsonBody = JSONObject().apply {
             put("mail", email)
             put("password", password)
@@ -299,48 +334,57 @@ suspend fun loginUser(context: Context, email: String, password: String): Boolea
 
         try {
             val responseHeaders = mutableMapOf<String, String>()
-            val response = ApiClient.postWithHeaders("user/login", jsonBody, context, responseHeaders)
+            val (statusCode, response) = ApiClient.postWithCode("user/login", jsonBody)
 
-            if (response != null) {
-                val jsonResponse = JSONObject(response)
-                val httpStatus = jsonResponse.optInt("status", 200) // Por si el backend devuelve código HTTP en JSON
-
-                // Verificamos si el servidor ha respondido correctamente
-                if (httpStatus in 200..299) {
-
+            when (statusCode) {
+                in 200..299 -> {
                     // Intentar recuperar el token desde la cabecera
                     var token = responseHeaders["Authorization"]?.replace("Bearer ", "")
 
                     // Si no está en la cabecera, buscarlo en el JSON de respuesta
-                    if (token.isNullOrEmpty() && jsonResponse.has("token")) {
-                        token = jsonResponse.getString("token")
+                    if (token.isNullOrEmpty() && response != null) {
+                        val jsonResponse = JSONObject(response)
+                        if (jsonResponse.has("token")) {
+                            token = jsonResponse.getString("token")
+                        }
                     }
 
                     if (!token.isNullOrEmpty()) {
                         val sharedPreferences = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
-                        sharedPreferences.edit().putString("auth_token", token).apply()  // Cambiado a apply() para mejor rendimiento
-
+                        sharedPreferences.edit().putString("auth_token", token).apply()
                         Log.d("Login", "Token guardado correctamente: $token")
-
-                        /*withContext(Dispatchers.Main) {
-                            Toast.makeText(context, "Inicio de Sesión Exitoso", Toast.LENGTH_LONG).show()
-                        }*/
-
-                        return@withContext true
+                        return@withContext Pair(true, null)
                     } else {
                         Log.e("LoginError", "No se recibió el token ni en la cabecera ni en el JSON")
+                        return@withContext Pair(false, "Error al procesar la respuesta del servidor")
                     }
-                } else {
-                    Log.e("LoginError", "Respuesta del servidor con error: Código HTTP $httpStatus")
                 }
-            } else {
-                Log.e("LoginError", "Respuesta nula del servidor")
+                400 -> {
+                    Log.e("LoginError", "Credenciales inválidas")
+                    return@withContext Pair(false, "Correo o contraseña incorrectos")
+                }
+                401 -> {
+                    Log.e("LoginError", "No autorizado")
+                    return@withContext Pair(false, "Correo o contraseña incorrectos")
+                }
+                403 -> {
+                    Log.e("LoginError", "Usuario no encontrado")
+                    return@withContext Pair(false, "Esta cuenta está conectada en otro dispositivo")
+                }
+                in 500..599 -> {
+                    val errorMessage = response ?: "Error del servidor"
+                    Log.e("LoginError", "Error del servidor ($statusCode): $errorMessage")
+                    return@withContext Pair(false, "Error del servidor: $errorMessage")
+                }
+                else -> {
+                    val errorMessage = response ?: "Error desconocido"
+                    Log.e("LoginError", "Error inesperado ($statusCode): $errorMessage")
+                    return@withContext Pair(false, "Error inesperado: $errorMessage")
+                }
             }
-
-            return@withContext false
         } catch (e: Exception) {
             Log.e("LoginError", "Error en loginUser: ${e.message}", e)
-            return@withContext false
+            return@withContext Pair(false, "Error de conexión: ${e.message}")
         }
     }
 }
@@ -381,15 +425,29 @@ fun ForgotPasswordDialog(
         title = {
             Text(
                 text = "Recuperar contraseña",
+                style = MaterialTheme.typography.titleLarge.copy(
+                    fontWeight = FontWeight.SemiBold
+                ),
                 color = Color.White,
-                modifier = Modifier.fillMaxWidth(),
-                textAlign = TextAlign.Center
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth()
             )
         },
+        modifier = Modifier
+            .widthIn(min = 320.dp, max = 500.dp),
         text = {
             Column(
                 modifier = Modifier.fillMaxWidth()
             ) {
+                Text(
+                    text = "Introduce el correo electrónico para recibir un enlace de recuperación",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = Color.White.copy(alpha = 0.7f),
+                    textAlign = TextAlign.Center
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
                 OutlinedTextField(
                     value = email,
                     onValueChange = { email = it },
@@ -421,17 +479,19 @@ fun ForgotPasswordDialog(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 // Botón Cancelar
-                Button(
+                OutlinedButton(
                     onClick = onDismiss,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color.Transparent,
-                        contentColor = Color.Gray
-                    ),
-                    border = BorderStroke(1.dp, Color.Gray),
-                    shape = RoundedCornerShape(24.dp),
-                    modifier = Modifier.weight(1f)
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.4f)),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp)
                 ) {
-                    Text("Cancelar")
+                    Text(
+                        text = "Cancelar",
+                        color = Color.White,
+                        fontWeight = FontWeight.Medium
+                    )
                 }
 
                 Spacer(modifier = Modifier.width(16.dp))
@@ -439,14 +499,16 @@ fun ForgotPasswordDialog(
                 // Botón Enviar
                 Button(
                     onClick = { onConfirm(email) },
+                    shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF79E2FF),
+                        containerColor = VibraBlue,
                         contentColor = Color.Black
                     ),
-                    shape = RoundedCornerShape(24.dp),
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp)
                 ) {
-                    Text("Enviar")
+                    Text("Enviar", fontWeight = FontWeight.SemiBold)
                 }
             }
         },
