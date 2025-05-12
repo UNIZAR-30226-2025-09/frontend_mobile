@@ -1,7 +1,11 @@
 package com.example.musicapp.ui.song
 
+import android.annotation.SuppressLint
+import android.util.Log
+import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.rememberScrollableState
 import androidx.compose.foundation.gestures.scrollable
@@ -10,210 +14,432 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.FastForward
-import androidx.compose.material.icons.filled.FastRewind
-import androidx.compose.material.icons.filled.Pause
-import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
+import androidx.compose.ui.*
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import eina.unizar.es.R
-import eina.unizar.es.ui.theme.*
+import eina.unizar.es.ui.player.MusicPlayerViewModel
+import androidx.compose.animation.*
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
+import com.example.musicapp.ui.theme.VibraBlue
+import com.example.musicapp.ui.theme.VibraDarkGrey
+import com.example.musicapp.ui.theme.VibraLightGrey
+import com.example.musicapp.ui.theme.VibraMediumGrey
+import eina.unizar.es.data.model.network.ApiClient
+import eina.unizar.es.data.model.network.ApiClient.getImageUrl
+import eina.unizar.es.ui.artist.SongOptionsBottomSheetContent
+import eina.unizar.es.ui.navbar.BottomNavigationBar
+import eina.unizar.es.ui.playlist.getArtistName
+import eina.unizar.es.ui.song.Song
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import org.json.JSONObject
 
+// Añade este enum class para manejar los estados del shuffle
+enum class ShuffleMode {
+    OFF,       // Reproducción normal
+    RANDOM     // Reproducción aleatoria
+}
+
+@SuppressLint("StateFlowValueCalledInComposition")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SongScreen(navController: NavController) {
-    var isPlaying by remember { mutableStateOf(false) }
-    var progress by remember { mutableStateOf(0.1f) }
-    var lyricsExpanded by remember { mutableStateOf(false) } // Estado para expandir la letra
+fun SongScreen(navController: NavController, playerViewModel: MusicPlayerViewModel) {
+    val context = LocalContext.current
+    val currentSong by playerViewModel.currentSong.collectAsState()
+    val isPlaying = currentSong?.isPlaying ?: false
+    val scaffoldState = rememberBottomSheetScaffoldState()
 
-    // Estado de desplazamiento
+    val shuffleMode by playerViewModel.shuffleMode.collectAsState()
+    val isLooping by playerViewModel.isLooping.collectAsState()
+
     val scrollState = rememberScrollState()
+    var showSongOptionsBottomSheet by remember { mutableStateOf(false) }
 
-    Scaffold(
-        containerColor = MaterialTheme.colorScheme.background
+    var idsArtistas by remember { mutableStateOf(listOf<Int>()) }
+    var nombresArtistas by remember { mutableStateOf(listOf<String>()) }
+
+    LaunchedEffect(currentSong?.id) {
+        launch {
+            val response = ApiClient.get("player/details/${currentSong?.id}")
+            response?.let {
+                val jsonObject = JSONObject(it)
+                val artistsArray = jsonObject.getJSONArray("artists")
+
+                val ids = mutableListOf<Int>()
+                val nombres = mutableListOf<String>()
+
+                for (i in 0 until artistsArray.length()) {
+                    val artistObject = artistsArray.getJSONObject(i)
+                    ids.add(artistObject.getInt("id"))
+                    nombres.add(artistObject.getString("name"))
+                }
+
+                idsArtistas = ids
+                nombresArtistas = nombres
+            }
+        }
+    }
+
+    BottomSheetScaffold(
+        scaffoldState = scaffoldState,
+        sheetPeekHeight = 50.dp,
+        sheetContainerColor = Color(0xFF1E1E1E),
+        sheetContentColor = Color.White,
+        sheetShape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+        sheetShadowElevation = 8.dp,
+        sheetContent = {
+            EnhancedLyricsSheet(lyrics = currentSong?.lyrics)
+        }
     ) { innerPadding ->
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
-                .background(MaterialTheme.colorScheme.background)
-                .verticalScroll(scrollState),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            VibraMediumGrey,
+                            VibraMediumGrey,
+                            VibraDarkGrey
+                        )
+                    )
+                )
         ) {
-            Spacer(modifier = Modifier.height(16.dp)) // Bajamos más la imagen y la barra
-
-            // Botón para minimizar la pantalla de canción
-            Row(
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.Start
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .verticalScroll(scrollState),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                IconButton(onClick = { navController.popBackStack() }) {
-                    Icon(
-                        imageVector = Icons.Default.ExpandMore,
-                        contentDescription = "Minimizar",
-                        tint = MaterialTheme.colorScheme.onBackground,
-                        modifier = Modifier.size(32.dp)
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(74.dp))
-
-            // Imagen del álbum (más abajo y centrada)
-            Image(
-                painter = painterResource(id = R.drawable.kanyeperfil),
-                contentDescription = "Portada del álbum",
-                modifier = Modifier
-                    .size(320.dp)
-                    .clip(MaterialTheme.shapes.small)
-                    .background(Color.Gray, RoundedCornerShape(16.dp))
-            )
-
-            Spacer(modifier = Modifier.height(72.dp))
-
-            // Información de la canción
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(
-                    text = "LA RANGER (feat. Myke Towers)",
-                    style = MaterialTheme.typography.titleLarge,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "The Academy: Segunda Misión, Sech, Justin Quiles",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(15.dp)) // Bajamos más la barra de progreso
-
-            // 🔵 Barra de progreso
-            Slider(
-                value = progress,
-                onValueChange = { progress = it },
-                colors = SliderDefaults.colors(
-                    thumbColor = MaterialTheme.colorScheme.primary,
-                    activeTrackColor = MaterialTheme.colorScheme.primary
-                ),
-                modifier = Modifier.fillMaxWidth(0.85f)
-            )
-
-            // Tiempo transcurrido / Duración total
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth(0.85f)
-                    .padding(horizontal = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text("0:03", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface)
-                Text("-3:46", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface)
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Controles de reproducción
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(onClick = { /* Acción: Anterior */ }) {
-                    Icon(Icons.Filled.FastRewind, contentDescription = "Anterior", tint = MaterialTheme.colorScheme.onBackground)
-                }
-                Spacer(modifier = Modifier.width(16.dp))
-
-                FloatingActionButton(
-                    onClick = { isPlaying = !isPlaying },
-                    containerColor = MaterialTheme.colorScheme.primary
+                // Barra superior con información
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 16.dp, start = 16.dp, end = 16.dp)
                 ) {
-                    Icon(
-                        imageVector = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                        contentDescription = if (isPlaying) "Pausar" else "Reproducir",
-                        tint = Color.White
-                    )
-                }
+                    IconButton(
+                        onClick = { navController.popBackStack() },
+                        modifier = Modifier.align(Alignment.CenterStart)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.KeyboardArrowDown,
+                            contentDescription = "Cerrar",
+                            tint = Color.White,
+                            modifier = Modifier.size(32.dp)
+                        )
+                    }
 
-                Spacer(modifier = Modifier.width(16.dp))
-                IconButton(onClick = { /* Acción: Siguiente */ }) {
-                    Icon(Icons.Filled.FastForward, contentDescription = "Siguiente", tint = MaterialTheme.colorScheme.onBackground)
-                }
-            }
+                    IconButton(
+                        onClick = { showSongOptionsBottomSheet = true },
+                        modifier = Modifier.align(Alignment.CenterEnd)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.MoreVert,
+                            contentDescription = "Más opciones",
+                            tint = Color.White
+                        )
+                    }
 
-            Spacer(modifier = Modifier.height(60.dp))
-
-            // Letra de la canción en un rectángulo deslizante
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(500.dp)
-                    .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
-                    .background(MaterialTheme.colorScheme.surface)
-                    .padding(16.dp)
-                    .scrollable(rememberScrollableState { delta ->
-                        if (delta > 0) {
-                            lyricsExpanded = true
+                    // BottomSheet para opciones de la canción
+                    if (showSongOptionsBottomSheet && currentSong != null) {
+                        if (currentSong?.title != "Anuncio Vibra") {
+                            ModalBottomSheet(
+                                onDismissRequest = { showSongOptionsBottomSheet = false },
+                                sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+                            ) {
+                                SongOptionsBottomSheetContent(
+                                    songId = currentSong?.id.toString(),
+                                    viewModel = playerViewModel,
+                                    songTitle = currentSong?.title ?: "",
+                                    artistName = nombresArtistas.toString(),
+                                    onClick = {
+                                        // Aquí puedes manejar la acción de añadir a la cola
+                                        // Por ejemplo, puedes usar el ViewModel para añadir la canción a la cola
+                                        playerViewModel.addToQueue(currentSong?.id.toString())
+                                        Toast.makeText(
+                                            context,
+                                            "Añadido a la cola",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                    }
+                                )
+                            }
                         }
-                        delta
-                    }, orientation = Orientation.Vertical),
-                contentAlignment = Alignment.TopCenter
-            ) {
-                Column(
-                    modifier = Modifier.fillMaxSize(),
+                    }
+                }
 
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    // 🔽 Indicador de que se puede deslizar para ver la letra
+                Spacer(modifier = Modifier.height(40.dp))
+
+                // Portada del álbum
+                AsyncImage(
+                    model = getImageUrl(playerViewModel.currentSong.value?.photo, "default-song.jpg"),
+                    contentDescription = "Portada",
+                    modifier = Modifier
+                        .size(320.dp)
+                        .clip(RoundedCornerShape(8.dp)),
+                    placeholder = painterResource(R.drawable.defaultx),
+                    error = painterResource(R.drawable.defaultx),
+                )
+
+                Spacer(modifier = Modifier.height(48.dp))
+
+                // Información de la canción
+                currentSong?.let { song ->
                     Box(
                         modifier = Modifier
-                            .width(50.dp)
-                            .height(6.dp)
-                            .clip(MaterialTheme.shapes.medium)
-                            .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
-                    )
+                            .fillMaxWidth()
+                            .padding(horizontal = 24.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.align(Alignment.CenterStart)
+                        ) {
+                            Text(
+                                text = song.title,
+                                style = MaterialTheme.typography.headlineMedium,
+                                color = Color.White,
+                                fontSize = 24.sp,
+                                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            nombresArtistas.let {
+                                if (it.isNotEmpty()) {
+                                    Text(
+                                        text = it.joinToString(", "),
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        color = Color.White.copy(alpha = 0.7f)
+                                    )
+                                }
+                            }
+                        }
+                    }
 
-                    Spacer(modifier = Modifier.height(18.dp))
+                    Spacer(modifier = Modifier.height(20.dp))
 
-                    Text(
-                        text = """
-                            LETRA
-                        """.trimIndent(),
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onBackground
-                    )
+                    // Barra de progreso
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 24.dp)
+                    ) {
+                        Slider(
+                            value = currentSong?.progress ?: 0f,
+                            onValueChange = { if (currentSong?.title != "Anuncio Vibra") {playerViewModel.seekTo(it)} },
+                            colors = SliderDefaults.colors(
+                                thumbColor = Color.White,
+                                activeTrackColor = Color.White,
+                                inactiveTrackColor = Color.White.copy(alpha = 0.3f)
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            val currentTime = remember(currentSong?.progress) {
+                                (currentSong?.progress ?: 0f) * (playerViewModel.getDuration() ?: 0L)
+                            }
+                            val duration = playerViewModel.getDuration() ?: 0L
+
+                            Text(
+                                text = formatDuration(currentTime.toLong()),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = Color.White.copy(alpha = 0.7f)
+                            )
+
+                            Text(
+                                text = formatDuration(duration),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = Color.White.copy(alpha = 0.7f)
+                            )
+                        }
+                    }
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // Letra de la canción (desplazable)
-                    Text(
-                        text = """
-                            Primera línea de la canción
-                            Segunda línea de la canción
-                            Tercera línea de la canción
-                            Cuarta línea de la canción
-                            Quinta línea de la canción
-                            Sexta línea de la canción
-                            Séptima línea de la canción
-                            Octava línea de la canción
-                            Novena línea de la canción
-                            Décima línea de la canción
-                        """.trimIndent(),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onBackground
-                    )
+                    // Controles de reproducción
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 24.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        IconButton(
+                            onClick = { if (currentSong?.title != "Anuncio Vibra") {playerViewModel.toggleShuffleMode()} }
+                        ) {
+                            Icon(
+                                imageVector = when (shuffleMode) {
+                                    ShuffleMode.OFF -> Icons.Filled.Shuffle
+                                    ShuffleMode.RANDOM -> Icons.Filled.ShuffleOn
+                                },
+                                contentDescription = when (shuffleMode) {
+                                    ShuffleMode.OFF -> "Activar reproducción"
+                                    ShuffleMode.RANDOM -> "Desactivar aleatorio"
+                                },
+                                tint = when (shuffleMode) {
+                                    ShuffleMode.OFF -> Color.White.copy(alpha = 0.7f)
+                                    ShuffleMode.RANDOM -> VibraBlue
+                                },
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+
+                        IconButton(
+                            onClick = { if (currentSong?.title != "Anuncio Vibra") {playerViewModel.previousSong(context)} },
+                            modifier = Modifier.size(48.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.SkipPrevious,
+                                contentDescription = "Anterior",
+                                tint = Color.White,
+                                modifier = Modifier.size(48.dp)
+                            )
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .size(64.dp)
+                                .background(Color.White, CircleShape)
+                                .clickable { playerViewModel.togglePlayPause() },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = if (!isPlaying) Icons.Filled.PlayArrow else Icons.Filled.Pause,
+                                contentDescription = if (!isPlaying) "Reproducir" else "Pausar",
+                                tint = Color.Black,
+                                modifier = Modifier.size(32.dp)
+                            )
+                        }
+
+                        IconButton(
+                            onClick = { playerViewModel.nextSong(context) },
+                            modifier = Modifier.size(48.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.SkipNext,
+                                contentDescription = "Siguiente",
+                                tint = Color.White,
+                                modifier = Modifier.size(48.dp)
+                            )
+                        }
+
+                        IconButton(onClick = { if (currentSong?.title != "Anuncio Vibra") {playerViewModel.loopSong() }}) {
+                            Icon(
+                                imageVector = if (isLooping) Icons.Filled.RepeatOne else Icons.Filled.Repeat,
+                                contentDescription = if (isLooping) "Desactivar repetición" else "Activar repetición",
+                                tint = if (isLooping) VibraBlue else Color.White.copy(alpha = 0.7f),
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                    }
                 }
+
+                Spacer(modifier = Modifier.height(16.dp))
             }
         }
     }
 }
+
+
+fun formatDuration(ms: Long): String {
+    val totalSeconds = ms / 1000
+    val minutes = totalSeconds / 60
+    val seconds = totalSeconds % 60
+    return String.format("%02d:%02d", minutes, seconds)
+}
+
+
+@Composable
+fun EnhancedLyricsSheet(lyrics: String?) {
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 2.dp)
+            .verticalScroll(rememberScrollState()),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = "LETRA",
+            fontSize = 14.sp,
+            color = Color.Gray,
+            letterSpacing = 1.sp,
+            style = MaterialTheme.typography.labelMedium
+        )
+
+        Spacer(modifier = Modifier.height(20.dp))
+
+        Divider(
+            color = Color.Gray.copy(alpha = 0.2f),
+            thickness = 1.dp,
+            modifier = Modifier.fillMaxWidth(0.1f)
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        if (lyrics.isNullOrEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(200.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(
+                        imageVector = Icons.Default.MusicNote,
+                        contentDescription = null,
+                        tint = Color.Gray.copy(alpha = 0.7f),
+                        modifier = Modifier.size(48.dp)
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = "Lryics no disponibles",
+                        color = Color.Gray,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            }
+        } else {
+            val paragraphs = lyrics.split("\n\n")
+
+            Column(horizontalAlignment = Alignment.Start) {
+                paragraphs.forEachIndexed { index, paragraph ->
+                    val lines = paragraph.split("\n")
+
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        lines.forEach { line ->
+                            Text(
+                                text = line,
+                                color = Color.White,
+                                style = MaterialTheme.typography.bodyLarge,
+                                lineHeight = 28.sp,
+                                modifier = Modifier.padding(vertical = 3.dp)
+                            )
+                        }
+                    }
+
+                    if (index < paragraphs.size - 1) {
+                        Spacer(modifier = Modifier.height(20.dp))
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(40.dp))
+    }
+}
+

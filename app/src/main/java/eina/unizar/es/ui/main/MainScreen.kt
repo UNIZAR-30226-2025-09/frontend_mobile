@@ -1,7 +1,9 @@
 package eina.unizar.es.ui.main
 
+import android.content.Context
 import android.media.MediaPlayer
 import android.util.Log
+import android.webkit.WebView
 import android.widget.ImageView
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
@@ -20,10 +22,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.engine.DiskCacheStrategy
 import eina.unizar.es.R
 import eina.unizar.es.data.model.network.ApiClient
+import eina.unizar.es.ui.player.MusicPlayerViewModel
+import kotlinx.coroutines.delay
 
 
 // Creamos variable para importar a la UI la nueva FontFamily
@@ -34,16 +39,33 @@ val Rubik = FontFamily(
 @Composable
 fun MainScreen(navController: NavController) {
     val context = LocalContext.current
-    var mediaPlayer: MediaPlayer? by remember { mutableStateOf(null) }
+    var lock by remember { mutableStateOf(false) }
+    var animationFinished by remember { mutableStateOf(false) }
 
-    // Musica en segundo plano
+    // Musica en segundo plano y verificación de autenticación
     LaunchedEffect(Unit) {
-        mediaPlayer = MediaPlayer.create(context, R.raw.music_background_inicio)
-        mediaPlayer?.isLooping = true // Para que se repita automáticamente
-        mediaPlayer?.start()
-        // Fetch de ejemplo
-        fetchPlaylists()
-        fetchSongs()
+        val sharedPreferences = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+        val token = sharedPreferences.getString("auth_token", null)
+
+        if (!token.isNullOrEmpty()) {
+            lock = true
+            delay(2000)
+            navController.navigate("menu") {
+                popUpTo(0) { inclusive = true }
+            }
+        }
+    }
+
+    if (!lock) {
+        // Efecto para navegar después de que termine la animación
+        LaunchedEffect(Unit) {
+            // Esperar 3 segundos para que termine la animación
+            delay(2000)
+            // Establecer que la animación ha terminado
+            animationFinished = true
+            // Navegar a la pantalla de login
+            navController.navigate("login")
+        }
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -69,59 +91,122 @@ fun MainScreen(navController: NavController) {
                 .padding(16.dp),
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
-        ) { // Y dentro ...
-            Image(
-                painter = painterResource(id = R.drawable.vibrablanco), // Logo
-                contentDescription = "Logo de Vibra",
+        ) {
+            // Animación SVG con WebView
+            AndroidView(
+                factory = { ctx ->
+                    WebView(ctx).apply {
+                        settings.javaScriptEnabled = true
+                        loadDataWithBaseURL(
+                            null,
+                            """
+                            <!DOCTYPE html>
+                            <html>
+                            <head>
+                                <style>
+                                    body { margin: 0; padding: 0; overflow: hidden; background-color: transparent; }
+                                    svg { width: 100%; height: 100%; }
+                                </style>
+                            </head>
+                            <body>
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 400">
+                                  <defs>
+                                    <style>
+                                      @keyframes revealLine {
+                                        0% { width: 0; }
+                                        30% { width: 100%; }
+                                      }
+                                      
+                                      @keyframes revealLetter {
+                                        0% { opacity: 0; transform: translateY(20px); }
+                                        100% { opacity: 1; transform: translateY(0); }
+                                      }
+                                      
+                                      @keyframes subtlePulse {
+                                        0% { filter: drop-shadow(0 0 0px rgba(255,255,255,0.1)); }
+                                        50% { filter: drop-shadow(0 0 4px rgba(255,255,255,0.4)); }
+                                        100% { filter: drop-shadow(0 0 0px rgba(255,255,255,0.1)); }
+                                      }
+                                      
+                                      .background {
+                                        fill: transparent;
+                                      }
+                                      
+                                      .letter {
+                                        font-family: 'Arial', sans-serif;
+                                        font-weight: 900;
+                                        font-size: 120px;
+                                        fill: #ffffff;
+                                        opacity: 0;
+                                      }
+                                      
+                                      .letter-v { animation: revealLetter 0.4s ease-out forwards 0.1s; }
+                                      .letter-i { animation: revealLetter 0.4s ease-out forwards 0.2s; }
+                                      .letter-b { animation: revealLetter 0.4s ease-out forwards 0.3s; }
+                                      .letter-r { animation: revealLetter 0.4s ease-out forwards 0.4s; }
+                                      .letter-a { animation: revealLetter 0.4s ease-out forwards 0.5s; }
+                                      
+                                      .line {
+                                        stroke: #ffffff;
+                                        stroke-width: 2px;
+                                        height: 2px;
+                                        stroke-dasharray: 1000;
+                                        stroke-dashoffset: 1000;
+                                        animation: subtlePulse 3s infinite 2s;
+                                      }
+                                      
+                                      .top-line {
+                                        animation: revealLine 1s ease-out forwards 0.7s;
+                                        width: 0;
+                                        height: 2px;
+                                        background-color: white;
+                                      }
+                                      
+                                      .bottom-line {
+                                        animation: revealLine 1s ease-out forwards 0.9s;
+                                        width: 0;
+                                        height: 2px;
+                                        background-color: white;
+                                      }
+                                      
+                                      .container {
+                                        animation: subtlePulse 3s infinite 2s;
+                                      }
+                                    </style>
+                                  </defs>
+                                  
+                                  <rect class="background" width="800" height="400" />
+                                  
+                                  <!-- Contenedor para el texto y las líneas -->
+                                  <g class="container">
+                                    <!-- Línea superior -->
+                                    <rect x="250" y="170" width="300" height="2" class="top-line" />
+                                    
+                                    <!-- Letras individuales animadas -->
+                                    <text x="250" y="250" class="letter letter-v">V</text>
+                                    <text x="320" y="250" class="letter letter-i">I</text>
+                                    <text x="350" y="250" class="letter letter-b">B</text>
+                                    <text x="420" y="250" class="letter letter-r">R</text>
+                                    <text x="490" y="250" class="letter letter-a">A</text>
+                                    
+                                    <!-- Línea inferior -->
+                                    <rect x="250" y="270" width="300" height="2" class="bottom-line" />
+                                  </g>
+                                </svg>
+                            </body>
+                            </html>
+                            """,
+                            "text/html",
+                            "UTF-8",
+                            null
+                        )
+                        setBackgroundColor(android.graphics.Color.TRANSPARENT)
+                    }
+                },
                 modifier = Modifier
-                    .size(150.dp)
-                    .padding(bottom = 16.dp)
+                    .fillMaxWidth()
+                    .height(200.dp)
             )
-
-            // Texto de Bienvenida
-            Text(
-                text = "Bienvenido a Vibra",
-                fontSize = 24.sp,
-                color = Color.White,
-                fontWeight = FontWeight.Bold,
-                fontFamily = Rubik
-            )
-
-            // Separador
-            Spacer(modifier = Modifier.height(20.dp))
-
-            // Boton de comenzar
-            Button(
-                onClick = {
-                    mediaPlayer?.stop()
-                    mediaPlayer?.release()
-                    mediaPlayer = null
-                    navController.navigate("login") },
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(android.graphics.Color.parseColor("#79e2ff")),
-                    contentColor = Color.Black
-                ),
-                shape = MaterialTheme.shapes.medium,
-                modifier = Modifier.padding(8.dp)
-            ) { // Dentro del boton el siguiente texto
-                Text(
-                    text = "Comenzar",
-                    fontWeight = FontWeight.Bold,
-                )
-            }
         }
     }
-}
-
-// Como se harían los FETCH
-// Método para obtener playlists y mostrar en Logcat
-suspend fun fetchPlaylists() {
-    val response = ApiClient.get("playlists")
-    Log.d("API_RESPONSE", "Playlists: $response")
-}
-
-// Método para obtener canciones y mostrar en Logcat
-suspend fun fetchSongs() {
-    val response = ApiClient.get("songs")
-    Log.d("API_RESPONSE", "Songs: $response")
 }

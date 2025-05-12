@@ -8,17 +8,8 @@ val VibraBlack = Color(0xFF121212)
 val VibraBlue = Color(0xFF79E2FF)//0xFF1ED760   0xFFEAD137
 val VibraWhite = Color(0xFFFFFFFF)
 val VibraDarkGrey = Color(0xFF121212)
+val VibraMediumGrey = Color(0xFF1c1c1c)
 val VibraLightGrey = Color(0xFFB3B3B3)
-
-
-val LightColorScheme = lightColorScheme(
-    primary = VibraBlue,
-    background = VibraWhite,
-    onBackground = VibraBlack,
-    surface = VibraLightGrey,
-    onSurface = VibraBlack,
-    inverseSurface = VibraDarkGrey,
-)
 
 val DarkColorScheme = darkColorScheme(
     primary = VibraBlue,
@@ -27,4 +18,5 @@ val DarkColorScheme = darkColorScheme(
     surface = VibraDarkGrey,
     onSurface = VibraWhite,
     inverseSurface = VibraLightGrey,
+    primaryContainer = VibraMediumGrey,
 )

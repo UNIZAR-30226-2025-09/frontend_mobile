@@ -18,8 +18,8 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 fun BottomNavigationBar(navController: NavController) {
     val bottomNavItems = listOf(
         "menu" to Icons.Default.Home,
-        "search" to Icons.Default.Search,
-        "library" to Icons.Rounded.Menu,
+        "buscar" to Icons.Default.Search,
+        "tu biblioteca" to Icons.Rounded.Menu,
     )
 
     // Obtener la ruta actual desde el NavController

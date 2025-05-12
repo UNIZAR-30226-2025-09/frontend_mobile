@@ -1,3 +1,5 @@
+import org.gradle.internal.classpath.Instrumented.systemProperty
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -37,9 +39,27 @@ android {
     buildFeatures {
         compose = true
     }
+
+    testOptions {
+        unitTests {
+            isIncludeAndroidResources = true
+            all {
+                systemProperty("robolectric.enabledSdks", "30,31,32,33,34")            }
+        }
+    }
 }
 
 dependencies {
+    implementation(libs.androidx.room.common.jvm)
+    testImplementation (libs.robolectric)
+    testImplementation (libs.androidx.core)
+    testImplementation (libs.androidx.runner.v162)
+    testImplementation (libs.androidx.junit.v121)
+    implementation ("androidx.compose.material3:material3:1.2.0")
+    implementation ("androidx.compose.ui:ui:1.6.0")
+    implementation ("androidx.compose.material:material:1.6.0")
+    implementation("androidx.media3:media3-exoplayer:1.0.0") //Audio de manera remota
+    implementation("io.coil-kt:coil-compose:2.5.0") //Imagenes
     implementation("com.stripe:stripe-android:20.50.0") // SDK de Stripe
     implementation("com.github.bumptech.glide:glide:4.15.1")
     implementation("com.github.bumptech.glide:okhttp3-integration:4.15.1")
@@ -54,6 +74,8 @@ dependencies {
     implementation(libs.androidx.navigation.runtime.ktx)
     implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.compose.material.icons.extended)
+    implementation(libs.androidx.monitor)
+    implementation(libs.androidx.junit.ktx)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
