@@ -46,6 +46,7 @@ import com.example.musicapp.ui.theme.VibraLightGrey
 import com.example.musicapp.ui.theme.VibraWhite
 import eina.unizar.es.R
 import eina.unizar.es.data.model.network.ApiClient.get
+import eina.unizar.es.data.model.network.ApiClient.getCollaborativePlaylists
 import eina.unizar.es.data.model.network.ApiClient.getImageUrl
 import eina.unizar.es.data.model.network.ApiClient.getLikedPlaylists
 import eina.unizar.es.data.model.network.ApiClient.getUserData
@@ -80,6 +81,8 @@ fun LibraryScreen(navController: NavController, playerViewModel: MusicPlayerView
     var newPlaylistDescription by remember { mutableStateOf("") }
 
 
+
+
     // Estado de la barra de navegación inferior
     var selectedItem by remember { mutableStateOf(2) } // 2 es "Biblioteca" por defecto
 
@@ -91,6 +94,7 @@ fun LibraryScreen(navController: NavController, playerViewModel: MusicPlayerView
 
     var playlists by remember { mutableStateOf<List<Playlist>>(emptyList()) }
     var playlistsLike by remember { mutableStateOf<List<Playlist>>(emptyList()) }
+    var collaborativePlaylists by remember { mutableStateOf<List<Playlist>>(emptyList()) }
     val context = LocalContext.current
 
     // Para poder realizar el post del like/unlike
@@ -154,6 +158,23 @@ fun LibraryScreen(navController: NavController, playerViewModel: MusicPlayerView
 
                 // Combinar las listas con la playlist "me gusta" al principio
                 playlists = likedSongsPlaylist + fetchedPlaylists
+            }
+
+            getCollaborativePlaylists(userId)?.let { arr ->
+                collaborativePlaylists = List(arr.length()) { i ->
+                    arr.getJSONObject(i).run {
+                        Playlist(
+                            id = getString("playlistId"),
+                            title = getString("title"),
+                            idAutor = getString("ownerId"),        // ajusta campos según tu JSON
+                            idArtista = "",
+                            description = "",
+                            esPublica = "public",                  // o según tu modelo
+                            esAlbum = "playlist",
+                            imageUrl = getString("front_page")     // o el campo que venga
+                        )
+                    }
+                }
             }
         }
 
@@ -332,8 +353,22 @@ fun LibraryScreen(navController: NavController, playerViewModel: MusicPlayerView
                         }
                     }
 
+                    if (collaborativePlaylists.isNotEmpty()) {
+                        item {
+                            Text(
+                                text = "Playlists colaborativas",
+                                style = MaterialTheme.typography.titleSmall,
+                                color = MaterialTheme.colorScheme.onBackground,
+                                modifier = Modifier.padding(vertical = 8.dp, horizontal = 16.dp)
+                            )
+                        }
+                        items(collaborativePlaylists) { playlist ->
+                            LibraryItem(playlist, navController)
+                        }
+                    }
+
                     // Optional: Show a message if no playlists exist
-                    if (playlists.isEmpty() && playlistsLike.isEmpty()) {
+                    if (playlists.isEmpty() && playlistsLike.isEmpty() && collaborativePlaylists.isEmpty()) {
                         item {
                             Text(
                                 text = "No tienes playlists aún",
