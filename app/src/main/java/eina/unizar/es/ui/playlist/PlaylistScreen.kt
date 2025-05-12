@@ -1,6 +1,5 @@
 package eina.unizar.es.ui.playlist
 
-
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -1101,6 +1100,7 @@ fun BottomSheetContent(
             
             $webUrl
             """.trimIndent())
+            type = "text/plain"
         }
 
         context.startActivity(Intent.createChooser(shareIntent, "Compartir playlist"))
