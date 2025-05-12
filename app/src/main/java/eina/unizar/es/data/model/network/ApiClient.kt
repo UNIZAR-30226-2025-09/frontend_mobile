@@ -24,10 +24,10 @@ import java.io.ByteArrayOutputStream
 import java.io.DataOutputStream
 
 object ApiClient {
-    //const val BASE_URL = "http://10.0.2.2/request/api" // Usa la IP local del backend
-    //const val BASE_URL_IMG = "http://10.0.2.2/request"
-    const val BASE_URL = "http://164.90.160.181/request/api" // Usa la IP publica (nube) del backend
-    const val BASE_URL_IMG = "http://164.90.160.181/request"
+    const val BASE_URL = "http://10.0.2.2/request/api" // Usa la IP local del backend
+    const val BASE_URL_IMG = "http://10.0.2.2/request"
+    //const val BASE_URL = "http://164.90.160.181/request/api" // Usa la IP publica (nube) del backend
+    //const val BASE_URL_IMG = "http://164.90.160.181/request"
 
 
 
@@ -198,67 +198,87 @@ object ApiClient {
 
 
     /**
-     * Performs a user logout by making an API request to invalidate the session token.
+     * Cierra la sesión del usuario actualizando su estado de conexión a 'false' en el servidor.
      *
-     * This function:
-     * 1. Retrieves the authentication token from SharedPreferences
-     * 2. Makes a POST request to the logout endpoint with the token
-     * 3. Clears the stored token upon successful logout
-     * 4. Navigates back to the login screen
-     * 5. Displays appropriate Toast messages for success or failure
+     * Esta función:
+     * 1. Recupera el token de autenticación desde SharedPreferences
+     * 2. Envía el token al servidor para actualizar el estado de conexión del usuario
+     * 3. Elimina el token almacenado localmente
+     * 4. Navega de vuelta a la pantalla de inicio de sesión
+     * 5. Muestra mensajes adecuados según el resultado de la operación
      *
-     * @param context The application context used to access SharedPreferences and display Toast messages
-     * @param navController The NavController used to navigate to the login screen after logout
-     *
-     * @throws Exception If there's an error during the network request or token processing
+     * @param context El contexto de la aplicación para acceder a SharedPreferences y mostrar mensajes
+     * @param navController El NavController para navegar a la pantalla de inicio de sesión
      */
     suspend fun logoutUser(context: Context, navController: NavController) {
         withContext(Dispatchers.IO) {
             try {
-                val sharedPreferences =
-                    context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+                // Obtiene el token de SharedPreferences
+                val sharedPreferences = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
                 val token = sharedPreferences.getString("auth_token", null)
 
-                if (token.isNullOrEmpty()) {
-                    Log.e("Logout", "No hay token guardado, no se puede cerrar sesión")
+                // Envía la solicitud de cierre de sesión al servidor
+                val client = OkHttpClient()
+                val request = Request.Builder()
+                    .url("$BASE_URL/user/logout")
+                    .header("Authorization", "Bearer $token")
+                    .post("".toRequestBody(null))
+                    .build()
+
+                client.newCall(request).execute().use { response ->
+                    // Incluso si hay error, procedemos con el cierre de sesión local
+                    Log.d("Logout", "Respuesta del servidor: ${response.code}")
+
+                    // Elimina el token y otros datos de usuario de SharedPreferences
                     withContext(Dispatchers.Main) {
-                        Toast.makeText(context, "Error: No has iniciado sesión", Toast.LENGTH_LONG)
-                            .show()
-                    }
-                    return@withContext
-                }
+                        sharedPreferences.edit().apply {
+                            remove("auth_token")
+                            remove("user_id")
+                            remove("user_name")
+                            remove("user_email")
+                            remove("user_picture")
+                            remove("is_premium")
+                            apply()
+                        }
 
-                val jsonBody = JSONObject()  // No enviamos datos, solo la petición con el token
-                val headers = mutableMapOf<String, String>("Authorization" to "Bearer $token")
-
-                val response = ApiClient.postWithHeaders("user/logout", jsonBody, context, headers)
-
-                if (response != null) {
-                    // Eliminar el token de SharedPreferences
-                    sharedPreferences.edit().remove("auth_token").apply()
-
-                    Log.d("Logout", "Sesión cerrada correctamente")
-
-                    withContext(Dispatchers.Main) {
-                        Toast.makeText(context, "Sesión cerrada correctamente", Toast.LENGTH_LONG)
-                            .show()
-
-                        // Navegar al login y limpiar historial de navegación
+                        // Navega a la pantalla de inicio de sesión
                         navController.navigate("login") {
                             popUpTo(0) { inclusive = true }
                         }
-                    }
-                } else {
-                    Log.e("Logout", "Error al cerrar sesión: respuesta nula")
-                    withContext(Dispatchers.Main) {
-                        Toast.makeText(context, "Error al cerrar sesión", Toast.LENGTH_LONG).show()
+
+                        // Muestra un mensaje de éxito
+                        Toast.makeText(
+                            context,
+                            "Sesión cerrada correctamente",
+                            Toast.LENGTH_SHORT
+                        ).show()
                     }
                 }
             } catch (e: Exception) {
-                Log.e("LogoutError", "Error cerrando sesión: ${e.message}")
+                Log.e("Logout", "Error al cerrar sesión: ${e.message}")
+
+                // Aún con error, cerramos sesión localmente
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(context, "Error inesperado al cerrar sesión", Toast.LENGTH_LONG)
-                        .show()
+                    val sharedPreferences = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+                    sharedPreferences.edit().apply {
+                        remove("auth_token")
+                        remove("user_id")
+                        remove("user_name")
+                        remove("user_email")
+                        remove("user_picture")
+                        remove("is_premium")
+                        apply()
+                    }
+
+                    navController.navigate("login") {
+                        popUpTo(0) { inclusive = true }
+                    }
+
+                    Toast.makeText(
+                        context,
+                        "Sesión cerrada correctamente",
+                        Toast.LENGTH_SHORT
+                    ).show()
                 }
             }
         }

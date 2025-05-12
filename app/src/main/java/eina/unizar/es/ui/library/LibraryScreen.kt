@@ -5,6 +5,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.items
 import android.util.Log
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -33,6 +34,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -391,10 +393,16 @@ fun LibraryScreen(navController: NavController, playerViewModel: MusicPlayerView
                 onDismissRequest = { showCreatePlaylistDialog = false },
                 title = {
                     Text(
-                        "Nombre de la playlist",
-                        color = MaterialTheme.colorScheme.onBackground
+                        text = "Crear Playlist",
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontWeight = FontWeight.SemiBold
+                        ),
+                        color = Color.White,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
                     )
-                }, // OnBackground
+                },
+                containerColor = Color(0xFF1E1E1E),
                 text = {
                     Column {
                         // Campo para el nombre (obligatorio)
@@ -440,7 +448,7 @@ fun LibraryScreen(navController: NavController, playerViewModel: MusicPlayerView
                     }
                 },
                 confirmButton = {
-                    Row(horizontalArrangement = Arrangement.Start) { // Alineamos a la izquierda
+                    Row(horizontalArrangement = Arrangement.End) { // Alineamos a la izquierda
                         Spacer(modifier = Modifier.width(48.dp)) // Agregamos un margen izquierdo
                         Button(
                             onClick = {
@@ -451,24 +459,34 @@ fun LibraryScreen(navController: NavController, playerViewModel: MusicPlayerView
                                     showCreatePlaylistDialog = false
                                 }
                             },
-                            shape = RoundedCornerShape(16.dp),
+                            shape = RoundedCornerShape(12.dp),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = if (newPlaylistName.isNotEmpty()) VibraBlue else VibraLightGrey
                             ),
+                            modifier = Modifier
+                                .height(48.dp),
                             enabled = newPlaylistName.isNotEmpty()
                         ) {
-                            Text("Confirmar", color = VibraBlack)
+                            Text("Confirmar", fontWeight = FontWeight.SemiBold)
                         }
                     }
                 },
                 dismissButton = {
                     Row(horizontalArrangement = Arrangement.Start) { // Alineamos a la izquierda
                         Spacer(modifier = Modifier.width(0.dp)) // Agregamos un margen izquierdo
-                        Button(
+                        // Botón Cancelar
+                        OutlinedButton(
                             onClick = { showCreatePlaylistDialog = false },
-                            colors = ButtonDefaults.buttonColors(containerColor = VibraLightGrey)
+                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.4f)),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier
+                                .height(48.dp),
                         ) {
-                            Text("Cancelar", color = VibraBlack)
+                            Text(
+                                text = "Cancelar",
+                                color = Color.White,
+                                fontWeight = FontWeight.Medium
+                            )
                         }
                     }
                 }

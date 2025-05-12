@@ -1793,7 +1793,18 @@ fun BottomSheetContent(
         if (showEditPlaylistDialog) {
             AlertDialog(
                 onDismissRequest = { showEditPlaylistDialog = false },
-                title = { Text("Editar playlist", color = MaterialTheme.colorScheme.onBackground) },
+                title = {
+                    Text(
+                        text = "Editar Playlist",
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontWeight = FontWeight.SemiBold
+                        ),
+                        color = Color.White,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                },
+                containerColor = Color(0xFF1E1E1E),
                 text = {
                     Column {
                         OutlinedTextField(
@@ -1810,6 +1821,8 @@ fun BottomSheetContent(
                                 .padding(bottom = 8.dp)
                         )
 
+                        Spacer(modifier = Modifier.height(16.dp))
+
                         OutlinedTextField(
                             value = newPlaylistDescription,
                             onValueChange = { newPlaylistDescription = it },
@@ -1825,61 +1838,96 @@ fun BottomSheetContent(
                     }
                 },
                 confirmButton = {
-                    Button(
-                        onClick = {
-                            if (newPlaylistName.isNotEmpty() && newPlaylistDescription.isNotEmpty()) {
-                                CoroutineScope(Dispatchers.IO).launch {
-                                    try {
-                                        // Manejo seguro del ID
-                                        val id = playlistId?.toInt() ?: throw NumberFormatException("ID inválido")
+                    Row(horizontalArrangement = Arrangement.End) {
+                        Spacer(modifier = Modifier.width(48.dp))
+                        Button(
+                            onClick = {
+                                if (newPlaylistName.isNotEmpty() && newPlaylistDescription.isNotEmpty()) {
+                                    CoroutineScope(Dispatchers.IO).launch {
+                                        try {
+                                            // Manejo seguro del ID
+                                            val id = playlistId?.toInt()
+                                                ?: throw NumberFormatException("ID inválido")
 
-                                        // Validación de la URL de imagen
-                                        val safeImageUrl = if (playlistImage.isNullOrBlank()) {
-                                            "defaultplaylist.jpg"
-                                        } else {
-                                            playlistImage
-                                        }
-                                        Log.d("Error", "Id de la lista editada: " + id)
-                                        val (code, message) = updatePlaylist(
-                                            id = id,
-                                            name = newPlaylistName,
-                                            description = newPlaylistDescription,
-                                            frontPage = safeImageUrl,
-                                            context = context
-                                        )
-
-                                        withContext(Dispatchers.Main) {
-                                            when (code) {
-                                                200 -> Toast.makeText(context, "Playlist actualizada", Toast.LENGTH_SHORT).show()
-                                                404 -> Toast.makeText(context, "Playlist no encontrada", Toast.LENGTH_LONG).show()
-                                                else -> Toast.makeText(context, "Error: ${message ?: "Código $code"}", Toast.LENGTH_LONG).show()
+                                            // Validación de la URL de imagen
+                                            val safeImageUrl = if (playlistImage.isNullOrBlank()) {
+                                                "defaultplaylist.jpg"
+                                            } else {
+                                                playlistImage
                                             }
-                                            showEditPlaylistDialog = false
-                                        }
-                                    } catch (e: NumberFormatException) {
-                                        withContext(Dispatchers.Main) {
-                                            Toast.makeText(context, "ID de playlist inválido", Toast.LENGTH_LONG).show()
-                                        }
-                                    } catch (e: Exception) {
-                                        withContext(Dispatchers.Main) {
-                                            Toast.makeText(context, "Error de conexión", Toast.LENGTH_LONG).show()
+                                            Log.d("Error", "Id de la lista editada: " + id)
+                                            val (code, message) = updatePlaylist(
+                                                id = id,
+                                                name = newPlaylistName,
+                                                description = newPlaylistDescription,
+                                                frontPage = safeImageUrl,
+                                                context = context
+                                            )
+
+                                            withContext(Dispatchers.Main) {
+                                                when (code) {
+                                                    200 -> Toast.makeText(
+                                                        context,
+                                                        "Playlist actualizada",
+                                                        Toast.LENGTH_SHORT
+                                                    ).show()
+
+                                                    404 -> Toast.makeText(
+                                                        context,
+                                                        "Playlist no encontrada",
+                                                        Toast.LENGTH_LONG
+                                                    ).show()
+
+                                                    else -> Toast.makeText(
+                                                        context,
+                                                        "Error: ${message ?: "Código $code"}",
+                                                        Toast.LENGTH_LONG
+                                                    ).show()
+                                                }
+                                                showEditPlaylistDialog = false
+                                            }
+                                        } catch (e: NumberFormatException) {
+                                            withContext(Dispatchers.Main) {
+                                                Toast.makeText(
+                                                    context,
+                                                    "ID de playlist inválido",
+                                                    Toast.LENGTH_LONG
+                                                ).show()
+                                            }
+                                        } catch (e: Exception) {
+                                            withContext(Dispatchers.Main) {
+                                                Toast.makeText(
+                                                    context,
+                                                    "Error de conexión",
+                                                    Toast.LENGTH_LONG
+                                                ).show()
+                                            }
                                         }
                                     }
                                 }
-                            }
-                        },
-                        enabled = newPlaylistName.isNotEmpty() && newPlaylistDescription.isNotEmpty(),
-                        colors = ButtonDefaults.buttonColors(containerColor = VibraBlue)
-                    ) {
-                        Text("Guardar", color = VibraBlack)
+                            },
+                            enabled = newPlaylistName.isNotEmpty() && newPlaylistDescription.isNotEmpty(),
+                            colors = ButtonDefaults.buttonColors(containerColor = VibraBlue),
+                            modifier = Modifier
+                                .height(48.dp),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text("Guardar", color = VibraBlack, fontWeight = FontWeight.SemiBold)
+                        }
                     }
                 },
                 dismissButton = {
-                    Button(
-                        onClick = { showEditPlaylistDialog = false },
-                        colors = ButtonDefaults.buttonColors(containerColor = VibraLightGrey)
-                    ) {
-                        Text("Cancelar", color = VibraBlack)
+                    Row(horizontalArrangement = Arrangement.Start) {
+                        Button(
+                            onClick = { showEditPlaylistDialog = false },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E1E1E)),
+                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.4f)),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier
+                                .height(48.dp)
+                        ) {
+                            Text("Cancelar", color = Color.White, fontWeight = FontWeight.Medium)
+                        }
                     }
                 }
             )
