@@ -1248,16 +1248,16 @@ fun FriendItem(
                 if (friend.unreadCount > 0) {
                     Box(
                         modifier = Modifier
-                            .size(24.dp)
+                            .size(18.dp)
                             .background(
-                                color = MaterialTheme.colorScheme.primary,
+                                color = Color(0xFFFF6B6B),
                                 shape = CircleShape
                             ),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
                             text = if (friend.unreadCount > 99) "99+" else friend.unreadCount.toString(),
-                            color = MaterialTheme.colorScheme.onPrimary,
+                            color = Color.White,
                             style = MaterialTheme.typography.bodySmall,
                             fontWeight = FontWeight.Bold
                         )
