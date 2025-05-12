@@ -729,51 +729,83 @@ fun ChatScreen(
                                                 strokeWidth = 2.dp
                                             )
                                         } else {
-                                            TextButton(
-                                                onClick = {
-                                                    coroutineScope.launch {
-                                                        val keysList = sharedJson.keys().asSequence().toList()
-                                                        Log.d("ChatScreen", "sharedJson keys = $keysList")
-                                                        processingMap[message.id] = true
-                                                        sharedJson.optString("playlist_id")
-                                                            .takeIf(String::isNotEmpty)
-                                                            ?.let { plId ->
-                                                                ApiClient.acceptCollaboration(
-                                                                    plId,
-                                                                    context
-                                                                )
-                                                            }
-                                                        loadMessages()
-                                                        processingMap[message.id] = false
-                                                    }
-                                                }
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.Center,
+                                                verticalAlignment = Alignment.CenterVertically
                                             ) {
-                                                Text("Aceptar")
-                                            }
+                                                OutlinedButton(
+                                                    onClick = {
+                                                        coroutineScope.launch {
+                                                            processingMap[message.id] = true
 
-                                            Spacer(Modifier.width(8.dp))
+                                                            val keysList = sharedJson.keys().asSequence().toList()
+                                                            Log.d("ChatScreen", "sharedJson keys = $keysList")
 
-                                            TextButton(
-                                                onClick = {
-                                                    coroutineScope.launch {
-                                                        processingMap[message.id] = true
-                                                        sharedJson.optString("playlist_id")
-                                                            .takeIf(String::isNotEmpty)
-                                                            ?.let { plId ->
-                                                                ApiClient.rejectCollaboration(
-                                                                    plId,
-                                                                    context
-                                                                )
+                                                            // 1) Extrae y loggea el playlist_id
+                                                            val plId = sharedJson.optString("playlist_id")
+                                                            Log.d("ChatScreen", ">> attempting rejectCollab with playlist_id='$plId'")
+
+                                                            // 2) Si plId no está vacío, llama a la API
+                                                            plId.takeIf(String::isNotEmpty)?.let { id ->
+                                                                ApiClient.rejectCollaboration(id, context)
+                                                            } ?: run {
+                                                                Log.e("ChatScreen", "playlist_id vacío, no llamo a la API")
                                                             }
-                                                        loadMessages()
-                                                        processingMap[message.id] = false
-                                                    }
+
+                                                            // 3) Refresca y quita el flag
+                                                            loadMessages()
+                                                            processingMap[message.id] = false
+                                                        }
+                                                    },
+                                                    colors = ButtonDefaults.outlinedButtonColors(
+                                                        contentColor = MaterialTheme.colorScheme.error
+                                                    ),
+                                                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.error),
+                                                    modifier = Modifier.weight(1f)
+                                                ) {
+                                                    Text(
+                                                        "Rechazar",
+                                                        style = MaterialTheme.typography.bodyMedium
+                                                    )
                                                 }
-                                            ) {
-                                                Text(
-                                                    "Rechazar",
-                                                    color = MaterialTheme.colorScheme.error
-                                                )
+
+                                                Spacer(Modifier.width(16.dp))
+
+                                                Button(
+                                                    onClick = {
+                                                        coroutineScope.launch {
+                                                            processingMap[message.id] = true
+
+                                                            val keysList = sharedJson.keys().asSequence().toList()
+                                                            Log.d("ChatScreen", "sharedJson keys = $keysList")
+
+                                                            // 1) Extrae y loggea el playlist_id
+                                                            val plId = sharedJson.optString("playlist_id")
+                                                            Log.d("ChatScreen", ">> attempting acceptCollab with playlist_id='$plId'")
+
+                                                            // 2) Si plId no está vacío, llama a la API
+                                                            plId.takeIf(String::isNotEmpty)?.let { id ->
+                                                                ApiClient.acceptCollaboration(id, context)
+                                                            } ?: run {
+                                                                Log.e("ChatScreen", "playlist_id vacío, no llamo a la API")
+                                                            }
+
+                                                            // 3) Refresca y quita el flag
+                                                            loadMessages()
+                                                            processingMap[message.id] = false
+                                                        }
+                                                    },
+                                                    modifier = Modifier.weight(1f),
+                                                    colors = ButtonDefaults.buttonColors(
+                                                        containerColor = MaterialTheme.colorScheme.primary
+                                                    )
+                                                ) {
+                                                    Text(
+                                                        "Aceptar",
+                                                        style = MaterialTheme.typography.bodyMedium
+                                                    )
+                                                }
                                             }
                                         }
                                     }

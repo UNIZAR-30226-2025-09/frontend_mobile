@@ -163,17 +163,29 @@ fun LibraryScreen(navController: NavController, playerViewModel: MusicPlayerView
             }
 
             getCollaborativePlaylists(userId)?.let { arr ->
+
+                // Debug: imprime las claves de cada JSONObject
+                for (i in 0 until arr.length()) {
+                    arr.optJSONObject(i)?.let { obj ->
+                        val keys = obj.names()?.run {
+                            (0 until length()).map { idx -> optString(idx) }
+                        } ?: listOf()
+                        Log.d("LibraryScreen", "collab[${i}] keys = $keys")
+                    }
+                }
+
+
                 collaborativePlaylists = List(arr.length()) { i ->
                     arr.getJSONObject(i).run {
                         Playlist(
-                            id = getString("playlistId"),
-                            title = getString("title"),
-                            idAutor = getString("ownerId"),        // ajusta campos según tu JSON
-                            idArtista = "",
-                            description = "",
-                            esPublica = "public",                  // o según tu modelo
-                            esAlbum = "playlist",
-                            imageUrl = getString("front_page")     // o el campo que venga
+                            id          = optString("id", ""),             // antes: playlistId
+                            title       = optString("name", ""),           // antes: title
+                            idAutor     = optString("user_id", ""),        // antes: ownerId
+                            idArtista   = optString("artist_id", ""),      // o vacío si no te interesa
+                            description = optString("description", ""),    // aprovéchalo si quieres
+                            esPublica   = optString("type", "public"),     // o revisa typeP
+                            esAlbum     = optString("typeP", "playlist"), // antes fijo “playlist”
+                            imageUrl    = optString("front_page", "")      // tal cual
                         )
                     }
                 }

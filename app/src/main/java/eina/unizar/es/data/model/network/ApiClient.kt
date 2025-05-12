@@ -2713,7 +2713,7 @@ object ApiClient {
         val sharedPreferences = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
         val token = sharedPreferences.getString("auth_token", null)
 
-        val url = URL("$BASE_URL/collaborators/$playlistId/pending")
+        val url = URL("$BASE_URL/collaborators/$playlistId/pending-invitations")
         (url.openConnection() as HttpURLConnection).run {
             requestMethod = "GET"
             setRequestProperty("Authorization", "Bearer $token")
@@ -2840,7 +2840,7 @@ object ApiClient {
         val sharedPreferences = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
         val token = sharedPreferences.getString("auth_token", null)
 
-        val url = URL("$BASE_URL/collaborators/$playlistId")
+        val url = URL("$BASE_URL/collaborators/$playlistId/collaborators")
         (url.openConnection() as HttpURLConnection).run {
             requestMethod = "GET"
             setRequestProperty("Authorization", "Bearer $token")
