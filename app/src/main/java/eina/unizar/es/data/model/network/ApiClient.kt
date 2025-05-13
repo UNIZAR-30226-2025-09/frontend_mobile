@@ -7,6 +7,7 @@ import android.net.Uri
 import android.util.Log
 import android.widget.Toast
 import androidx.navigation.NavController
+import eina.unizar.es.ui.playlist.CollaboratorItem
 import eina.unizar.es.ui.playlist.Playlist
 import eina.unizar.es.ui.song.Song
 import kotlinx.coroutines.Dispatchers
@@ -24,6 +25,10 @@ import java.io.ByteArrayOutputStream
 import java.io.DataOutputStream
 
 object ApiClient {
+    //const val BASE_URL = "http://10.0.2.2/request/api" // Usa la IP local del backend
+    //const val BASE_URL_IMG = "http://10.0.2.2/request"
+    const val BASE_URL = "http://164.90.160.181/request/api" // Usa la IP publica (nube) del backend
+    const val BASE_URL_IMG = "http://164.90.160.181/request"
     //const val BASE_URL = "http://10.0.2.2/request/api" // Usa la IP local del backend
     //const val BASE_URL_IMG = "http://10.0.2.2/request"
     const val BASE_URL = "http://164.90.160.181/request/api" // Usa la IP publica (nube) del backend
@@ -2665,6 +2670,298 @@ object ApiClient {
             return@withContext null
         }
     }
+
+    /**
+     * Invita a un colaborador a una playlist.
+     * POST /collaborators/invite { playlistId, userId }
+     */
+    suspend fun inviteCollaborator(
+        playlistId: String,
+        userId: String,
+        context: Context
+    ): JSONObject? = withContext(Dispatchers.IO) {
+
+        val sharedPreferences = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+        val token = sharedPreferences.getString("auth_token", null)
+
+        val url = URL("$BASE_URL/collaborators/invite")
+        (url.openConnection() as HttpURLConnection).run {
+            requestMethod = "POST"
+            setRequestProperty("Content-Type", "application/json")
+            setRequestProperty("Authorization", "Bearer $token")
+            doOutput = true
+            connectTimeout = 15000
+            readTimeout = 15000
+
+            val body = JSONObject().apply {
+                put("playlistId", playlistId)
+                put("userId", userId)
+            }.toString()
+
+            outputStream.use { it.write(body.toByteArray()) }
+            if (responseCode in 200..299) {
+                return@withContext inputStream.bufferedReader().readText().let(::JSONObject)
+            }
+            return@withContext null
+        }
+    }
+
+    /**
+     * Obtiene invitaciones pendientes de una playlist.
+     * GET /collaborators/{playlistId}/pending
+     */
+    suspend fun getPendingInvitations(
+        playlistId: String,
+        context: Context
+    ): JSONObject? = withContext(Dispatchers.IO) {
+
+        val sharedPreferences = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+        val token = sharedPreferences.getString("auth_token", null)
+
+        val url = URL("$BASE_URL/collaborators/$playlistId/pending-invitations")
+        (url.openConnection() as HttpURLConnection).run {
+            requestMethod = "GET"
+            setRequestProperty("Authorization", "Bearer $token")
+            connectTimeout = 10000
+            readTimeout = 10000
+
+            if (responseCode in 200..299) {
+                return@withContext inputStream.bufferedReader().readText().let(::JSONObject)
+            }
+            return@withContext null
+        }
+    }
+
+    /**
+     * Acepta una invitación.
+     * POST /collaborators/accept { playlistId }
+     */
+    suspend fun acceptCollaboration(
+        playlistId: String,
+        context: Context
+    ): JSONObject? = withContext(Dispatchers.IO) {
+
+        val sharedPreferences = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+        val token = sharedPreferences.getString("auth_token", null)
+
+        val url = URL("$BASE_URL/collaborators/accept")
+        (url.openConnection() as HttpURLConnection).run {
+            requestMethod = "POST"
+            setRequestProperty("Content-Type", "application/json")
+            setRequestProperty("Authorization", "Bearer $token")
+            doOutput = true
+            connectTimeout = 15000
+            readTimeout = 15000
+
+            val body = JSONObject().apply {
+                put("playlistId", playlistId)
+            }.toString()
+
+            outputStream.use { it.write(body.toByteArray()) }
+            if (responseCode in 200..299) {
+                return@withContext inputStream.bufferedReader().readText().let(::JSONObject)
+            }
+            return@withContext null
+        }
+    }
+
+    /**
+     * Rechaza una invitación.
+     * POST /collaborators/reject { playlistId }
+     */
+    suspend fun rejectCollaboration(
+        playlistId: String,
+        context: Context
+    ): JSONObject? = withContext(Dispatchers.IO) {
+
+        val sharedPreferences = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+        val token = sharedPreferences.getString("auth_token", null)
+
+        val url = URL("$BASE_URL/collaborators/reject")
+        (url.openConnection() as HttpURLConnection).run {
+            requestMethod = "POST"
+            setRequestProperty("Content-Type", "application/json")
+            setRequestProperty("Authorization", "Bearer $token")
+            doOutput = true
+            connectTimeout = 15000
+            readTimeout = 15000
+
+            val body = JSONObject().apply {
+                put("playlistId", playlistId)
+            }.toString()
+
+            outputStream.use { it.write(body.toByteArray()) }
+            if (responseCode in 200..299) {
+                return@withContext inputStream.bufferedReader().readText().let(::JSONObject)
+            }
+            return@withContext null
+        }
+    }
+
+    /**
+     * Elimina a un colaborador de la playlist.
+     * POST /collaborators/remove { playlistId, userId }
+     */
+    suspend fun removeCollaborator(
+        playlistId: String,
+        userId: String,
+        context: Context
+    ): JSONObject? = withContext(Dispatchers.IO) {
+
+        val sharedPreferences = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+        val token = sharedPreferences.getString("auth_token", null)
+
+        val url = URL("$BASE_URL/collaborators/remove")
+        (url.openConnection() as HttpURLConnection).run {
+            requestMethod = "DELETE"
+            setRequestProperty("Content-Type", "application/json")
+            setRequestProperty("Authorization", "Bearer $token")
+            doOutput = true
+            connectTimeout = 15000
+            readTimeout = 15000
+
+            val body = JSONObject().apply {
+                put("playlistId", playlistId)
+                put("userId", userId)
+            }.toString()
+
+            outputStream.use { it.write(body.toByteArray()) }
+            if (responseCode in 200..299) {
+                return@withContext inputStream.bufferedReader().readText().let(::JSONObject)
+            }
+            return@withContext null
+        }
+    }
+
+    /**
+     * Función para obtener los colaboradores de una playlist específica.
+     *
+     * @param context Contexto de la aplicación para acceder a SharedPreferences.
+     * @param playlistId ID de la playlist para la que se solicitan los colaboradores.
+     * @return JSONObject con los colaboradores o `null` en caso de error.
+     */
+    suspend fun getPlaylistCollaborators(context: Context, playlistId: String): JSONObject? {
+        return withContext(Dispatchers.IO) {
+            try {
+                // Obtener el token desde SharedPreferences
+                val sharedPreferences = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+                val token = sharedPreferences.getString("auth_token", null)
+
+                if (token.isNullOrEmpty()) {
+                    Log.e("API", "Token no disponible para obtener colaboradores")
+                    return@withContext null
+                }
+
+                val client = OkHttpClient()
+
+                val request = Request.Builder()
+                    .url("$BASE_URL/collaborators/$playlistId/collaborators")
+                    .get()
+                    .addHeader("Content-Type", "application/json")
+                    .addHeader("Accept", "application/json")
+                    .addHeader("Authorization", "Bearer $token")
+                    .build()
+
+                Log.d("API", "Solicitando colaboradores para la playlist: $playlistId")
+
+                client.newCall(request).execute().use { response ->
+                    val responseBody = response.body?.string()
+
+                    if (!response.isSuccessful) {
+                        Log.e("API", "Error al obtener colaboradores: código ${response.code}, cuerpo: $responseBody")
+                        if (responseBody != null) {
+                            // Devolver la respuesta de error para manejarla adecuadamente
+                            return@withContext JSONObject(responseBody)
+                        }
+                        null
+                    } else {
+                        Log.d("API", "Colaboradores obtenidos: $responseBody")
+                        if (responseBody != null) {
+                            JSONObject(responseBody)
+                        } else {
+                            null
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("ApiClient", "Error en getPlaylistCollaborators: ${e.message}")
+                e.printStackTrace()
+                null
+            }
+        }
+    }
+
+    /**
+     * Función que procesa el JSON de respuesta de colaboradores.
+     *
+     * @param response El objeto JSONObject devuelto por getPlaylistCollaborators.
+     * @return Lista de objetos CollaboratorItem o lista vacía si hay error.
+     */
+    fun processCollaborators(response: JSONObject?): List<CollaboratorItem> {
+        if (response == null) return emptyList()
+
+        val collaboratorsList = mutableListOf<CollaboratorItem>()
+
+        try {
+            // Verificamos si existe la clave "collaborators" en el JSON
+            if (response.has("collaborators")) {
+                val collaboratorsArray = response.getJSONArray("collaborators")
+
+                for (i in 0 until collaboratorsArray.length()) {
+                    val collaboratorObj = collaboratorsArray.getJSONObject(i)
+
+                    // Obtenemos el objeto User anidado
+                    val userObj = collaboratorObj.optJSONObject("User")
+
+                    if (userObj != null) {
+                        // Extracción segura de campos con valores por defecto
+                        val collaborator = CollaboratorItem(
+                            id = userObj.optString("id", ""),
+                            nickname = userObj.optString("nickname", "Usuario desconocido"),
+                            pictureUrl = userObj.optString("user_picture", "")
+                        )
+
+                        // Solo añadimos colaboradores que tienen id válido
+                        if (collaborator.id.isNotEmpty()) {
+                            collaboratorsList.add(collaborator)
+                            Log.d("Collaborators", "Agregado colaborador: ${collaborator.nickname} con ID: ${collaborator.id}")
+                        }
+                    }
+                }
+            } else {
+                Log.w("Collaborators", "El JSON no contiene la clave 'collaborators'")
+            }
+
+        } catch (e: Exception) {
+            Log.e("Collaborators", "Error procesando colaboradores: ${e.message}", e)
+        }
+
+        Log.d("Collaborators", "Total de colaboradores procesados: ${collaboratorsList.size}")
+        return collaboratorsList
+    }
+
+    /**
+     * Obtiene playlists donde el usuario es colaborador.
+     * GET /collaborators/playlists-for-user/{userId}
+     */
+    suspend fun getCollaborativePlaylists(
+        userId: String
+    ): JSONArray? = withContext(Dispatchers.IO) {
+        val url = URL("$BASE_URL/collaborators/playlists-for-user/$userId")
+        (url.openConnection() as HttpURLConnection).run {
+            requestMethod = "GET"
+            connectTimeout = 10000
+            readTimeout = 10000
+
+            if (responseCode in 200..299) {
+                return@withContext inputStream.bufferedReader().readText().let(::JSONArray)
+            }
+            return@withContext null
+        }
+    }
+
+
+
 
     /**
      * Obtiene el último estado de reproducción para un usuario.

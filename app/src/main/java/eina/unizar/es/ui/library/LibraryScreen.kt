@@ -48,6 +48,7 @@ import com.example.musicapp.ui.theme.VibraLightGrey
 import com.example.musicapp.ui.theme.VibraWhite
 import eina.unizar.es.R
 import eina.unizar.es.data.model.network.ApiClient.get
+import eina.unizar.es.data.model.network.ApiClient.getCollaborativePlaylists
 import eina.unizar.es.data.model.network.ApiClient.getImageUrl
 import eina.unizar.es.data.model.network.ApiClient.getLikedPlaylists
 import eina.unizar.es.data.model.network.ApiClient.getUserData
@@ -82,6 +83,8 @@ fun LibraryScreen(navController: NavController, playerViewModel: MusicPlayerView
     var newPlaylistDescription by remember { mutableStateOf("") }
 
 
+
+
     // Estado de la barra de navegación inferior
     var selectedItem by remember { mutableStateOf(2) } // 2 es "Biblioteca" por defecto
 
@@ -93,6 +96,7 @@ fun LibraryScreen(navController: NavController, playerViewModel: MusicPlayerView
 
     var playlists by remember { mutableStateOf<List<Playlist>>(emptyList()) }
     var playlistsLike by remember { mutableStateOf<List<Playlist>>(emptyList()) }
+    var collaborativePlaylists by remember { mutableStateOf<List<Playlist>>(emptyList()) }
     val context = LocalContext.current
 
     // Para poder realizar el post del like/unlike
@@ -156,6 +160,35 @@ fun LibraryScreen(navController: NavController, playerViewModel: MusicPlayerView
 
                 // Combinar las listas con la playlist "me gusta" al principio
                 playlists = likedSongsPlaylist + fetchedPlaylists
+            }
+
+            getCollaborativePlaylists(userId)?.let { arr ->
+
+                // Debug: imprime las claves de cada JSONObject
+                for (i in 0 until arr.length()) {
+                    arr.optJSONObject(i)?.let { obj ->
+                        val keys = obj.names()?.run {
+                            (0 until length()).map { idx -> optString(idx) }
+                        } ?: listOf()
+                        Log.d("LibraryScreen", "collab[${i}] keys = $keys")
+                    }
+                }
+
+
+                collaborativePlaylists = List(arr.length()) { i ->
+                    arr.getJSONObject(i).run {
+                        Playlist(
+                            id          = optString("id", ""),             // antes: playlistId
+                            title       = optString("name", ""),           // antes: title
+                            idAutor     = optString("user_id", ""),        // antes: ownerId
+                            idArtista   = optString("artist_id", ""),      // o vacío si no te interesa
+                            description = optString("description", ""),    // aprovéchalo si quieres
+                            esPublica   = optString("type", "public"),     // o revisa typeP
+                            esAlbum     = optString("typeP", "playlist"), // antes fijo “playlist”
+                            imageUrl    = optString("front_page", "")      // tal cual
+                        )
+                    }
+                }
             }
         }
 
@@ -334,8 +367,22 @@ fun LibraryScreen(navController: NavController, playerViewModel: MusicPlayerView
                         }
                     }
 
+                    if (collaborativePlaylists.isNotEmpty()) {
+                        item {
+                            Text(
+                                text = "Playlists colaborativas",
+                                style = MaterialTheme.typography.titleSmall,
+                                color = MaterialTheme.colorScheme.onBackground,
+                                modifier = Modifier.padding(vertical = 8.dp, horizontal = 16.dp)
+                            )
+                        }
+                        items(collaborativePlaylists) { playlist ->
+                            LibraryItem(playlist, navController)
+                        }
+                    }
+
                     // Optional: Show a message if no playlists exist
-                    if (playlists.isEmpty() && playlistsLike.isEmpty()) {
+                    if (playlists.isEmpty() && playlistsLike.isEmpty() && collaborativePlaylists.isEmpty()) {
                         item {
                             Text(
                                 text = "No tienes playlists aún",

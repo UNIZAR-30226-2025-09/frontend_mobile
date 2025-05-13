@@ -253,19 +253,31 @@ fun SongScreen(navController: NavController, playerViewModel: MusicPlayerViewMod
                             val currentTime = remember(currentSong?.progress) {
                                 (currentSong?.progress ?: 0f) * (playerViewModel.getDuration() ?: 0L)
                             }
-                            val duration = playerViewModel.getDuration() ?: 0L
+                            val duration = playerViewModel.getDuration()
 
-                            Text(
-                                text = formatDuration(currentTime.toLong()),
-                                style = MaterialTheme.typography.labelMedium,
-                                color = Color.White.copy(alpha = 0.7f)
-                            )
+                            if (duration == 0L || currentSong?.progress == 0f) {
+                                // Mostrar círculo de carga centrado
+                                Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(16.dp),
+                                        color = Color.White.copy(alpha = 0.7f),
+                                        strokeWidth = 2.dp
+                                    )
+                                }
+                            } else {
+                                // Mostrar los tiempos cuando estén disponibles
+                                Text(
+                                    text = formatDuration(currentTime.toLong()),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = Color.White.copy(alpha = 0.7f)
+                                )
 
-                            Text(
-                                text = formatDuration(duration),
-                                style = MaterialTheme.typography.labelMedium,
-                                color = Color.White.copy(alpha = 0.7f)
-                            )
+                                    Text(
+                                    text = formatDuration(duration!!),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = Color.White.copy(alpha = 0.7f)
+                                )
+                            }
                         }
                     }
 

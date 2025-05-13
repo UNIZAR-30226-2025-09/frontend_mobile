@@ -4,7 +4,6 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
-import android.media.Image
 import android.net.Uri
 import android.util.Log
 import android.widget.Toast
@@ -15,9 +14,11 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -31,20 +32,26 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.MusicOff
 import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarOutline
-import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -52,7 +59,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.PathSegment
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -84,10 +90,12 @@ import coil.compose.rememberAsyncImagePainter
 import eina.unizar.es.data.model.network.ApiClient.checkIfSongIsLiked
 import eina.unizar.es.data.model.network.ApiClient.getImageUrl
 import eina.unizar.es.data.model.network.ApiClient.getLikedSongsPlaylist
+import eina.unizar.es.data.model.network.ApiClient.getPlaylistCollaborators
 import eina.unizar.es.data.model.network.ApiClient.getSongDetails
 import eina.unizar.es.data.model.network.ApiClient.isPlaylistOwner
 import eina.unizar.es.data.model.network.ApiClient.likeUnlikeSong
 import eina.unizar.es.data.model.network.ApiClient.post
+import eina.unizar.es.data.model.network.ApiClient.processCollaborators
 import eina.unizar.es.data.model.network.ApiClient.recordPlaylistVisit
 import eina.unizar.es.data.model.network.ApiClient.updatePlaylist
 import eina.unizar.es.data.model.network.ApiClient.togglePlaylistType
@@ -104,7 +112,6 @@ import eina.unizar.es.ui.user.UserColorManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.net.URLEncoder
@@ -113,6 +120,14 @@ import java.net.URLEncoder
 enum class SortOption {
     TITULO, DURACION, ARTISTA
 }
+
+data class PendingInvitationItem(
+    val playlistId: String,
+    val invitationId: String,
+    val userId: String,
+    val nickname: String,
+    val message: String
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -154,6 +169,12 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
         label = "searchFieldWidth"
     )
 
+    // Los estados para el diálogo:
+    var collaborators by remember { mutableStateOf<List<CollaboratorItem>>(emptyList()) }
+    var pendingInvitesCollaborate by remember { mutableStateOf<List<CollaboratorItem>>(emptyList()) }
+    val pendingInvites = remember { mutableStateListOf<PendingInvitationItem>() }
+    var newInviteUserId by remember { mutableStateOf("") }
+
     // Estado del LazyColumn para detectar scroll y aplicar efecto en el header
     val lazyListState = rememberLazyListState()
     val imageSize = 150.dp
@@ -170,6 +191,10 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
 
     // Reproducir la musica
     val context = LocalContext.current
+
+
+
+    var needToRefreshCollaborators by remember { mutableStateOf(false) }
 
     // Alpha para el título en el TopAppBar: aparece gradualmente conforme se hace scroll
     val topTitleAlpha = if (lazyListState.firstVisibleItemIndex > 0) {
@@ -188,6 +213,15 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
     val coroutineScope = rememberCoroutineScope()
     var userId by remember { mutableStateOf("") }
     var soyPropietario by remember { mutableStateOf(false) }
+
+    // Estado para los colaboradores
+    var showCollaboratorsDialog by remember { mutableStateOf(false) }
+    val colorManager = remember { UserColorManager(context) }
+
+    var needToRefresh by remember { mutableStateOf(false) }
+
+
+
 
     // Función para cambiar el estado de "me gusta" de una canción
     fun toggleSongLike(songId: Int, userId: String) {
@@ -338,6 +372,15 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
         }
     }
 
+    LaunchedEffect(needToRefresh) {
+        if (needToRefresh) {
+            Log.d("Collaborators", "Refrescando colaboradores…")
+            val resp = getPlaylistCollaborators(context, playlistId!!)
+            val processed = processCollaborators(resp)
+            Log.d("Collaborators", "Colaboradores obtenidos: $processed")
+        }
+    }
+
     var playlistAuthor by remember { mutableStateOf("Cargando...") }
 
     // Usamos un scope de corrutina para manejar la operación asíncrona y cancelarla si es necesario
@@ -478,7 +521,7 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                                 .padding(16.dp)
                                 .clip(RoundedCornerShape(8.dp))
                                 .shadow(8.dp)
-                        ){
+                        ) {
                             PlaylistCoverWithEdit(
                                 playlistId = playlistInfo?.id,
                                 playlistInfo = playlistInfo,
@@ -560,17 +603,18 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                                     .padding(start = 24.dp, end = 12.dp)
                             ) {
                                 // Mostrar la descripción solo si existe y no es "Sencillo" o "null"
-                                playlistInfo?.description?.takeIf { it.isNotBlank() && it != "Sencillo" && it != "null" }?.let { description ->
-                                    Text(
-                                        text = description,
-                                        style = MaterialTheme.typography.bodyMedium.copy(
-                                            color = secondaryTextColor,
-                                            lineHeight = 20.sp
-                                        ),
-                                        maxLines = 3, // Límite de líneas
-                                        overflow = TextOverflow.Ellipsis // Puntos suspensivos si es muy largo
-                                    )
-                                }
+                                playlistInfo?.description?.takeIf { it.isNotBlank() && it != "Sencillo" && it != "null" }
+                                    ?.let { description ->
+                                        Text(
+                                            text = description,
+                                            style = MaterialTheme.typography.bodyMedium.copy(
+                                                color = secondaryTextColor,
+                                                lineHeight = 20.sp
+                                            ),
+                                            maxLines = 3, // Límite de líneas
+                                            overflow = TextOverflow.Ellipsis // Puntos suspensivos si es muy largo
+                                        )
+                                    }
                             }
 
                             // Rating con fondo redondeado (siempre visible)
@@ -791,8 +835,12 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                                             // Si es otra playlist o no está reproduciendo nada, cargar las canciones
                                             if (playlistId != null && filteredSongs.isNotEmpty()) {
                                                 playerViewModel.loadSongsFromPlaylist(
-                                                    convertSongsToCurrentSongs(filteredSongs, filteredSongs.size),
-                                                    filteredSongs.firstOrNull()?.id.toString() ?: "",
+                                                    convertSongsToCurrentSongs(
+                                                        filteredSongs,
+                                                        filteredSongs.size
+                                                    ),
+                                                    filteredSongs.firstOrNull()?.id.toString()
+                                                        ?: "",
                                                     context,
                                                     playlistId
                                                 )
@@ -939,7 +987,11 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                                         // Aquí puedes manejar la acción de añadir a la cola
                                         // Por ejemplo, puedes usar el ViewModel para añadir la canción a la cola
                                         playerViewModel.addToQueue(song.id.toString())
-                                        Toast.makeText(context, "Añadido a la cola", Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(
+                                            context,
+                                            "Añadido a la cola",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
                                     }
                                 )
                             }
@@ -975,11 +1027,13 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                             val response = post("ratingPlaylist/${playlistId}/rate", ratingJson)
                             if (response != null) {
                                 // Opcionalmente recargar el promedio después de valorar
-                                val ratingResponse = withContext(Dispatchers.IO) { get("ratingPlaylist/$playlistId/rating") }
+                                val ratingResponse =
+                                    withContext(Dispatchers.IO) { get("ratingPlaylist/$playlistId/rating") }
                                 ratingResponse?.let {
                                     val json = JSONObject(it)
                                     val avgRating = json.optString("averageRating", "0.0")
-                                    averageRating = avgRating.toDoubleOrNull() ?: 0.0 // Convertir a Double
+                                    averageRating =
+                                        avgRating.toDoubleOrNull() ?: 0.0 // Convertir a Double
                                 }
                             }
                         }
@@ -994,7 +1048,10 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                     sheetState = sheetState
                 ) {
                     var urlAntes = playlistInfo?.imageUrl
-                    val playlistImage = getImageUrl(urlAntes, "defaultplaylist.jpg")+ "?t=${System.currentTimeMillis()}"
+                    val playlistImage = getImageUrl(
+                        urlAntes,
+                        "defaultplaylist.jpg"
+                    ) + "?t=${System.currentTimeMillis()}"
 
                     playlistInfo?.let { playlist ->
                         // Log para debuggear valores justo antes de mostrar el BottomSheet
@@ -1017,12 +1074,527 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                             },
                             onPlaylistUpdated = { updatedPlaylist ->
                                 playlistInfo = updatedPlaylist
-                            }
+                                needToRefresh = true
+                            },
+                            collaborators = collaborators,
+                            onCollaboratorsUpdated = { newCollaborators ->
+                                collaborators = newCollaborators
+                            },
+                            newInviteUserId = newInviteUserId,
+                            onNewInviteUserIdChange = { newInviteUserId = it },
+                            onShowCollaboratorsDialogChange = { showCollaboratorsDialog = true },
+                            showCollaboratorsDialog = showCollaboratorsDialog,
+                            pendingInvites = pendingInvites,
+                            pendingInvitesCollaborate = pendingInvitesCollaborate,
+                            onPendingInvitesUpdated = { pendingInvitesCollaborate = it }
                         )
                     }
                 }
             }
+                // Dialogo para los colaboradores
+            if (showCollaboratorsDialog) {
+                AlertDialog(
+                    onDismissRequest = { showCollaboratorsDialog = false },
+                    title = {
+                        Text(
+                            text = "Colaboradores de la Playlist",
+                            style = MaterialTheme.typography.titleLarge.copy(
+                                fontWeight = FontWeight.SemiBold
+                            ),
+                            color = Color.White,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    },
+                    containerColor = Color(0xFF1E1E1E),
+                    text = {
+                        Column {
+                            // Sección Colaboradores actuales con flecha desplegable
+                            var showCollaborators by remember { mutableStateOf(false) }
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        needToRefreshCollaborators = true
+                                        showCollaborators = !showCollaborators
+                                    }
+                                    .padding(vertical = 8.dp)
+                            ) {
+                                Spacer(Modifier.height(16.dp))
 
+                                Icon(
+                                    if (showCollaborators) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowRight,
+                                    contentDescription = "Expandir colaboradores",
+                                    modifier = Modifier.size(24.dp)
+                                )
+                                Text(
+                                    "Colaboradores actuales",
+                                    style = MaterialTheme.typography.titleMedium
+                                )
+
+                            }
+
+                            AnimatedVisibility(
+                                visible = showCollaborators,
+                                enter = fadeIn() + expandVertically(),
+                                exit = fadeOut() + shrinkVertically()
+                            ) {
+                                Column(Modifier.padding(start = 16.dp)) {
+                                    if (collaborators.isEmpty()) {
+                                        Text("No hay colaboradores actualmente",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    } else {
+                                        LazyColumn(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .heightIn(max = 200.dp)
+                                        ) {
+                                            items(collaborators) { collaborator ->
+                                                // Comprobar si el colaborador es el propietario
+                                                var soyPropietarioCollab = collaborator.id == userId
+                                                if (soyPropietario && soyPropietarioCollab){
+                                                    soyPropietarioCollab = true
+                                                }
+                                                else{
+                                                    soyPropietarioCollab = false
+                                                }
+                                                Row(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .padding(vertical = 8.dp),
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    // Avatar
+                                                    if (collaborator.pictureUrl == "null" || collaborator.pictureUrl.isEmpty()) {
+                                                        val userProfileColor = remember(collaborator.id) {
+                                                            colorManager.getUserProfileColor(collaborator.id)
+                                                        }
+
+
+                                                        Box(
+                                                            modifier = Modifier
+                                                                .size(48.dp)
+                                                                .background(userProfileColor, CircleShape)
+                                                                .clip(CircleShape),
+                                                            contentAlignment = Alignment.Center
+                                                        ) {
+                                                            Text(
+                                                                text = collaborator.nickname.take(1).uppercase(),
+                                                                style = MaterialTheme.typography.bodyLarge,
+                                                                color = Color.White
+                                                            )
+                                                        }
+                                                    } else {
+                                                        AsyncImage(
+                                                            model = ImageRequest.Builder(context)
+                                                                .data(getImageUrl(collaborator.pictureUrl))
+                                                                .crossfade(true)
+                                                                .build(),
+                                                            contentDescription = "Foto de perfil",
+                                                            modifier = Modifier
+                                                                .size(48.dp)
+                                                                .clip(CircleShape),
+                                                            contentScale = ContentScale.Crop
+                                                        )
+                                                    }
+
+                                                    Spacer(modifier = Modifier.width(16.dp))
+
+                                                    // Nombre
+                                                    Text(
+                                                        text = collaborator.nickname,
+                                                        style = MaterialTheme.typography.bodyLarge,
+                                                        modifier = Modifier.weight(1f),
+                                                        color = MaterialTheme.colorScheme.onSurface
+                                                    )
+
+                                                    Spacer(modifier = Modifier.width(8.dp))
+
+                                                    if (soyPropietarioCollab == false) {
+                                                        // Botón de eliminar
+                                                        IconButton(
+                                                            onClick = {
+                                                                coroutineScope.launch {
+                                                                    if (playlistId != null) {
+                                                                        ApiClient.removeCollaborator(
+                                                                            playlistId,
+                                                                            collaborator.id,
+                                                                            context
+                                                                        )
+                                                                    }
+                                                                    // Refrescar lista tras eliminar
+                                                                    val nuevaListaColaboradores = collaborators.filterNot { it.id == collaborator.id }
+                                                                    collaborators = nuevaListaColaboradores
+                                                                }
+                                                            },
+                                                            modifier = Modifier
+                                                                .size(40.dp)
+                                                        ) {
+                                                            Icon(
+                                                                Icons.Default.Delete,
+                                                                contentDescription = "Eliminar",
+                                                                tint = MaterialTheme.colorScheme.error,
+                                                                modifier = Modifier.size(24.dp)
+                                                            )
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            Spacer(Modifier.height(16.dp))
+
+                            /*****************************/
+                            var showPendingInvites by remember { mutableStateOf(false) }
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        showPendingInvites = !showPendingInvites
+
+
+                                        if (showPendingInvites) {
+                                            pendingInvitesCollaborate = emptyList()
+
+                                            coroutineScope.launch {
+                                                playlistId?.let { pid ->
+                                                    Log.d("PendingInvites", "Fetching pending invitations for $pid")
+                                                    val resp = ApiClient.getPendingInvitations(pid, context)
+                                                    Log.d("PendingInvites", "Raw response: $resp")
+
+                                                    resp
+                                                        ?.optJSONArray("pendingInvitations")
+                                                        ?.let { arr ->
+                                                            for (i in 0 until arr.length()) {
+                                                                arr.optJSONObject(i)?.let { obj ->
+                                                                    val invite = CollaboratorItem(
+                                                                        id = obj.optString("id"),
+                                                                        nickname     = obj.optString("nickname"),
+                                                                        pictureUrl   = obj.optString("pictureUrl")
+                                                                    )
+                                                                    pendingInvitesCollaborate += invite
+                                                                }
+                                                            }
+                                                            Log.d("PendingInvites", "Parsed invites: $pendingInvitesCollaborate")
+                                                        }
+                                                }
+                                            }
+                                        }
+                                    }
+                                    .padding(vertical = 8.dp)
+                            ) {
+                                Icon(
+                                    if (showPendingInvites) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowRight,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                                Spacer(Modifier.width(4.dp))
+                                Text("Invitaciones pendientes", style = MaterialTheme.typography.titleMedium)
+                            }
+
+                            // ───────────────────────────────────────────────────────────
+                            // Contenido expandible
+                            // ───────────────────────────────────────────────────────────
+                            AnimatedVisibility(
+                                visible = showPendingInvites,
+                                enter = fadeIn() + expandVertically(),
+                                exit = fadeOut() + shrinkVertically()
+                            ) {
+                                if (pendingInvitesCollaborate.isEmpty()) {
+                                    Text(
+                                        "No hay invitaciones pendientes",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.padding(start = 16.dp, top = 8.dp)
+                                    )
+                                } else {
+                                    LazyColumn(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .heightIn(max = 200.dp)
+                                            .padding(start = 16.dp, top = 8.dp)
+                                    ) {
+                                        items(pendingInvitesCollaborate) { invite ->
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(vertical = 8.dp),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                // Avatar
+                                                if (invite.pictureUrl == "null" || invite.pictureUrl.isEmpty()) {
+                                                    val userProfileColor = remember(invite.id) {
+                                                        colorManager.getUserProfileColor(invite.id)
+                                                    }
+
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .size(48.dp)
+                                                            .background(userProfileColor, CircleShape)
+                                                            .clip(CircleShape),
+                                                        contentAlignment = Alignment.Center
+                                                    ) {
+                                                        Text(
+                                                            text = invite.nickname.take(1).uppercase(),
+                                                            style = MaterialTheme.typography.bodyLarge,
+                                                            color = Color.White
+                                                        )
+                                                    }
+                                                } else {
+                                                    AsyncImage(
+                                                        model = ImageRequest.Builder(context)
+                                                            .data(getImageUrl(invite.pictureUrl))
+                                                            .crossfade(true)
+                                                            .build(),
+                                                        contentDescription = "Foto de perfil",
+                                                        modifier = Modifier
+                                                            .size(48.dp)
+                                                            .clip(CircleShape),
+                                                        contentScale = ContentScale.Crop
+                                                    )
+                                                }
+
+
+                                                Spacer(Modifier.width(16.dp))
+
+                                                // Nombre
+                                                Text(
+                                                    text = invite.nickname,
+                                                    style = MaterialTheme.typography.bodyLarge,
+                                                    modifier = Modifier.weight(1f),
+                                                    color = MaterialTheme.colorScheme.onSurface
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                                /*********************************/
+                            Spacer(Modifier.height(16.dp))
+
+                            // Sección para invitar amigos como colaboradores
+                            var showFriendSelection by remember { mutableStateOf(false) }
+                            var friends by remember { mutableStateOf<List<Friend>>(emptyList()) }
+                            var isLoadingFriends by remember { mutableStateOf(false) }
+
+                            // Botón para mostrar selección de amigos
+                            Button(
+                                onClick = {
+                                    showFriendSelection = true
+                                    // Cargar amigos cuando se pulsa el botón
+                                    if (friends.isEmpty()) {
+                                        isLoadingFriends = true
+                                        coroutineScope.launch {
+                                            try {
+                                                val friendsArray = ApiClient.getFriendsList(context)
+                                                if (friendsArray != null) {
+                                                    val friendsList = mutableListOf<Friend>()
+
+                                                    for (i in 0 until friendsArray.length()) {
+                                                        val friend = friendsArray.getJSONObject(i)
+                                                        friendsList.add(
+                                                            Friend(
+                                                                id = friend.getString("friendId"),
+                                                                name = friend.getString("nickname"),
+                                                                photo = friend.optString("user_picture", "")
+                                                            )
+                                                        )
+                                                    }
+
+                                                    friends = friendsList
+                                                }
+                                            } catch (e: Exception) {
+                                                Log.e("CollaboratorsDialog", "Error cargando amigos: ${e.message}")
+                                            } finally {
+                                                isLoadingFriends = false
+                                            }
+                                        }
+                                    }
+                                },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 8.dp),
+                                shape = RoundedCornerShape(8.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Default.PersonAdd,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                    Text("Seleccionar amigos para invitar")
+                                }
+                            }
+
+                            // Diálogo de selección de amigos
+                            if (showFriendSelection) {
+                                AlertDialog(
+                                    onDismissRequest = { showFriendSelection = false },
+                                    title = {
+                                        Text(
+                                            text = "Invitar amigos como colaboradores",
+                                            style = MaterialTheme.typography.titleLarge.copy(
+                                                fontWeight = FontWeight.SemiBold
+                                            ),
+                                            color = Color.White,
+                                            textAlign = TextAlign.Center,
+                                            modifier = Modifier.fillMaxWidth()
+                                        )
+                                    },
+                                    containerColor = Color(0xFF1E1E1E),
+                                    text = {
+                                        Column {
+                                            if (isLoadingFriends) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .height(200.dp),
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    CircularProgressIndicator()
+                                                }
+                                            } else if (friends.isEmpty()) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .padding(vertical = 32.dp),
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    Text(
+                                                        "No tienes amigos disponibles para invitar",
+                                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                                                    )
+                                                }
+                                            } else {
+                                                LazyColumn(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .heightIn(max = 300.dp)
+                                                ) {
+                                                    var noHayAmigos = false
+                                                    items(friends) { friend ->
+                                                        // Solo mostrar amigos que no son ya colaboradores
+                                                        Log.d("Amigos", "Amigo: ${friend.name}, ID: ${friend.id}")
+                                                        if (collaborators.none { it.id == friend.id }) {
+                                                            noHayAmigos = true
+                                                            FriendCollaboratorItem(
+                                                                friend = friend,
+                                                                colorManager = UserColorManager(context),
+                                                                onClick = {
+                                                                    // Invitar al amigo como colaborador
+                                                                    if (playlistId != null) {
+                                                                        coroutineScope.launch {
+                                                                            ApiClient.inviteCollaborator(
+                                                                                playlistId,
+                                                                                friend.id,
+                                                                                context
+                                                                            )?.also {
+                                                                                // Opcional: recargar pendientes tras invitar
+                                                                                ApiClient.getPendingInvitations(playlistId, context)
+                                                                                    ?.let { resp ->
+                                                                                        pendingInvites.clear()
+                                                                                        val arr = resp.optJSONArray("pendingInvitations")
+                                                                                        for (i in 0 until (arr?.length() ?: 0)) {
+                                                                                            arr!!.optJSONObject(i)?.let { obj ->
+                                                                                                pendingInvites += PendingInvitationItem(
+                                                                                                    invitationId = obj.optString("id"),
+                                                                                                    userId = obj.optString("userId"),
+                                                                                                    nickname = obj.optString("nickname"),
+                                                                                                    message = obj.optString("message"),
+                                                                                                    playlistId = obj.optString("playlistId")
+                                                                                                )
+                                                                                            }
+                                                                                        }
+                                                                                    }
+                                                                                Toast.makeText(
+                                                                                    context,
+                                                                                    "Invitación enviada a ${friend.name}",
+                                                                                    Toast.LENGTH_SHORT
+                                                                                ).show()
+                                                                                showFriendSelection =
+                                                                                    false
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                }
+                                                            )
+                                                        }
+
+                                                    }
+                                                    item {
+                                                        if(!noHayAmigos){
+                                                            Box(
+                                                                modifier = Modifier
+                                                                    .fillMaxWidth()
+                                                                    .padding(vertical = 8.dp),
+                                                                contentAlignment = Alignment.Center
+                                                            ) {
+                                                                Text(
+                                                                    "No hay amigos disponibles para invitar",
+                                                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                                                                )
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    },
+                                    confirmButton = {},
+                                    dismissButton = {
+                                        Row(horizontalArrangement = Arrangement.Start) {
+                                            Button(
+                                                onClick = { showFriendSelection = false },
+                                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E1E1E)),
+                                                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.4f)),
+                                                shape = RoundedCornerShape(12.dp),
+                                                modifier = Modifier
+                                                    .height(48.dp)
+                                            )
+                                            {
+                                                Text("Cerrar", color = Color.White, fontWeight = FontWeight.Medium)
+
+                                            }
+                                        }
+                                    }
+                                )
+                            }
+                        }
+                    },
+                    // Botones de acción en la parte inferior
+                    confirmButton = {},
+                    dismissButton = {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.End
+                        ) {
+                            TextButton(
+                                onClick = { showCollaboratorsDialog = false },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E1E1E)),
+                                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.4f)),
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier
+                                    .height(48.dp)
+                            ) {
+                                Text("Cerrar", color = Color.White, fontWeight = FontWeight.Medium)
+                            }
+                        }
+                    }
+                )
+            }
         }
     }
 }
@@ -1045,7 +1617,16 @@ fun BottomSheetContent(
     onDismiss: () -> Unit,  // Llamar a esta función para cerrar
     playlistMeGusta: String,
     onLikeUpdate: (Boolean) -> Unit,
-    onPlaylistUpdated: (Playlist) -> Unit
+    onPlaylistUpdated: (Playlist) -> Unit,
+    collaborators: List<CollaboratorItem>,
+    onCollaboratorsUpdated: (List<CollaboratorItem>) -> Unit,
+    pendingInvites: SnapshotStateList<PendingInvitationItem>,
+    pendingInvitesCollaborate: List<CollaboratorItem>,
+    onPendingInvitesUpdated: (List<CollaboratorItem>) -> Unit,
+    newInviteUserId: String,
+    onNewInviteUserIdChange: (String) -> Unit,
+    onShowCollaboratorsDialogChange: (Boolean) -> Unit,
+    showCollaboratorsDialog: Boolean
 ) {
     val scope = rememberCoroutineScope()  // Para lanzar corrutinas en Compose
     val textColor = Color.White
@@ -1063,6 +1644,8 @@ fun BottomSheetContent(
         showAlertDialog = false
     }
 
+    var showPendingInvites by remember { mutableStateOf(false) }
+
     //Estado para pop up de eliminar la playlist
     var showDeleteConfirmation by remember { mutableStateOf(false) }
 
@@ -1071,6 +1654,9 @@ fun BottomSheetContent(
 
     // Estado para mostrar el diálogo de selección de amigos
     var showFriendSelectionDialog by remember { mutableStateOf(false) }
+
+    // ① Flag para disparar la recarga
+    var loadCollaborators by remember { mutableStateOf(false) }
 
     // URL base para compartir
     val baseShareUrl = "https://vibra.eina.unizar.es/playlist/" // Usa HTTPS para compatibilidad universal
@@ -1131,6 +1717,23 @@ fun BottomSheetContent(
             // Simular tiempo de carga o esperar a que termine de cargar los datos
             delay(500)  // Un pequeño retraso para simular la carga de datos
             isLoading = false
+        }
+    }
+
+    LaunchedEffect(loadCollaborators) {
+        if (loadCollaborators && playlistId != null) {
+            Log.d("Collaborators", "🔄 Cargando colaboradores para playlist $playlistId")
+            try {
+                val response = withContext(Dispatchers.IO) { getPlaylistCollaborators(context, playlistId) }
+                val processed = processCollaborators(response)
+                Log.d("Collaborators", "✅ Colaboradores obtenidos: $processed")
+                onCollaboratorsUpdated(processed)
+            } catch (e: Exception) {
+                Log.e("Collaborators", "Error recargando colaboradores", e)
+            } finally {
+                // 3) Resetea la bandera local para no buclear
+                loadCollaborators = false
+            }
         }
     }
 
@@ -1310,7 +1913,24 @@ fun BottomSheetContent(
                             }
                         )
                         Spacer(modifier = Modifier.height(8.dp))
-                        SongOptionItem("Editar colaboradores", onClick = dismiss)
+                        SongOptionItem(
+                            text = "Editar colaboradores",
+                            onClick = {
+                                Log.d("Collaborators", ">> EDITAR COLABORADORES CLICKED y playlistId: $playlistId")
+
+                                coroutineScope.launch {
+                                    // Cargar colaboradores actuales
+                                    loadCollaborators = true
+                                    val responseRecent = playlistId?.let { getPlaylistCollaborators(context, it) }
+                                    val colaboradoresProcesados = processCollaborators(responseRecent)
+                                    onCollaboratorsUpdated(colaboradoresProcesados)
+                                    onShowCollaboratorsDialogChange(true)
+                                    onDismiss()
+                                }
+                            }
+                        )
+
+                        Spacer(Modifier.height(8.dp))
                         Spacer(modifier = Modifier.height(8.dp))
                         // Opción "Eliminar Playlist" con estilo personalizado
                         SongOptionItem("Editar Playlist",
@@ -1410,11 +2030,33 @@ fun BottomSheetContent(
 
                                             withContext(Dispatchers.Main) {
                                                 when (code) {
-                                                    200 -> Toast.makeText(
+                                                    200 -> {
+                                                        Toast.makeText(
                                                         context,
                                                         "Playlist actualizada",
                                                         Toast.LENGTH_SHORT
                                                     ).show()
+
+                                                        // Crear una playlist actualizada con los nuevos valores
+                                                        // (usamos un Playlist vacío y lo actualizamos con los valores que tenemos)
+                                                        val tempPlaylist = Playlist(
+                                                            id = playlistId ?: "",
+                                                            title = newPlaylistName,
+                                                            description = newPlaylistDescription,
+                                                            imageUrl = safeImageUrl,
+                                                            // Usa valores por defecto o los existentes para los demás campos
+                                                            idAutor = "",
+                                                            idArtista = "",
+                                                            esPublica = "",
+                                                            esAlbum = ""
+                                                        )
+
+                                                        // Notifica que se actualizó la playlist
+                                                        onPlaylistUpdated(tempPlaylist)
+
+                                                        // Indica que necesitamos recargar la información
+                                                        //needToRefresh = true
+                                                    }
 
                                                     404 -> Toast.makeText(
                                                         context,
@@ -2123,6 +2765,91 @@ fun FriendShareItem(
                 tint = VibraBlue,
                 modifier = Modifier.size(20.dp)
             )
+        }
+    }
+}
+
+@Composable
+fun FriendCollaboratorItem(
+    friend: Friend,
+    invite: Boolean = true,
+    colorManager: UserColorManager,
+    onClick: () -> Unit
+) {
+    val context = LocalContext.current
+
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 4.dp),
+        color = Color.Transparent
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Avatar del amigo
+            if (friend.photo == "null" || friend.photo.isEmpty()) {
+                val friendProfileColor = remember(friend.id) {
+                    colorManager.getUserProfileColor(friend.id)
+                }
+
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .background(friendProfileColor, CircleShape)
+                        .clip(CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = friend.name.take(1).uppercase(),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.White
+                    )
+                }
+            } else {
+                AsyncImage(
+                    model = ImageRequest.Builder(context)
+                        .data(ApiClient.getImageUrl(friend.photo))
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = "Foto de perfil",
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape),
+                    contentScale = ContentScale.Crop
+                )
+            }
+
+            Spacer(modifier = Modifier.width(16.dp))
+
+            // Nombre del amigo
+            Text(
+                text = friend.name,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+
+            Spacer(modifier = Modifier.weight(1f))
+
+
+            if (invite){                // Icono de invitar a colaborar
+                Icon(
+                    imageVector = Icons.Default.Add,
+                    contentDescription = "Invitar como colaborador",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier
+                        .size(32.dp)
+                        .background(
+                            MaterialTheme.colorScheme.primaryContainer,
+                            CircleShape
+                        )
+                        .padding(4.dp)
+                )
+            }
         }
     }
 }
