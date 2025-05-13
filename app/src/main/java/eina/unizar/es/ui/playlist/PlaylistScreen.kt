@@ -74,6 +74,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.core.content.ContextCompat
 import androidx.navigation.NavController
 import androidx.room.Delete
+import androidx.room.util.copy
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.example.musicapp.ui.theme.VibraBlack
@@ -217,6 +218,38 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
     // Estado para los colaboradores
     var showCollaboratorsDialog by remember { mutableStateOf(false) }
 
+    var needToRefresh by remember { mutableStateOf(false) }
+
+    // Recargar datos tras actualizacion
+    LaunchedEffect(needToRefresh) {
+        if (needToRefresh) {
+            // Recargar toda la información de la playlist
+            playlistId?.let { id ->
+                try {
+                    val response = withContext(Dispatchers.IO) { get("playlists/$id") }
+                    response?.let {
+                        val jsonObject = JSONObject(it)
+                        playlistInfo = Playlist(
+                            id = jsonObject.getString("id"),
+                            title = jsonObject.getString("name"),
+                            imageUrl = jsonObject.getString("front_page"),
+                            idAutor = jsonObject.getString("user_id"),
+                            idArtista = jsonObject.getString("artist_id"),
+                            description = jsonObject.getString("description"),
+                            esPublica = jsonObject.getString("type"),
+                            esAlbum = jsonObject.getString("typeP"),
+                        )
+                    }
+                    // Reseteamos la bandera ya que hemos recargado
+                    needToRefresh = false
+                } catch (e: Exception) {
+                    Log.e("PlaylistReload", "Error recargando datos", e)
+                    // Reseteamos la bandera para evitar bucles infinitos
+                    needToRefresh = false
+                }
+            }
+        }
+    }
 
 
     // Función para cambiar el estado de "me gusta" de una canción
@@ -1061,6 +1094,7 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                             },
                             onPlaylistUpdated = { updatedPlaylist ->
                                 playlistInfo = updatedPlaylist
+                                needToRefresh = true
                             },
                             collaborators = collaborators,
                             pendingInvites = pendingInvites,
@@ -1835,11 +1869,33 @@ fun BottomSheetContent(
 
                                             withContext(Dispatchers.Main) {
                                                 when (code) {
-                                                    200 -> Toast.makeText(
+                                                    200 -> {
+                                                        Toast.makeText(
                                                         context,
                                                         "Playlist actualizada",
                                                         Toast.LENGTH_SHORT
                                                     ).show()
+
+                                                        // Crear una playlist actualizada con los nuevos valores
+                                                        // (usamos un Playlist vacío y lo actualizamos con los valores que tenemos)
+                                                        val tempPlaylist = Playlist(
+                                                            id = playlistId ?: "",
+                                                            title = newPlaylistName,
+                                                            description = newPlaylistDescription,
+                                                            imageUrl = safeImageUrl,
+                                                            // Usa valores por defecto o los existentes para los demás campos
+                                                            idAutor = "",
+                                                            idArtista = "",
+                                                            esPublica = "",
+                                                            esAlbum = ""
+                                                        )
+
+                                                        // Notifica que se actualizó la playlist
+                                                        onPlaylistUpdated(tempPlaylist)
+
+                                                        // Indica que necesitamos recargar la información
+                                                        //needToRefresh = true
+                                                    }
 
                                                     404 -> Toast.makeText(
                                                         context,
