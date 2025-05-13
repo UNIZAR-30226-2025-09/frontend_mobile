@@ -60,7 +60,7 @@ fun ChatScreen(
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val focusManager = LocalFocusManager.current
-    
+
     // Decodificar parámetros de la URL
     val decodedFriendName = remember(friendName) {
         try {
@@ -70,7 +70,7 @@ fun ChatScreen(
             friendName ?: ""
         }
     }
-    
+
     val decodedFriendPhoto = remember(friendPhoto) {
         try {
             URLDecoder.decode(friendPhoto ?: "", "UTF-8")
@@ -79,36 +79,38 @@ fun ChatScreen(
             ""
         }
     }
-    
+
     // Estados para el chat
     var messages by remember { mutableStateOf<List<ChatMessage>>(emptyList()) }
+    val processingMap = remember { mutableStateMapOf<String, Boolean>() }
+
     var currentMessage by remember { mutableStateOf(TextFieldValue("")) }
     var isLoading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
-    
+
     // Estado para el usuario actual
     var currentUserId by remember { mutableStateOf("") }
-    
+
     // Estados para la información del amigo
     var friendStatus by remember { mutableStateOf("offline") }
-    val friendInitials = remember(decodedFriendName) { 
-        decodedFriendName.take(1).uppercase() 
+    val friendInitials = remember(decodedFriendName) {
+        decodedFriendName.take(1).uppercase()
     }
-    
+
     // Estado para menú desplegable y diálogo de confirmación
     var showMenu by remember { mutableStateOf(false) }
     var showDeleteConfirmDialog by remember { mutableStateOf(false) }
-    
+
     // Estado para scroll
     val scrollState = rememberLazyListState()
     var isScrollAtBottom by remember { mutableStateOf(true) }
-    
+
     // Color del perfil del amigo
     val colorManager = remember { UserColorManager(context) }
     val friendProfileColor = remember(friendId) {
         friendId?.let { colorManager.getUserProfileColor(it) } ?: Color(0xFF607D8B)
     }
-    
+
     // Función para desplazarse al final de la lista
     suspend fun scrollToBottom() {
         if (messages.isNotEmpty()) {
@@ -116,17 +118,17 @@ fun ChatScreen(
             isScrollAtBottom = true
         }
     }
-    
+
     // Listener para detectar si el scroll está al final
     LaunchedEffect(scrollState, messages) {
         snapshotFlow { scrollState.firstVisibleItemIndex }
             .collect { firstVisibleIndex ->
-                val atBottom = messages.isEmpty() || 
-                    (firstVisibleIndex + scrollState.layoutInfo.visibleItemsInfo.size >= messages.size - 1)
+                val atBottom = messages.isEmpty() ||
+                        (firstVisibleIndex + scrollState.layoutInfo.visibleItemsInfo.size >= messages.size - 1)
                 isScrollAtBottom = atBottom
             }
     }
-    
+
     // Obtener ID del usuario actual
     LaunchedEffect(Unit) {
         val userData = ApiClient.getUserData(context)
@@ -135,7 +137,7 @@ fun ChatScreen(
             Log.d("ChatScreen", "ID de usuario actual: $currentUserId")
         }
     }
-    
+
     // Función para cargar mensajes con mejora de scroll
     suspend fun loadMessages() {
         if (friendId == null) {
@@ -143,23 +145,24 @@ fun ChatScreen(
             error = "ID de amigo no válido"
             return
         }
-        
+
         try {
             Log.d("ChatScreen", "Cargando mensajes de chat con amigo ID: $friendId")
-            
+
             // Guardar el número actual de mensajes para comparación
             val currentMessageCount = messages.size
             val userWasAtBottom = isScrollAtBottom
-            
+
             val response = ApiClient.getChatConversation(friendId, context)
-            
+
             if (response != null && response.has("messages")) {
                 val messagesArray = response.getJSONArray("messages")
                 val newMessages = mutableListOf<ChatMessage>()
-                val dateFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault())
-                
+                val dateFormat =
+                    SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault())
+
                 Log.d("ChatScreen", "Procesando ${messagesArray.length()} mensajes")
-                
+
                 for (i in 0 until messagesArray.length()) {
                     try {
                         val messageObj = messagesArray.getJSONObject(i)
@@ -168,7 +171,7 @@ fun ChatScreen(
                         } catch (e: Exception) {
                             Date()
                         }
-                        
+
                         val message = ChatMessage(
                             id = messageObj.getString("id"),
                             senderId = messageObj.getString("user1_id"),
@@ -178,28 +181,31 @@ fun ChatScreen(
                             isRead = messageObj.getBoolean("read"),
                             sharedContent = messageObj.optString("shared_content", null)
                         )
-                        
+
                         newMessages.add(message)
                     } catch (e: JSONException) {
                         Log.e("ChatScreen", "Error procesando mensaje: ${e.message}")
                     }
                 }
-                
+
                 // Ordenar mensajes por timestamp
                 withContext(Dispatchers.Main) {
                     messages = newMessages.sortedBy { it.timestamp }
                     Log.d("ChatScreen", "Cargados ${messages.size} mensajes")
                     error = null
-                    
+
                     // Desplazarse al final solo si:
                     // 1. No había mensajes antes (primera carga)
                     // 2. Hay nuevos mensajes y el usuario estaba ya en el final
                     // 3. El usuario era quien estaba enviando un mensaje (isScrollAtBottom será true)
-                    val shouldScrollToBottom = currentMessageCount == 0 || 
-                                              (messages.size > currentMessageCount && userWasAtBottom)
-                    
+                    val shouldScrollToBottom = currentMessageCount == 0 ||
+                            (messages.size > currentMessageCount && userWasAtBottom)
+
                     if (shouldScrollToBottom) {
-                        Log.d("ChatScreen", "Auto-scrolling to bottom: initialLoad=${currentMessageCount == 0}, newMessages=${messages.size > currentMessageCount}, wasAtBottom=$userWasAtBottom")
+                        Log.d(
+                            "ChatScreen",
+                            "Auto-scrolling to bottom: initialLoad=${currentMessageCount == 0}, newMessages=${messages.size > currentMessageCount}, wasAtBottom=$userWasAtBottom"
+                        )
                         scrollToBottom()
                     }
                 }
@@ -221,18 +227,18 @@ fun ChatScreen(
             }
         }
     }
-    
+
     // Función para enviar un mensaje
     fun sendMessage() {
         if (friendId == null || currentMessage.text.trim().isEmpty()) return
-        
+
         val messageText = currentMessage.text.trim()
         currentMessage = TextFieldValue("")
         focusManager.clearFocus()
-        
+
         // Generar ID temporal único
         val tempId = "temp-${System.currentTimeMillis()}"
-        
+
         // Mensaje temporal
         val tempMessage = ChatMessage(
             id = tempId,
@@ -242,15 +248,15 @@ fun ChatScreen(
             timestamp = Date(),
             isRead = false
         )
-        
+
         // Actualizar UI inmediatamente con mensaje temporal
         messages = messages + tempMessage
-        
+
         // Scroll al final
         coroutineScope.launch {
             scrollToBottom()
         }
-        
+
         // Enviar mensaje a la API
         coroutineScope.launch {
             try {
@@ -263,7 +269,7 @@ fun ChatScreen(
                         if (realMessageId.isNotEmpty()) {
                             withContext(Dispatchers.Main) {
                                 // Reemplazar el mensaje temporal con el mensaje real
-                                messages = messages.map { 
+                                messages = messages.map {
                                     if (it.id == tempId) {
                                         // Actualizar el mensaje con el ID real y marcar como enviado
                                         it.copy(id = realMessageId, isRead = false)
@@ -271,7 +277,7 @@ fun ChatScreen(
                                         it
                                     }
                                 }
-                                
+
                                 // Programar una recarga completa después de un breve retraso
                                 // para sincronizar con otros posibles cambios en el servidor
                                 delay(500)
@@ -300,15 +306,16 @@ fun ChatScreen(
                 Log.e("ChatScreen", "Error enviando mensaje: ${e.message}")
             }
         }
+        currentMessage = TextFieldValue("")
     }
-    
+
     // Modifica la función sendPlaylistMessage en ChatScreen.kt
     fun sendPlaylistMessage(playlistId: String, playlistTitle: String, playlistImage: String?) {
         if (friendId == null) return
-        
+
         // Mensaje más simple y amigable
         val messageText = "¡Mira esta playlist!"
-        
+
         // Crear JSON con información de la playlist
         val sharedContent = JSONObject().apply {
             put("type", "playlist")
@@ -318,10 +325,10 @@ fun ChatScreen(
                 put("image", playlistImage)
             }
         }.toString()
-        
+
         // Generar ID temporal único
         val tempId = "temp-${System.currentTimeMillis()}"
-        
+
         // Mensaje temporal con la información estructurada
         val tempMessage = ChatMessage(
             id = tempId,
@@ -332,22 +339,22 @@ fun ChatScreen(
             isRead = false,
             sharedContent = sharedContent  // Contenido enriquecido con datos de la playlist
         )
-        
+
         // Actualizar UI inmediatamente con mensaje temporal
         messages = messages + tempMessage
-        
+
         // Scroll al final
         coroutineScope.launch {
             scrollToBottom()
         }
-        
+
         // Enviar mensaje a la API
         coroutineScope.launch {
             try {
                 val response = ApiClient.sendChatMessageWithSharedContent(
                     friendId, messageText, sharedContent, context
                 )
-                
+
                 if (response != null) {
                     try {
                         // Extraer el ID real del mensaje enviado
@@ -355,14 +362,14 @@ fun ChatScreen(
                         if (realMessageId.isNotEmpty()) {
                             withContext(Dispatchers.Main) {
                                 // Reemplazar el mensaje temporal con el real
-                                messages = messages.map { 
+                                messages = messages.map {
                                     if (it.id == tempId) {
                                         it.copy(id = realMessageId)
                                     } else {
                                         it
                                     }
                                 }
-                                
+
                                 // Recargar después de un breve retraso
                                 delay(500)
                                 loadMessages()
@@ -382,13 +389,13 @@ fun ChatScreen(
             }
         }
     }
-    
+
     // Cargar mensajes iniciales
     LaunchedEffect(friendId) {
         isLoading = true
         loadMessages()
     }
-    
+
     // Polling para actualizar mensajes automáticamente
     LaunchedEffect(Unit) {
         while (true) {
@@ -402,7 +409,7 @@ fun ChatScreen(
             }
         }
     }
-    
+
     // Efectuar el compartir playlist automáticamente si hay parámetros
     LaunchedEffect(sharePlaylistId, sharePlaylistTitle) {
         if (!sharePlaylistId.isNullOrEmpty() && !sharePlaylistTitle.isNullOrEmpty()) {
@@ -415,7 +422,7 @@ fun ChatScreen(
             )
         }
     }
-    
+
     // Diálogo de confirmación para eliminar amigo
     if (showDeleteConfirmDialog) {
         AlertDialog(
@@ -448,7 +455,7 @@ fun ChatScreen(
             }
         )
     }
-    
+
     // UI principal
     Scaffold(
         topBar = {
@@ -487,9 +494,9 @@ fun ChatScreen(
                                 contentScale = ContentScale.Crop
                             )
                         }
-                        
+
                         Spacer(modifier = Modifier.width(12.dp))
-                        
+
                         // Nombre del amigo
                         Text(
                             text = decodedFriendName,
@@ -515,14 +522,19 @@ fun ChatScreen(
                                 contentDescription = "Más opciones"
                             )
                         }
-                        
+
                         // Menú desplegable
                         DropdownMenu(
                             expanded = showMenu,
                             onDismissRequest = { showMenu = false }
                         ) {
                             DropdownMenuItem(
-                                text = { Text("Eliminar amigo", color = MaterialTheme.colorScheme.error) },
+                                text = {
+                                    Text(
+                                        "Eliminar amigo",
+                                        color = MaterialTheme.colorScheme.error
+                                    )
+                                },
                                 onClick = {
                                     showMenu = false
                                     showDeleteConfirmDialog = true
@@ -572,7 +584,7 @@ fun ChatScreen(
                             unfocusedBorderColor = MaterialTheme.colorScheme.outline
                         )
                     )
-                    
+
                     // Botón de enviar
                     IconButton(
                         onClick = {
@@ -621,16 +633,16 @@ fun ChatScreen(
                         modifier = Modifier.size(48.dp),
                         tint = MaterialTheme.colorScheme.error
                     )
-                    
+
                     Spacer(modifier = Modifier.height(8.dp))
-                    
+
                     Text(
                         text = error ?: "Error desconocido",
                         color = MaterialTheme.colorScheme.error
                     )
-                    
+
                     Spacer(modifier = Modifier.height(16.dp))
-                    
+
                     Button(onClick = {
                         coroutineScope.launch {
                             isLoading = true
@@ -656,17 +668,17 @@ fun ChatScreen(
                         modifier = Modifier.size(64.dp),
                         tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
                     )
-                    
+
                     Spacer(modifier = Modifier.height(16.dp))
-                    
+
                     Text(
                         text = "No hay mensajes aún",
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                     )
-                    
+
                     Spacer(modifier = Modifier.height(8.dp))
-                    
+
                     Text(
                         text = "Envía un mensaje para iniciar la conversación",
                         style = MaterialTheme.typography.bodyMedium,
@@ -684,24 +696,142 @@ fun ChatScreen(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     items(messages, key = { it.id }) { message ->
-                        ChatBubble(
-                            navController = navController,
-                            message = message,
-                            currentUserId = currentUserId,
-                            friendName = decodedFriendName,
-                            friendPhoto = decodedFriendPhoto,
-                            friendProfileColor = friendProfileColor
-                        )
+                        val sharedJson = remember(message.sharedContent) {
+                            message.sharedContent
+                                ?.let { runCatching { JSONObject(it) }.getOrNull() }
+                        }
+
+                        val processing = processingMap[message.id] ?: false
+
+                        if (sharedJson?.optString("type") == "collaboration_request") {
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(8.dp),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.surfaceVariant
+                                )
+                            ) {
+                                Column(Modifier.padding(12.dp)) {
+                                    Text(
+                                        text = message.content,
+                                        style = MaterialTheme.typography.bodyMedium
+                                    )
+
+                                    Spacer(Modifier.height(8.dp))
+
+                                    Row(
+                                        horizontalArrangement = Arrangement.End,
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        if (processing) {
+                                            CircularProgressIndicator(
+                                                modifier = Modifier.size(24.dp),
+                                                strokeWidth = 2.dp
+                                            )
+                                        } else {
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.Center,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                OutlinedButton(
+                                                    onClick = {
+                                                        coroutineScope.launch {
+                                                            processingMap[message.id] = true
+
+                                                            val keysList = sharedJson.keys().asSequence().toList()
+                                                            Log.d("ChatScreen", "sharedJson keys = $keysList")
+
+                                                            // 1) Extrae y loggea el playlist_id
+                                                            val plId = sharedJson.optString("playlist_id")
+                                                            Log.d("ChatScreen", ">> attempting rejectCollab with playlist_id='$plId'")
+
+                                                            // 2) Si plId no está vacío, llama a la API
+                                                            plId.takeIf(String::isNotEmpty)?.let { id ->
+                                                                ApiClient.rejectCollaboration(id, context)
+                                                            } ?: run {
+                                                                Log.e("ChatScreen", "playlist_id vacío, no llamo a la API")
+                                                            }
+
+                                                            // 3) Refresca y quita el flag
+                                                            loadMessages()
+                                                            processingMap[message.id] = false
+                                                        }
+                                                    },
+                                                    colors = ButtonDefaults.outlinedButtonColors(
+                                                        contentColor = MaterialTheme.colorScheme.error
+                                                    ),
+                                                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.error),
+                                                    modifier = Modifier.weight(1f)
+                                                ) {
+                                                    Text(
+                                                        "Rechazar",
+                                                        style = MaterialTheme.typography.bodyMedium
+                                                    )
+                                                }
+
+                                                Spacer(Modifier.width(16.dp))
+
+                                                Button(
+                                                    onClick = {
+                                                        coroutineScope.launch {
+                                                            processingMap[message.id] = true
+
+                                                            val keysList = sharedJson.keys().asSequence().toList()
+                                                            Log.d("ChatScreen", "sharedJson keys = $keysList")
+
+                                                            // 1) Extrae y loggea el playlist_id
+                                                            val plId = sharedJson.optString("playlist_id")
+                                                            Log.d("ChatScreen", ">> attempting acceptCollab with playlist_id='$plId'")
+
+                                                            // 2) Si plId no está vacío, llama a la API
+                                                            plId.takeIf(String::isNotEmpty)?.let { id ->
+                                                                ApiClient.acceptCollaboration(id, context)
+                                                            } ?: run {
+                                                                Log.e("ChatScreen", "playlist_id vacío, no llamo a la API")
+                                                            }
+
+                                                            // 3) Refresca y quita el flag
+                                                            loadMessages()
+                                                            processingMap[message.id] = false
+                                                        }
+                                                    },
+                                                    modifier = Modifier.weight(1f),
+                                                    colors = ButtonDefaults.buttonColors(
+                                                        containerColor = MaterialTheme.colorScheme.primary
+                                                    )
+                                                ) {
+                                                    Text(
+                                                        "Aceptar",
+                                                        style = MaterialTheme.typography.bodyMedium
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        } else {
+                            ChatBubble(
+                                navController = navController,
+                                message = message,
+                                currentUserId = currentUserId,
+                                friendName = decodedFriendName,
+                                friendPhoto = decodedFriendPhoto,
+                                friendProfileColor = friendProfileColor
+                            )
+                        }
                     }
                 }
-                
+
                 // Botón para ir al final (si hay suficientes mensajes)
                 if (messages.size > 10 && !isScrollAtBottom) {
                     FloatingActionButton(
-                        onClick = { 
-                            coroutineScope.launch { 
-                                scrollToBottom() 
-                            } 
+                        onClick = {
+                            coroutineScope.launch {
+                                scrollToBottom()
+                            }
                         },
                         modifier = Modifier
                             .align(Alignment.BottomEnd)

@@ -32,6 +32,7 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.musicapp.ui.theme.VibraBlue
 import eina.unizar.es.R
+import eina.unizar.es.data.model.network.ApiClient.getCollaborativePlaylists
 import eina.unizar.es.data.model.network.ApiClient.getImageUrl
 import eina.unizar.es.data.model.network.ApiClient.getPlaylistsBySongId
 import eina.unizar.es.data.model.network.ApiClient.getUserPlaylists
@@ -76,6 +77,8 @@ fun ADSongs(
         }
     }
 
+    var collaborativePlaylists by remember { mutableStateOf<List<Playlist>>(emptyList()) }
+
     // En la función ADSongs, dentro del LaunchedEffect
     LaunchedEffect(songId, userId) {
         if (songId.isNotEmpty() && userId.isNotEmpty()) {
@@ -103,6 +106,7 @@ fun ADSongs(
         }
     }
 
+    // Modificar el LaunchedEffect para combinar las playlists
     LaunchedEffect(Unit) {
         if (viewModel.getUserId().isEmpty()) {
             viewModel.setUserId(context)
@@ -113,25 +117,43 @@ fun ADSongs(
                 Log.d("User ID", "User ID: $userId")
                 val userPlaylists = getUserPlaylists(userId)
 
-                if (userPlaylists != null) {
-                    // Convertir las playlists y ordenarlas para que Vibra_likedSong aparezca primero
-                    playlists = userPlaylists.sortedWith(compareBy {
-                        if (it.esAlbum == "Vibra_likedSong") -1 else 0
-                    }).map { playlist ->
-                        Playlist(
-                            id = playlist.id,
-                            title = playlist.title,
-                            imageUrl = playlist.imageUrl,
-                            idAutor = playlist.idAutor,
-                            idArtista = playlist.idArtista,
-                            description = playlist.description,
-                            esPublica = playlist.esPublica,
-                            esAlbum = playlist.esAlbum
-                        )
-                    }
-                } else {
-                    Log.e("Error", "No se pudieron cargar las playlists")
+                // Lista temporal para playlists colaborativas
+                val collabPlaylists = mutableListOf<Playlist>()
+
+                getCollaborativePlaylists(userId)?.let { arr ->
+                    collabPlaylists.addAll(List(arr.length()) { i ->
+                        arr.getJSONObject(i).run {
+                            Playlist(
+                                id          = optString("id", ""),
+                                title       = optString("name", ""),
+                                idAutor     = optString("user_id", ""),
+                                idArtista   = optString("artist_id", ""),
+                                description = optString("description", ""),
+                                esPublica   = optString("type", "public"),
+                                esAlbum     = optString("typeP", "playlist"),
+                                imageUrl    = optString("front_page", "")
+                            )
+                        }
+                    })
                 }
+
+                // Combinar las playlists del usuario con las colaborativas
+                val allPlaylists = mutableListOf<Playlist>()
+
+                if (userPlaylists != null) {
+                    allPlaylists.addAll(userPlaylists)
+                }
+
+                // Añadir las playlists colaborativas
+                allPlaylists.addAll(collabPlaylists)
+
+                // Ordenar para que la lista de "Me gusta" aparezca primero
+                playlists = allPlaylists.sortedWith(compareBy {
+                    if (it.esAlbum == "Vibra_likedSong") -1 else 0
+                })
+
+                collaborativePlaylists = collabPlaylists
+
             } catch (e: Exception) {
                 Log.d("Error", "Error: ${e.message}")
             } finally {
@@ -195,10 +217,11 @@ fun ADSongs(
                 )
 
                 // Playlists
+                // Modificar la parte donde muestras las listas
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(225.dp) // Altura fija para el contenedor de listas
+                        .height(225.dp)
                 ) {
                     if (isLoading) {
                         CircularProgressIndicator(
@@ -213,80 +236,60 @@ fun ADSongs(
                             modifier = Modifier.align(Alignment.Center)
                         )
                     } else {
-                        Column(modifier = Modifier.fillMaxSize()) {
-                            Text(
-                                text = "Tus playlists",
-                                color = subtitleColor,
-                                fontSize = 14.sp,
-                                modifier = Modifier.padding(top = 8.dp, bottom = 8.dp)
-                            )
+                        LazyColumn(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .fillMaxHeight()
+                        ) {
+                            // Sección de tus playlists
+                            item {
+                                Text(
+                                    text = "Tus playlists",
+                                    color = subtitleColor,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    modifier = Modifier.padding(top = 8.dp, bottom = 8.dp)
+                                )
+                            }
 
-                            // LazyColumn con scroll dentro del contenedor de altura fija
-                            LazyColumn(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .weight(1f)
-                            ) {
-                                items(filteredPlaylists) { playlist ->
-                                    val isInPlaylist = songPlaylistIds.contains(playlist.id)
+                            // Mostrar todas las playlists filtradas
+                            items(filteredPlaylists) { playlist ->
+                                val isInPlaylist = songPlaylistIds.contains(playlist.id)
 
-                                    PlaylistRowWithCheckbox(
-                                        playlist = playlist,
-                                        isSelected = isInPlaylist,
-                                        onClick = {
-                                            if (!isProcessingAction && songId.isNotEmpty()) {
-                                                isProcessingAction = true
-                                                viewModel.viewModelScope.launch {
-                                                    try {
-                                                        // Check if this is the "liked songs" playlist
-                                                        if (playlist.esAlbum == "Vibra_likedSong") {
-                                                            // Use the toggleSongLike function for liked songs playlist
-                                                            viewModel.toggleSongLike(songId, userId)
-
-                                                            // Update the UI state immediately for better feedback
+                                PlaylistRowWithCheckbox(
+                                    playlist = playlist,
+                                    isSelected = isInPlaylist,
+                                    onClick = {
+                                        if (!isProcessingAction && songId.isNotEmpty()) {
+                                            isProcessingAction = true
+                                            viewModel.viewModelScope.launch {
+                                                try {
+                                                    // Código existente para manejar el clic...
+                                                    if (playlist.esAlbum == "Vibra_likedSong") {
+                                                        viewModel.toggleSongLike(songId, userId)
+                                                    } else {
+                                                        val result = handleSongToPlaylist(
+                                                            songId = songId,
+                                                            playlistId = playlist.id,
+                                                            operation = !isInPlaylist
+                                                        )
+                                                        if (result != null) {
                                                             songPlaylistIds = if (isInPlaylist) {
                                                                 songPlaylistIds.minus(playlist.id)
                                                             } else {
                                                                 songPlaylistIds.plus(playlist.id)
                                                             }
-                                                        } else {
-                                                            // Regular playlist handling (existing code)
-                                                            val result = handleSongToPlaylist(
-                                                                songId = songId,
-                                                                playlistId = playlist.id,
-                                                                operation = !isInPlaylist
-                                                            )
-                                                            val success = result != null
-                                                            if (success) {
-                                                                // Actualizamos el estado local
-                                                                songPlaylistIds = if (isInPlaylist) {
-                                                                    val newSet = songPlaylistIds.minus(playlist.id)
-                                                                    Log.d("ADSongs", "Canción eliminada de ${playlist.title}. Playlists restantes: ${newSet.size}")
-                                                                    newSet
-                                                                } else {
-                                                                    val newSet = songPlaylistIds.plus(playlist.id)
-                                                                    Log.d("ADSongs", "Canción añadida a ${playlist.title}. Total playlists: ${newSet.size}")
-                                                                    newSet
-                                                                }
-
-                                                                // Mostrar todas las playlists donde está la canción después de la operación
-                                                                Log.d("ADSongs", "Playlists actuales con esta canción:")
-                                                                songPlaylistIds.forEach { playlistId ->
-                                                                    val playlistName = playlists.find { it.id == playlistId }?.title ?: "Playlist desconocida"
-                                                                    Log.d("ADSongs", "- ID: $playlistId, Nombre: $playlistName")
-                                                                }
-                                                            }
                                                         }
-                                                    } catch (e: Exception) {
-                                                        Log.e("ADSongs", "Error en la operación: ${e.message}")
-                                                    } finally {
-                                                        isProcessingAction = false
                                                     }
+                                                } catch (e: Exception) {
+                                                    Log.e("ADSongs", "Error: ${e.message}")
+                                                } finally {
+                                                    isProcessingAction = false
                                                 }
                                             }
                                         }
-                                    )
-                                }
+                                    }
+                                )
                             }
                         }
                     }

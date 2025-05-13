@@ -379,7 +379,7 @@ suspend fun loginUser(context: Context, email: String, password: String): Pair<B
                 else -> {
                     val errorMessage = response ?: "Error desconocido"
                     Log.e("LoginError", "Error inesperado ($statusCode): $errorMessage")
-                    return@withContext Pair(false, "Error inesperado: $errorMessage")
+                    return@withContext Pair(false, "No se ha encontrado una cuenta con ese correo")
                 }
             }
         } catch (e: Exception) {

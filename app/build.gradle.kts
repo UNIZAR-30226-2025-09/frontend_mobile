@@ -50,6 +50,8 @@ android {
 }
 
 dependencies {
+    implementation(libs.androidx.room.common.jvm)
+    implementation(libs.androidx.room.runtime.android)
     testImplementation (libs.robolectric)
     testImplementation (libs.androidx.core)
     testImplementation (libs.androidx.runner.v162)
