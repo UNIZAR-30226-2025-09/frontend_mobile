@@ -306,6 +306,7 @@ fun ChatScreen(
                 Log.e("ChatScreen", "Error enviando mensaje: ${e.message}")
             }
         }
+        currentMessage = TextFieldValue("")
     }
 
     // Modifica la función sendPlaylistMessage en ChatScreen.kt
