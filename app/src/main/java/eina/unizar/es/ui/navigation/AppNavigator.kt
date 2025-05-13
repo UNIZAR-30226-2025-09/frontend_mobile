@@ -65,10 +65,6 @@ fun AppNavigator(navController: NavHostController, paymentSheet: PaymentSheet, i
         // Configurar el estado premium del usuario
         playerViewModel.setPremiumUser(context)
 
-
-        //
-        //playerViewModel.setApplicationContext(context)
-
         Log.d("RetomarSong", "Estado de reproducción restaurado")
     }
 

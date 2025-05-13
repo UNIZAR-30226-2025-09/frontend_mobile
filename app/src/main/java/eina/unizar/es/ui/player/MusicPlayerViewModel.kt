@@ -416,6 +416,10 @@ class MusicPlayerViewModel : ViewModel() {
                             progress = 0f
                         )
                         _currentSong.value = selectedSong
+
+                        Log.d("RetomarSong", "Cargando canción: ${selectedSong.title} (ID: ${selectedSong.id})")
+                        savePlaybackState(context)
+
                         initializePlayer(context, formattedUrl)
                     }
                 }
@@ -472,6 +476,10 @@ class MusicPlayerViewModel : ViewModel() {
         // Initialize the player with the first song in the playlist
         val selectedSong = songList[currentIndex]
         _currentSong.value = selectedSong
+
+        Log.d("RetomarSong", "Cargando canción: ${selectedSong.title} (ID: ${selectedSong.id})")
+        savePlaybackState(context)
+
         initializePlayer(context, selectedSong.url)
         songId?.let { loadLikedStatus(it) }
     }
