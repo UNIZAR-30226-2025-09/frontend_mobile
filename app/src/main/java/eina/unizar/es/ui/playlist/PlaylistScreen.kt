@@ -192,6 +192,10 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
     // Reproducir la musica
     val context = LocalContext.current
 
+
+
+    var needToRefreshCollaborators by remember { mutableStateOf(false) }
+
     // Alpha para el título en el TopAppBar: aparece gradualmente conforme se hace scroll
     val topTitleAlpha = if (lazyListState.firstVisibleItemIndex > 0) {
         1f
@@ -216,36 +220,7 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
 
     var needToRefresh by remember { mutableStateOf(false) }
 
-    // Recargar datos tras actualizacion
-    LaunchedEffect(needToRefresh) {
-        if (needToRefresh) {
-            // Recargar toda la información de la playlist
-            playlistId?.let { id ->
-                try {
-                    val response = withContext(Dispatchers.IO) { get("playlists/$id") }
-                    response?.let {
-                        val jsonObject = JSONObject(it)
-                        playlistInfo = Playlist(
-                            id = jsonObject.getString("id"),
-                            title = jsonObject.getString("name"),
-                            imageUrl = jsonObject.getString("front_page"),
-                            idAutor = jsonObject.getString("user_id"),
-                            idArtista = jsonObject.getString("artist_id"),
-                            description = jsonObject.getString("description"),
-                            esPublica = jsonObject.getString("type"),
-                            esAlbum = jsonObject.getString("typeP"),
-                        )
-                    }
-                    // Reseteamos la bandera ya que hemos recargado
-                    needToRefresh = false
-                } catch (e: Exception) {
-                    Log.e("PlaylistReload", "Error recargando datos", e)
-                    // Reseteamos la bandera para evitar bucles infinitos
-                    needToRefresh = false
-                }
-            }
-        }
-    }
+
 
 
     // Función para cambiar el estado de "me gusta" de una canción
@@ -394,6 +369,15 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
             songLikes = songs.associate { song ->
                 song.id to likedSongIds.contains(song.id)
             }
+        }
+    }
+
+    LaunchedEffect(needToRefresh) {
+        if (needToRefresh) {
+            Log.d("Collaborators", "Refrescando colaboradores…")
+            val resp = getPlaylistCollaborators(context, playlistId!!)
+            val processed = processCollaborators(resp)
+            Log.d("Collaborators", "Colaboradores obtenidos: $processed")
         }
     }
 
@@ -1131,7 +1115,10 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                                 verticalAlignment = Alignment.CenterVertically,
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clickable { showCollaborators = !showCollaborators }
+                                    .clickable {
+                                        needToRefreshCollaborators = true
+                                        showCollaborators = !showCollaborators
+                                    }
                                     .padding(vertical = 8.dp)
                             ) {
                                 Spacer(Modifier.height(16.dp))
@@ -1271,8 +1258,10 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                                     .clickable {
                                         showPendingInvites = !showPendingInvites
 
-                                        // Sólo cargar la primera vez que abrimos
-                                        if (showPendingInvites && pendingInvitesCollaborate.isEmpty()) {
+
+                                        if (showPendingInvites) {
+                                            pendingInvitesCollaborate = emptyList()
+
                                             coroutineScope.launch {
                                                 playlistId?.let { pid ->
                                                     Log.d("PendingInvites", "Fetching pending invitations for $pid")
@@ -1287,7 +1276,7 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                                                                     val invite = CollaboratorItem(
                                                                         id = obj.optString("id"),
                                                                         nickname     = obj.optString("nickname"),
-                                                                        pictureUrl   = obj.optString("userPicture")
+                                                                        pictureUrl   = obj.optString("pictureUrl")
                                                                     )
                                                                     pendingInvitesCollaborate += invite
                                                                 }
@@ -1666,6 +1655,9 @@ fun BottomSheetContent(
     // Estado para mostrar el diálogo de selección de amigos
     var showFriendSelectionDialog by remember { mutableStateOf(false) }
 
+    // ① Flag para disparar la recarga
+    var loadCollaborators by remember { mutableStateOf(false) }
+
     // URL base para compartir
     val baseShareUrl = "https://vibra.eina.unizar.es/playlist/" // Usa HTTPS para compatibilidad universal
     val vibraDeepLink = "vibra://playlist/" // Para abrir directamente en la app si está instalada
@@ -1725,6 +1717,23 @@ fun BottomSheetContent(
             // Simular tiempo de carga o esperar a que termine de cargar los datos
             delay(500)  // Un pequeño retraso para simular la carga de datos
             isLoading = false
+        }
+    }
+
+    LaunchedEffect(loadCollaborators) {
+        if (loadCollaborators && playlistId != null) {
+            Log.d("Collaborators", "🔄 Cargando colaboradores para playlist $playlistId")
+            try {
+                val response = withContext(Dispatchers.IO) { getPlaylistCollaborators(context, playlistId) }
+                val processed = processCollaborators(response)
+                Log.d("Collaborators", "✅ Colaboradores obtenidos: $processed")
+                onCollaboratorsUpdated(processed)
+            } catch (e: Exception) {
+                Log.e("Collaborators", "Error recargando colaboradores", e)
+            } finally {
+                // 3) Resetea la bandera local para no buclear
+                loadCollaborators = false
+            }
         }
     }
 
@@ -1911,6 +1920,7 @@ fun BottomSheetContent(
 
                                 coroutineScope.launch {
                                     // Cargar colaboradores actuales
+                                    loadCollaborators = true
                                     val responseRecent = playlistId?.let { getPlaylistCollaborators(context, it) }
                                     val colaboradoresProcesados = processCollaborators(responseRecent)
                                     onCollaboratorsUpdated(colaboradoresProcesados)
