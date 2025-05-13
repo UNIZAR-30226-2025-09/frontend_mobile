@@ -763,10 +763,12 @@ class MusicPlayerViewModel : ViewModel() {
 
     // Function to get the current song position
     fun seekTo(progress: Float) {
-        val duration = exoPlayer?.duration ?: return
-        val newPosition = (progress * duration).toLong()
-        exoPlayer?.seekTo(newPosition)
-        _currentSong.value = _currentSong.value?.copy(progress = progress)
+        if(_canSkipSongs.value || _isPremiumUser.value){
+            val duration = exoPlayer?.duration ?: return
+            val newPosition = (progress * duration).toLong()
+            exoPlayer?.seekTo(newPosition)
+            _currentSong.value = _currentSong.value?.copy(progress = progress)
+        }
     }
 
     // Function to pass to the next song
@@ -934,32 +936,34 @@ class MusicPlayerViewModel : ViewModel() {
 
     // Function to pass to the previous song
     fun previousSong(context: Context) {
-        if (songList.isEmpty()) return
+        if (_canSkipSongs.value || _isPremiumUser.value) {
+            if (songList.isEmpty()) return
 
-        // Calcular el índice anterior
-        val previousIndex = (currentIndex - 1 + songList.size) % songList.size
-        val previousSong = songList[previousIndex]
+            // Calcular el índice anterior
+            val previousIndex = (currentIndex - 1 + songList.size) % songList.size
+            val previousSong = songList[previousIndex]
 
-        // Verificar si la canción anterior es un anuncio
-        if (isAdvertisement(previousSong)) {
-            Log.d("MusicPlayerViewModel", "Saltando anuncio automáticamente al retroceder")
+            // Verificar si la canción anterior es un anuncio
+            if (isAdvertisement(previousSong)) {
+                Log.d("MusicPlayerViewModel", "Saltando anuncio automáticamente al retroceder")
 
-            // Saltamos otro índice más hacia atrás para evitar el anuncio
-            currentIndex = (previousIndex - 1 + songList.size) % songList.size
-            val safeSong = songList[currentIndex]
+                // Saltamos otro índice más hacia atrás para evitar el anuncio
+                currentIndex = (previousIndex - 1 + songList.size) % songList.size
+                val safeSong = songList[currentIndex]
 
-            // Actualizar el estado y reproducir
-            _currentSong.value = safeSong.copy(isPlaying = true, progress = 0f)
-            initializePlayer(context, safeSong.url)
-        } else {
-            // Comportamiento normal si no es anuncio
-            currentIndex = previousIndex
-            _currentSong.value = previousSong.copy(isPlaying = true, progress = 0f)
-            initializePlayer(context, previousSong.url)
+                // Actualizar el estado y reproducir
+                _currentSong.value = safeSong.copy(isPlaying = true, progress = 0f)
+                initializePlayer(context, safeSong.url)
+            } else {
+                // Comportamiento normal si no es anuncio
+                currentIndex = previousIndex
+                _currentSong.value = previousSong.copy(isPlaying = true, progress = 0f)
+                initializePlayer(context, previousSong.url)
+            }
+
+            // Cargar el estado de "me gusta" para la nueva canción
+            loadLikedStatus(_currentSong.value?.id)
         }
-
-        // Cargar el estado de "me gusta" para la nueva canción
-        loadLikedStatus(_currentSong.value?.id)
     }
 
     // Function to release the player
