@@ -699,7 +699,7 @@ fun FriendsScreen(navController: NavController, playerViewModel: MusicPlayerView
                                                 .build(),
                                             contentDescription = "Foto de perfil",
                                             modifier = Modifier
-                                                .size(40.dp)
+                                                .size(48.dp)
                                                 .clip(CircleShape),
                                             contentScale = ContentScale.Crop
                                         )

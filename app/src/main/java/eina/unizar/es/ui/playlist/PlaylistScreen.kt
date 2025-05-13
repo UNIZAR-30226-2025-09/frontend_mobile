@@ -73,7 +73,6 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.core.content.ContextCompat
 import androidx.navigation.NavController
-import androidx.room.Delete
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.example.musicapp.ui.theme.VibraBlack
@@ -91,10 +90,12 @@ import coil.compose.rememberAsyncImagePainter
 import eina.unizar.es.data.model.network.ApiClient.checkIfSongIsLiked
 import eina.unizar.es.data.model.network.ApiClient.getImageUrl
 import eina.unizar.es.data.model.network.ApiClient.getLikedSongsPlaylist
+import eina.unizar.es.data.model.network.ApiClient.getPlaylistCollaborators
 import eina.unizar.es.data.model.network.ApiClient.getSongDetails
 import eina.unizar.es.data.model.network.ApiClient.isPlaylistOwner
 import eina.unizar.es.data.model.network.ApiClient.likeUnlikeSong
 import eina.unizar.es.data.model.network.ApiClient.post
+import eina.unizar.es.data.model.network.ApiClient.processCollaborators
 import eina.unizar.es.data.model.network.ApiClient.recordPlaylistVisit
 import eina.unizar.es.data.model.network.ApiClient.updatePlaylist
 import eina.unizar.es.data.model.network.ApiClient.togglePlaylistType
@@ -119,12 +120,6 @@ import java.net.URLEncoder
 enum class SortOption {
     TITULO, DURACION, ARTISTA
 }
-
-data class CollaboratorItem(
-    val id: String,
-    val nickname: String,
-    val pictureUrl: String?
-)
 
 data class PendingInvitationItem(
     val playlistId: String,
@@ -175,7 +170,7 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
     )
 
     // Los estados para el diálogo:
-    val collaborators = remember { mutableStateListOf<CollaboratorItem>() }
+    var collaborators by remember { mutableStateOf<List<CollaboratorItem>>(emptyList()) }
     val pendingInvites = remember { mutableStateListOf<PendingInvitationItem>() }
     var newInviteUserId by remember { mutableStateOf("") }
 
@@ -216,7 +211,7 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
 
     // Estado para los colaboradores
     var showCollaboratorsDialog by remember { mutableStateOf(false) }
-
+    val colorManager = remember { UserColorManager(context) }
 
 
     // Función para cambiar el estado de "me gusta" de una canción
@@ -1063,6 +1058,9 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                                 playlistInfo = updatedPlaylist
                             },
                             collaborators = collaborators,
+                            onCollaboratorsUpdated = { newCollaborators ->
+                                collaborators = newCollaborators
+                            },
                             pendingInvites = pendingInvites,
                             newInviteUserId = newInviteUserId,
                             onNewInviteUserIdChange = { newInviteUserId = it },
@@ -1110,6 +1108,7 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                                     "Colaboradores actuales",
                                     style = MaterialTheme.typography.titleMedium
                                 )
+
                             }
 
                             AnimatedVisibility(
@@ -1123,46 +1122,99 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                                             style = MaterialTheme.typography.bodyMedium,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     } else {
-                                        collaborators.forEach { collab ->
-                                            Row(
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .padding(vertical = 4.dp)
-                                            ) {
-                                                CollaboratorItem(
-                                                    invite = false,
-                                                    colorManager = UserColorManager(context),
-                                                    onClick = {},
-                                                    friend = collab,
-                                                )
-
-                                                Spacer(modifier = Modifier.width(8.dp))
-
-                                                // Botón de eliminar
-                                                IconButton(
-                                                    onClick = {
-                                                        coroutineScope.launch {
-                                                            if (playlistId != null) {
-                                                                ApiClient.removeCollaborator(
-                                                                    playlistId,
-                                                                    collab.id,
-                                                                    context
-                                                                )
-                                                            }
-                                                            // refrescar lista tras eliminar
-                                                            collaborators.remove(collab)
-                                                        }
-                                                    },
+                                        LazyColumn(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .heightIn(max = 200.dp)
+                                        ) {
+                                            items(collaborators) { collaborator ->
+                                                // Comprobar si el colaborador es el propietario
+                                                var soyPropietarioCollab = collaborator.id == userId
+                                                if (soyPropietario && soyPropietarioCollab){
+                                                    soyPropietarioCollab = true
+                                                }
+                                                else{
+                                                    soyPropietarioCollab = false
+                                                }
+                                                Row(
                                                     modifier = Modifier
-                                                        .size(40.dp)
+                                                        .fillMaxWidth()
+                                                        .padding(vertical = 8.dp),
+                                                    verticalAlignment = Alignment.CenterVertically
                                                 ) {
-                                                    Icon(
-                                                        Icons.Default.Delete,
-                                                        contentDescription = "Eliminar",
-                                                        tint = MaterialTheme.colorScheme.error,
-                                                        modifier = Modifier.size(24.dp)
+                                                    // Avatar
+                                                    if (collaborator.pictureUrl == "null" || collaborator.pictureUrl.isEmpty()) {
+                                                        val userProfileColor = remember(collaborator.id) {
+                                                            colorManager.getUserProfileColor(collaborator.id)
+                                                        }
+
+                                                        Box(
+                                                            modifier = Modifier
+                                                                .size(48.dp)
+                                                                .background(userProfileColor, CircleShape)
+                                                                .clip(CircleShape),
+                                                            contentAlignment = Alignment.Center
+                                                        ) {
+                                                            Text(
+                                                                text = collaborator.nickname.take(1).uppercase(),
+                                                                style = MaterialTheme.typography.bodyLarge,
+                                                                color = Color.White
+                                                            )
+                                                        }
+                                                    } else {
+                                                        AsyncImage(
+                                                            model = ImageRequest.Builder(context)
+                                                                .data(getImageUrl(collaborator.pictureUrl))
+                                                                .crossfade(true)
+                                                                .build(),
+                                                            contentDescription = "Foto de perfil",
+                                                            modifier = Modifier
+                                                                .size(48.dp)
+                                                                .clip(CircleShape),
+                                                            contentScale = ContentScale.Crop
+                                                        )
+                                                    }
+
+                                                    Spacer(modifier = Modifier.width(16.dp))
+
+                                                    // Nombre
+                                                    Text(
+                                                        text = collaborator.nickname,
+                                                        style = MaterialTheme.typography.bodyLarge,
+                                                        modifier = Modifier.weight(1f),
+                                                        color = MaterialTheme.colorScheme.onSurface
                                                     )
+
+                                                    Spacer(modifier = Modifier.width(8.dp))
+
+                                                    if (soyPropietarioCollab == false) {
+                                                        // Botón de eliminar
+                                                        IconButton(
+                                                            onClick = {
+                                                                coroutineScope.launch {
+                                                                    if (playlistId != null) {
+                                                                        ApiClient.removeCollaborator(
+                                                                            playlistId,
+                                                                            collaborator.id,
+                                                                            context
+                                                                        )
+                                                                    }
+                                                                    // Refrescar lista tras eliminar
+                                                                    val nuevaListaColaboradores = collaborators.filterNot { it.id == collaborator.id }
+                                                                    collaborators = nuevaListaColaboradores
+                                                                }
+                                                            },
+                                                            modifier = Modifier
+                                                                .size(40.dp)
+                                                        ) {
+                                                            Icon(
+                                                                Icons.Default.Delete,
+                                                                contentDescription = "Eliminar",
+                                                                tint = MaterialTheme.colorScheme.error,
+                                                                modifier = Modifier.size(24.dp)
+                                                            )
+                                                        }
+                                                    }
                                                 }
                                             }
                                         }
@@ -1322,6 +1374,12 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                                                                 }
                                                             )
                                                         }
+                                                        else {
+                                                            Spacer(modifier = Modifier.height(16.dp))
+                                                            Text("No hay amigos disponibles para invitar",
+                                                                style = MaterialTheme.typography.bodyLarge,
+                                                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                                        }
                                                     }
                                                 }
                                             }
@@ -1339,7 +1397,7 @@ fun PlaylistScreen(navController: NavController, playlistId: String?, playerView
                                                     .height(48.dp)
                                             )
                                             {
-                                                Text("Cancelar", color = Color.White, fontWeight = FontWeight.Medium)
+                                                Text("Cerrar", color = Color.White, fontWeight = FontWeight.Medium)
 
                                             }
                                         }
@@ -1392,7 +1450,8 @@ fun BottomSheetContent(
     playlistMeGusta: String,
     onLikeUpdate: (Boolean) -> Unit,
     onPlaylistUpdated: (Playlist) -> Unit,
-    collaborators: SnapshotStateList<CollaboratorItem>,
+    collaborators: List<CollaboratorItem>,
+    onCollaboratorsUpdated: (List<CollaboratorItem>) -> Unit,
     pendingInvites: SnapshotStateList<PendingInvitationItem>,
     newInviteUserId: String,
     onNewInviteUserIdChange: (String) -> Unit,
@@ -1667,70 +1726,13 @@ fun BottomSheetContent(
                             onClick = {
                                 Log.d("Collaborators", ">> EDITAR COLABORADORES CLICKED y playlistId: $playlistId")
 
-
                                 coroutineScope.launch {
                                     // Cargar colaboradores actuales
-
-                                    if (playlistId != null) {
-                                        ApiClient.getCollaborators(playlistId, context)?.let { resp ->
-                                            // Log detallado de las respuestas
-                                            Log.d("Collaborators", "getCollaborators resp full content = $resp")
-
-                                            // Depuración de nombres de claves
-                                            Log.d("Collaborators", "getCollaborators resp keys = ${
-                                                resp.names()?.let { names ->
-                                                    (0 until names.length()).joinToString { names.optString(it) }
-                                                }
-                                            }")
-
-                                            // Limpiar lista de colaboradores antes de repoblarla
-                                            collaborators.clear()
-
-                                            // Extraer array de colaboradores de manera más robusta
-                                            val arr = resp.optJSONArray("collaborators") ?: resp.optJSONArray("collab") ?: resp.optJSONArray("users")
-
-                                            if (arr != null) {
-                                                for (i in 0 until arr.length()) {
-                                                    arr.optJSONObject(i)?.let { obj ->
-                                                        // Log para depuración de cada colaborador
-                                                        Log.d("Collaborators", "Processing collaborator[$i]: $obj")
-
-                                                        // Extracción de datos con múltiples estrategias de respaldo
-                                                        val collaboratorId = obj.optString("id") ?: obj.optString("user_id") ?: ""
-                                                        val nickname = obj.optString("nickname") ?: obj.optString("name") ?: obj.optString("username") ?: "Usuario sin nombre"
-
-                                                        // Estrategias para obtener la URL de la imagen
-                                                        val pictureUrl = obj.optString("user_picture")
-                                                            .takeIf { it.isNotBlank() }
-                                                            ?: obj.optString("picture_url")
-                                                                .takeIf { it.isNotBlank() }
-                                                            ?: obj.optString("avatar")
-                                                                .takeIf { it.isNotBlank() }
-                                                            ?: ""
-
-                                                        // Añadir colaborador a la lista
-                                                        collaborators += CollaboratorItem(
-                                                            id = collaboratorId,
-                                                            nickname = nickname,
-                                                            pictureUrl = pictureUrl
-                                                        )
-
-                                                        // Log del colaborador añadido
-                                                        Log.d("Collaborators", "Added collaborator: $nickname (ID: $collaboratorId)")
-                                                    }
-                                                }
-                                            } else {
-                                                // Log si no se encuentra el array de colaboradores
-                                                Log.e("Collaborators", "No se encontró el array de colaboradores en la respuesta")
-                                            }
-
-                                            // Log del número total de colaboradores
-                                            Log.d("Collaborators", "Total collaborators added: ${collaborators.size}")
-                                        }
-                                    }
-
-                            onShowCollaboratorsDialogChange(true)
-                                        onDismiss()
+                                    val responseRecent = playlistId?.let { getPlaylistCollaborators(context, it) }
+                                    val colaboradoresProcesados = processCollaborators(responseRecent)
+                                    onCollaboratorsUpdated(colaboradoresProcesados)
+                                    onShowCollaboratorsDialogChange(true)
+                                    onDismiss()
                                 }
                             }
                         )
@@ -2625,92 +2627,7 @@ fun FriendCollaboratorItem(
                     contentDescription = "Invitar como colaborador",
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier
-                        .size(24.dp)
-                        .background(
-                            MaterialTheme.colorScheme.primaryContainer,
-                            CircleShape
-                        )
-                        .padding(4.dp)
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun CollaboratorItem(
-    friend: CollaboratorItem,
-    invite: Boolean = true,
-    colorManager: UserColorManager,
-    onClick: () -> Unit
-) {
-    val context = LocalContext.current
-
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(vertical = 4.dp),
-        color = Color.Transparent
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Avatar del amigo
-            if (friend.pictureUrl == "null" || friend.pictureUrl?.isEmpty() == true) {
-                val friendProfileColor = remember(friend.id) {
-                    colorManager.getUserProfileColor(friend.id)
-                }
-
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .background(friendProfileColor, CircleShape)
-                        .clip(CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = friend.nickname.take(1).uppercase(),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = Color.White
-                    )
-                }
-            } else {
-                AsyncImage(
-                    model = ImageRequest.Builder(context)
-                        .data(ApiClient.getImageUrl(friend.pictureUrl))
-                        .crossfade(true)
-                        .build(),
-                    contentDescription = "Foto de perfil",
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(CircleShape),
-                    contentScale = ContentScale.Crop
-                )
-            }
-
-            Spacer(modifier = Modifier.width(16.dp))
-
-            // Nombre del amigo
-            Text(
-                text = friend.nickname,
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-
-            Spacer(modifier = Modifier.weight(1f))
-
-
-            if (invite){                // Icono de invitar a colaborar
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = "Invitar como colaborador",
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier
-                        .size(24.dp)
+                        .size(32.dp)
                         .background(
                             MaterialTheme.colorScheme.primaryContainer,
                             CircleShape
