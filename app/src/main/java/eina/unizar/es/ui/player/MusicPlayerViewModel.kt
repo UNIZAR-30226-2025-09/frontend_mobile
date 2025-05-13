@@ -2,11 +2,9 @@ package eina.unizar.es.ui.player
 
 import android.content.Context
 import android.util.Log
-import androidx.compose.runtime.State
 import kotlinx.coroutines.flow.asStateFlow
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -22,18 +20,13 @@ import eina.unizar.es.data.model.network.ApiClient.getLastPlaybackState
 import eina.unizar.es.data.model.network.ApiClient.getSongDetails
 import eina.unizar.es.data.model.network.ApiClient.getUserData
 import eina.unizar.es.data.model.network.ApiClient.likeUnlikeSong
-import eina.unizar.es.data.model.network.ApiClient.post
 import eina.unizar.es.data.model.network.ApiClient.skipsLessApi
 import eina.unizar.es.data.model.network.ApiClient.updateLastPlaybackState
-import eina.unizar.es.ui.playlist.PlaylistScreen
-import eina.unizar.es.ui.playlist.getArtistName
 import eina.unizar.es.ui.song.Song
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
@@ -223,6 +216,7 @@ class MusicPlayerViewModel : ViewModel() {
                 val userData = getUserData(context)
                 if (userData != null) {
                     _userId = (userData["id"] ?: "").toString()
+                    Log.d("RetomarSong", "ID de usuario establecido: $_userId")
                     _isPremiumUser.value = (userData["is_premium"] as? Boolean) ?: false
                     _skipsRemainingToday = (userData["daily_skips"] as? Int) ?: 0
 
@@ -592,16 +586,24 @@ class MusicPlayerViewModel : ViewModel() {
                 if (songId.isEmpty() || isAdvertisement(currentSong)) {
                     return@launch
                 }
+
+                // Verificar que tenemos un userId
+                if (_userId.isEmpty()) {
+                    Log.e("RetomarSong", "No se puede guardar el estado: userId está vacío")
+                    setUserId(context) // Intentar obtener el userId si está vacío
+                    if (_userId.isEmpty()) return@launch
+                }
                 
                 // Calcular la posición actual en minutos y segundos
                 val position = exoPlayer?.currentPosition ?: 0L
                 val positionMinutes = (position / 60000).toInt()  // Convertir ms a minutos
                 val positionSeconds = ((position % 60000) / 1000).toInt()  // Segundos restantes
                 
-                Log.d("MusicPlayer", "Guardando estado: Canción $songId, Playlist $playlistId, Posición ${positionMinutes}m ${positionSeconds}s")
+                Log.d("RetomarSong", "Guardando estado: Canción $songId, Playlist $playlistId, Posición ${positionMinutes}m ${positionSeconds}s")
                 
                 // Llamar a la API para guardar el estado
                 val response = updateLastPlaybackState(
+                    userId = _userId,
                     positionMinutos = positionMinutes,
                     positionSegundos = positionSeconds,
                     songId = songId,
@@ -610,12 +612,12 @@ class MusicPlayerViewModel : ViewModel() {
                 )
                 
                 if (response != null) {
-                    Log.d("MusicPlayer", "Estado de reproducción guardado correctamente")
+                    Log.d("RetomarSong", "Estado de reproducción guardado correctamente")
                 } else {
-                    Log.e("MusicPlayer", "Error al guardar estado de reproducción")
+                    Log.e("RetomarSong", "Error al guardar estado de reproducción")
                 }
             } catch (e: Exception) {
-                Log.e("MusicPlayer", "Excepción al guardar estado de reproducción: ${e.message}")
+                Log.e("RetomarSong", "Excepción al guardar estado de reproducción: ${e.message}")
             }
         }
     }
@@ -626,10 +628,10 @@ class MusicPlayerViewModel : ViewModel() {
     fun restorePlaybackState(context: Context) {
         viewModelScope.launch {
             try {
-                val playbackState = getLastPlaybackState(context)
+                val playbackState = getLastPlaybackState(_userId, context)
                 
                 if (playbackState == null) {
-                    Log.d("MusicPlayer", "No hay estado de reproducción guardado")
+                    Log.d("RetomarSong", "No hay estado de reproducción guardado")
                     return@launch
                 }
                 
@@ -643,7 +645,7 @@ class MusicPlayerViewModel : ViewModel() {
                     // Calcular la posición total en milisegundos
                     val position = (positionMinutes * 60 + positionSeconds) * 1000L
                     
-                    Log.d("MusicPlayer", "Restaurando estado: Canción $songId, Playlist $playlistId, Posición ${positionMinutes}m ${positionSeconds}s")
+                    Log.d("RetomarSong", "Restaurando estado: Canción $songId, Playlist $playlistId, Posición ${positionMinutes}m ${positionSeconds}s")
                     
                     // Verificar si tenemos información completa de la canción y playlist
                     if (playbackState.has("song") && !playbackState.isNull("song")) {
@@ -734,7 +736,7 @@ class MusicPlayerViewModel : ViewModel() {
                                     // Pausar la reproducción inicialmente
                                     exoPlayer?.pause()
                                     
-                                    Log.d("MusicPlayer", "Estado de reproducción restaurado completamente")
+                                    Log.d("RetomarSong", "Estado de reproducción restaurado completamente")
                                     return@launch
                                 }
                             }
@@ -769,7 +771,7 @@ class MusicPlayerViewModel : ViewModel() {
                         // Pausar la reproducción inicialmente
                         exoPlayer?.pause()
                         
-                        Log.d("MusicPlayer", "Estado de reproducción restaurado (solo canción)")
+                        Log.d("RetomarSong", "Estado de reproducción restaurado (solo canción)")
                     } else {
                         // Si no tenemos detalles completos, intentamos cargar la canción por su ID
                         loadSongsFromApi(songId, context, R.drawable.defaultx)
@@ -779,13 +781,13 @@ class MusicPlayerViewModel : ViewModel() {
                         exoPlayer?.seekTo(position)
                         exoPlayer?.pause()
                         
-                        Log.d("MusicPlayer", "Estado de reproducción restaurado (cargando desde API)")
+                        Log.d("RetomarSong", "Estado de reproducción restaurado (cargando desde API)")
                     }
                 } catch (e: JSONException) {
-                    Log.e("MusicPlayer", "Error al procesar JSON de estado de reproducción: ${e.message}")
+                    Log.e("RetomarSong", "Error al procesar JSON de estado de reproducción: ${e.message}")
                 }
             } catch (e: Exception) {
-                Log.e("MusicPlayer", "Excepción al restaurar estado de reproducción: ${e.message}")
+                Log.e("RetomarSong", "Excepción al restaurar estado de reproducción: ${e.message}")
             }
         }
     }
@@ -940,6 +942,7 @@ class MusicPlayerViewModel : ViewModel() {
                 startProgressTracking()
             } else {
                 appContext?.let { context ->
+                    Log.d("RetomarSong", "Guardando estado de reproducción al pausar")
                     savePlaybackState(context)
                 }
             }
@@ -1126,6 +1129,7 @@ class MusicPlayerViewModel : ViewModel() {
                     // Cargar estado de like
                     loadLikedStatus(nextCurrentSong.id)
 
+                    Log.d("RetomarSong", "Reproduciendo siguiente de la cola: ${nextQueueSong.name} (Artista: $artistName)")
                     savePlaybackState(context)
 
                     Log.d("MusicPlayer", "Reproduciendo de cola: ${nextCurrentSong.title}")
@@ -1161,6 +1165,7 @@ class MusicPlayerViewModel : ViewModel() {
 
             loadLikedStatus(_currentSong.value?.id)
 
+            Log.d("RetomarSong", "Avanzando a la siguiente canción: ${_currentSong.value?.title}")
             savePlaybackState(context)
         }
     }
@@ -1195,12 +1200,14 @@ class MusicPlayerViewModel : ViewModel() {
             // Cargar el estado de "me gusta" para la nueva canción
             loadLikedStatus(_currentSong.value?.id)
 
+            Log.d("RetomarSong", "Retrocediendo a la canción anterior: ${_currentSong.value?.title}")
             savePlaybackState(context)
         }
     }
 
     // Function to release the player
     fun releasePlayer() {
+        Log.d("RetomarSong", "Liberando el reproductor")
         // Guardar el estado antes de liberar recursos
         appContext?.let { context ->
             savePlaybackState(context)
@@ -1212,6 +1219,7 @@ class MusicPlayerViewModel : ViewModel() {
 
     // Function to clear the ViewModel
     override fun onCleared() {
+        Log.d("RetomarSong", "Limpiando el ViewModel")
         // Guardar estado antes de limpiar
         appContext?.let { context ->
             savePlaybackState(context)

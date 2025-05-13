@@ -1,6 +1,7 @@
 package eina.unizar.es.ui.navigation
 
 import android.annotation.SuppressLint
+import android.util.Log
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -52,8 +53,9 @@ fun AppNavigator(navController: NavHostController, paymentSheet: PaymentSheet, i
         playerViewModel.setUserId(context)
         
         // Esperar un momento para que el userId se cargue completamente
-        delay(500)
-        
+        delay(1000)
+
+        Log.d("RetomarSong", "Restaurando estado de reproducción")
         // Restaurar el estado de reproducción guardado anteriormente
         playerViewModel.restorePlaybackState(context)
         
@@ -63,8 +65,11 @@ fun AppNavigator(navController: NavHostController, paymentSheet: PaymentSheet, i
         // Configurar el estado premium del usuario
         playerViewModel.setPremiumUser(context)
 
+
         //
         playerViewModel.setApplicationContext(context)
+
+        Log.d("RetomarSong", "Estado de reproducción restaurado")
     }
 
     // Estado para ruta actual observada

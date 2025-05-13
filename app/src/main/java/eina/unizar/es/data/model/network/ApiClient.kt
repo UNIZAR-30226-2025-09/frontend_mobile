@@ -29,10 +29,6 @@ object ApiClient {
     //const val BASE_URL_IMG = "http://10.0.2.2/request"
     const val BASE_URL = "http://164.90.160.181/request/api" // Usa la IP publica (nube) del backend
     const val BASE_URL_IMG = "http://164.90.160.181/request"
-    //const val BASE_URL = "http://10.0.2.2/request/api" // Usa la IP local del backend
-    //const val BASE_URL_IMG = "http://10.0.2.2/request"
-    const val BASE_URL = "http://164.90.160.181/request/api" // Usa la IP publica (nube) del backend
-    const val BASE_URL_IMG = "http://164.90.160.181/request"
 
 
 
@@ -2969,21 +2965,21 @@ object ApiClient {
      * @param context Contexto para obtener el token de autenticación
      * @return JSONObject con el estado de reproducción o null si hay error
      */
-    suspend fun getLastPlaybackState(context: Context): JSONObject? {
+    suspend fun getLastPlaybackState(userId: String, context: Context): JSONObject? {
         return withContext(Dispatchers.IO) {
             try {
                 val sharedPreferences = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
                 val token = sharedPreferences.getString("auth_token", null)
-                val userId = sharedPreferences.getString("user_id", null)
+                //val userId = sharedPreferences.getString("user_id", null)
                 
                 if (token.isNullOrEmpty() || userId.isNullOrEmpty()) {
-                    Log.e("API", "Token o userId no disponible para obtener estado de reproducción")
+                    Log.e("RetomarSong", "Token o userId no disponible para obtener estado de reproducción")
                     return@withContext null
                 }
                 
                 val url = URL("$BASE_URL/lastPlaybackState/$userId")
                 
-                Log.d("API", "URL para obtener estado de reproducción: $url")
+                Log.d("RetomarSong", "URL para obtener estado de reproducción: $url")
                 
                 val connection = url.openConnection() as HttpURLConnection
                 connection.apply {
@@ -2996,24 +2992,24 @@ object ApiClient {
                 }
                 
                 val responseCode = connection.responseCode
-                Log.d("API", "Código de respuesta getLastPlaybackState: $responseCode")
+                Log.d("RetomarSong", "Código de respuesta getLastPlaybackState: $responseCode")
                 
                 if (responseCode in 200..299) {
                     val response = connection.inputStream.bufferedReader().use { it.readText() }
-                    Log.d("API", "Respuesta getLastPlaybackState: $response")
+                    Log.d("RetomarSong", "Respuesta getLastPlaybackState: $response")
                     return@withContext JSONObject(response)
                 } else if (responseCode == 404) {
                     // No hay estado guardado para este usuario
-                    Log.d("API", "No se encontró estado de reproducción para este usuario")
+                    Log.d("RetomarSong", "No se encontró estado de reproducción para este usuario")
                     return@withContext null
                 } else {
                     val errorStream = connection.errorStream
                     val errorBody = errorStream?.bufferedReader()?.use { it.readText() } ?: "No error message"
-                    Log.e("API", "Error en getLastPlaybackState: $errorBody")
+                    Log.e("RetomarSong", "Error en getLastPlaybackState: $errorBody")
                     return@withContext null
                 }
             } catch (e: Exception) {
-                Log.e("API", "Excepción en getLastPlaybackState: ${e.message}", e)
+                Log.e("RetomarSong", "Excepción en getLastPlaybackState: ${e.message}", e)
                 return@withContext null
             }
         }
@@ -3031,6 +3027,7 @@ object ApiClient {
      * @return JSONObject con el estado actualizado o null si hay error
      */
     suspend fun updateLastPlaybackState(
+        userId: String,
         positionMinutos: Int,
         positionSegundos: Int,
         songId: String,
@@ -3041,16 +3038,16 @@ object ApiClient {
             try {
                 val sharedPreferences = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
                 val token = sharedPreferences.getString("auth_token", null)
-                val userId = sharedPreferences.getString("user_id", null)
+                //val userId = sharedPreferences.getString("user_id", null)
                 
                 if (token.isNullOrEmpty() || userId.isNullOrEmpty()) {
-                    Log.e("API", "Token o userId no disponible para actualizar estado de reproducción")
+                    Log.e("RetomarSong", "Token o userId no disponible para actualizar estado de reproducción $userId")
                     return@withContext null
                 }
                 
                 val url = URL("$BASE_URL/lastPlaybackState/$userId")
                 
-                Log.d("API", "URL para actualizar estado de reproducción: $url")
+                Log.d("RetomarSong", "URL para actualizar estado de reproducción: $url")
                 
                 val connection = url.openConnection() as HttpURLConnection
                 connection.apply {
@@ -3078,20 +3075,20 @@ object ApiClient {
                 }
                 
                 val responseCode = connection.responseCode
-                Log.d("API", "Código de respuesta updateLastPlaybackState: $responseCode")
+                Log.d("RetomarSong", "Código de respuesta updateLastPlaybackState: $responseCode")
                 
                 if (responseCode in 200..299) {
                     val response = connection.inputStream.bufferedReader().use { it.readText() }
-                    Log.d("API", "Respuesta updateLastPlaybackState: $response")
+                    Log.d("RetomarSong", "Respuesta updateLastPlaybackState: $response")
                     return@withContext JSONObject(response)
                 } else {
                     val errorStream = connection.errorStream
                     val errorBody = errorStream?.bufferedReader()?.use { it.readText() } ?: "No error message"
-                    Log.e("API", "Error en updateLastPlaybackState: $errorBody")
+                    Log.e("RetomarSong", "Error en updateLastPlaybackState: $errorBody")
                     return@withContext null
                 }
             } catch (e: Exception) {
-                Log.e("API", "Excepción en updateLastPlaybackState: ${e.message}", e)
+                Log.e("RetomarSong", "Excepción en updateLastPlaybackState: ${e.message}", e)
                 return@withContext null
             }
         }
