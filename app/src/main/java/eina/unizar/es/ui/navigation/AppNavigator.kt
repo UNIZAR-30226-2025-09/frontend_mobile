@@ -67,7 +67,7 @@ fun AppNavigator(navController: NavHostController, paymentSheet: PaymentSheet, i
 
 
         //
-        playerViewModel.setApplicationContext(context)
+        //playerViewModel.setApplicationContext(context)
 
         Log.d("RetomarSong", "Estado de reproducción restaurado")
     }

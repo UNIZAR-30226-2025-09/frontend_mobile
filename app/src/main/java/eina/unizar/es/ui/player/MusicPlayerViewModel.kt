@@ -1,5 +1,6 @@
 package eina.unizar.es.ui.player
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.util.Log
 import kotlinx.coroutines.flow.asStateFlow
@@ -106,12 +107,13 @@ class MusicPlayerViewModel : ViewModel() {
     val canSkipSongs: StateFlow<Boolean> = _canSkipSongs
 
     // Añade esta propiedad a tu clase MusicPlayerViewModel
-    private var appContext: Context? = null
+    @SuppressLint("StaticFieldLeak")
+    var playerContext: Context? = null
 
-    // Añade esta función para inicializar el contexto
-    fun setApplicationContext(context: Context) {
-        this.appContext = context.applicationContext
-    }
+//    // Añade esta función para inicializar el contexto
+//    fun setApplicationContext(context: Context) {
+//        this.appContext = context.applicationContext
+//    }
 
     // Modelo para los anuncios
     data class Ad(
@@ -479,6 +481,7 @@ class MusicPlayerViewModel : ViewModel() {
         try {
             // Context from the application to avoid memory leaks
             val appContext = context.applicationContext
+            this.playerContext = appContext
 
             // Formatear correctamente la URL
             val formattedUri = formatSongUrl(songUri)
@@ -941,10 +944,8 @@ class MusicPlayerViewModel : ViewModel() {
                 }
                 startProgressTracking()
             } else {
-                appContext?.let { context ->
-                    Log.d("RetomarSong", "Guardando estado de reproducción al pausar")
-                    savePlaybackState(context)
-                }
+                Log.d("RetomarSong", "Guardando estado de reproducción al pausar")
+                playerContext?.let { savePlaybackState(it) }
             }
         }
     }
@@ -1209,9 +1210,7 @@ class MusicPlayerViewModel : ViewModel() {
     fun releasePlayer() {
         Log.d("RetomarSong", "Liberando el reproductor")
         // Guardar el estado antes de liberar recursos
-        appContext?.let { context ->
-            savePlaybackState(context)
-        }
+        playerContext?.let { savePlaybackState(it) }
 
         exoPlayer?.release()
         exoPlayer = null
@@ -1220,10 +1219,13 @@ class MusicPlayerViewModel : ViewModel() {
     // Function to clear the ViewModel
     override fun onCleared() {
         Log.d("RetomarSong", "Limpiando el ViewModel")
-        // Guardar estado antes de limpiar
-        appContext?.let { context ->
-            savePlaybackState(context)
+
+        if (playerContext == null) {
+            Log.d("RetomarSong", "Contexto de aplicación no inicializado")
         }
+
+        // Guardar estado antes de limpiar usando el appContext existente
+        playerContext?.let { savePlaybackState(it) }
 
         super.onCleared()
         releasePlayer()
