@@ -24,6 +24,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.TextFieldValue
@@ -32,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import eina.unizar.es.R
 import eina.unizar.es.data.model.network.ApiClient
 import eina.unizar.es.ui.player.MusicPlayerViewModel
 import eina.unizar.es.ui.user.UserColorManager
@@ -1063,32 +1065,17 @@ fun SharedPlaylistPreview(
                     .fillMaxWidth()
                     .aspectRatio(1f)
             ) {
-                if (playlistImage.isNotEmpty()) {
-                    AsyncImage(
-                        model = ImageRequest.Builder(context)
-                            .data(ApiClient.getImageUrl(playlistImage))
-                            .crossfade(true)
-                            .build(),
-                        contentDescription = "Imagen de playlist",
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
-                    )
-                } else {
-                    // Imagen por defecto para playlists sin imagen
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(MaterialTheme.colorScheme.primaryContainer),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.MusicNote,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                            modifier = Modifier.size(48.dp)
-                        )
-                    }
-                }
+                AsyncImage(
+                    model = ImageRequest.Builder(context)
+                        .data(ApiClient.getImageUrl(playlistImage))
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = "Imagen de playlist",
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop,
+                    error = painterResource(R.drawable.defaultplaylist),
+                    placeholder = painterResource(R.drawable.defaultplaylist)
+                )
             }
             
             // Información de la playlist

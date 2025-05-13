@@ -2958,4 +2958,181 @@ object ApiClient {
 
 
 
+
+    /**
+     * Obtiene el último estado de reproducción para un usuario.
+     * 
+     * @param context Contexto para obtener el token de autenticación
+     * @return JSONObject con el estado de reproducción o null si hay error
+     */
+    suspend fun getLastPlaybackState(userId: String, context: Context): JSONObject? {
+        return withContext(Dispatchers.IO) {
+            try {
+                val sharedPreferences = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+                val token = sharedPreferences.getString("auth_token", null)
+                //val userId = sharedPreferences.getString("user_id", null)
+                
+                if (token.isNullOrEmpty() || userId.isNullOrEmpty()) {
+                    Log.e("API", "Token o userId no disponible para obtener estado de reproducción")
+                    return@withContext null
+                }
+                
+                val url = URL("$BASE_URL/lastPlaybackState/$userId")
+                
+                Log.d("API", "URL para obtener estado de reproducción: $url")
+                
+                val connection = url.openConnection() as HttpURLConnection
+                connection.apply {
+                    requestMethod = "GET"
+                    setRequestProperty("Content-Type", "application/json")
+                    setRequestProperty("Accept", "application/json")
+                    setRequestProperty("Authorization", "Bearer $token")
+                    connectTimeout = 15000
+                    readTimeout = 15000
+                }
+                
+                val responseCode = connection.responseCode
+                Log.d("API", "Código de respuesta getLastPlaybackState: $responseCode")
+                
+                if (responseCode in 200..299) {
+                    val response = connection.inputStream.bufferedReader().use { it.readText() }
+                    Log.d("API", "Respuesta getLastPlaybackState: $response")
+                    return@withContext JSONObject(response)
+                } else if (responseCode == 404) {
+                    // No hay estado guardado para este usuario
+                    Log.d("API", "No se encontró estado de reproducción para este usuario")
+                    return@withContext null
+                } else {
+                    val errorStream = connection.errorStream
+                    val errorBody = errorStream?.bufferedReader()?.use { it.readText() } ?: "No error message"
+                    Log.e("API", "Error en getLastPlaybackState: $errorBody")
+                    return@withContext null
+                }
+            } catch (e: Exception) {
+                Log.e("API", "Excepción en getLastPlaybackState: ${e.message}", e)
+                return@withContext null
+            }
+        }
+    }
+
+    /**
+     * Actualiza o crea el estado de reproducción para un usuario.
+     * 
+     * @param userId ID del usuario
+     * @param positionMinutos Minutos de la posición actual
+     * @param positionSegundos Segundos de la posición actual
+     * @param songId ID de la canción actual
+     * @param playlistId ID de la playlist actual
+     * @param context Contexto para obtener el token de autenticación
+     * @return JSONObject con el estado actualizado o null si hay error
+     */
+    suspend fun updateLastPlaybackState(
+        userId: String,
+        positionMinutos: Int,
+        positionSegundos: Int,
+        songId: String,
+        playlistId: String,
+        context: Context
+    ): JSONObject? {
+        return withContext(Dispatchers.IO) {
+            try {
+                val sharedPreferences = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+                val token = sharedPreferences.getString("auth_token", null)
+                //val userId = sharedPreferences.getString("user_id", null)
+                
+                if (token.isNullOrEmpty() || userId.isNullOrEmpty()) {
+                    Log.e("API", "Token o userId no disponible para actualizar estado de reproducción $userId")
+                    return@withContext null
+                }
+                
+                val url = URL("$BASE_URL/lastPlaybackState/$userId")
+                
+                Log.d("API", "URL para actualizar estado de reproducción: $url")
+                
+                val connection = url.openConnection() as HttpURLConnection
+                connection.apply {
+                    requestMethod = "POST"
+                    setRequestProperty("Content-Type", "application/json")
+                    setRequestProperty("Accept", "application/json")
+                    setRequestProperty("Authorization", "Bearer $token")
+                    doOutput = true
+                    connectTimeout = 15000
+                    readTimeout = 15000
+                }
+                
+                // Preparar el cuerpo de la petición
+                val jsonBody = JSONObject().apply {
+                    put("positionMinutes", positionMinutos)
+                    put("positionSeconds", positionSegundos)
+                    put("songId", songId)
+                    put("playlistId", playlistId)
+                }
+                
+                // Enviar los datos
+                connection.outputStream.use { os ->
+                    os.write(jsonBody.toString().toByteArray(Charsets.UTF_8))
+                    os.flush()
+                }
+                
+                val responseCode = connection.responseCode
+                Log.d("API", "Código de respuesta updateLastPlaybackState: $responseCode")
+                
+                if (responseCode in 200..299) {
+                    val response = connection.inputStream.bufferedReader().use { it.readText() }
+                    Log.d("API", "Respuesta updateLastPlaybackState: $response")
+                    return@withContext JSONObject(response)
+                } else {
+                    val errorStream = connection.errorStream
+                    val errorBody = errorStream?.bufferedReader()?.use { it.readText() } ?: "No error message"
+                    Log.e("API", "Error en updateLastPlaybackState: $errorBody")
+                    return@withContext null
+                }
+            } catch (e: Exception) {
+                Log.e("API", "Excepción en updateLastPlaybackState: ${e.message}", e)
+                return@withContext null
+            }
+        }
+    }
+
+    /**
+     * Elimina el estado de reproducción guardado para un usuario.
+     * 
+     * @param context Contexto para obtener el token de autenticación
+     * @return true si se eliminó correctamente, false en caso contrario
+     */
+    suspend fun deleteLastPlaybackState(context: Context): Boolean {
+        return withContext(Dispatchers.IO) {
+            try {
+                val sharedPreferences = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+                val token = sharedPreferences.getString("auth_token", null)
+                val userId = sharedPreferences.getString("user_id", null)
+                
+                if (token.isNullOrEmpty() || userId.isNullOrEmpty()) {
+                    Log.e("API", "Token o userId no disponible para eliminar estado de reproducción")
+                    return@withContext false
+                }
+                
+                val url = URL("$BASE_URL/lastPlaybackState/$userId")
+                
+                Log.d("API", "URL para eliminar estado de reproducción: $url")
+                
+                val connection = url.openConnection() as HttpURLConnection
+                connection.apply {
+                    requestMethod = "DELETE"
+                    setRequestProperty("Content-Type", "application/json")
+                    setRequestProperty("Authorization", "Bearer $token")
+                    connectTimeout = 15000
+                    readTimeout = 15000
+                }
+                
+                val responseCode = connection.responseCode
+                Log.d("API", "Código de respuesta deleteLastPlaybackState: $responseCode")
+                
+                return@withContext responseCode == 204
+            } catch (e: Exception) {
+                Log.e("API", "Excepción en deleteLastPlaybackState: ${e.message}", e)
+                return@withContext false
+            }
+        }
+    }
 }

@@ -1,6 +1,7 @@
 package eina.unizar.es.ui.navigation
 
 import android.annotation.SuppressLint
+import android.util.Log
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -13,13 +14,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.NavController
-import androidx.navigation.NavHost
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.musicapp.ui.song.SongScreen
 import com.stripe.android.paymentsheet.PaymentSheet
@@ -41,11 +39,34 @@ import eina.unizar.es.ui.chat.ChatScreen
 import eina.unizar.es.ui.friends.FriendsScreen
 import eina.unizar.es.ui.search.ADSongs
 import eina.unizar.es.ui.user.UserStyleScreen
+import kotlinx.coroutines.delay
 
 @SuppressLint("UnrememberedGetBackStackEntry")
 @Composable
 fun AppNavigator(navController: NavHostController, paymentSheet: PaymentSheet, isPremium: Boolean) {
     val playerViewModel: MusicPlayerViewModel = viewModel()
+    val context = LocalContext.current
+
+    // Restaurar el estado de reproducción cuando se inicia la aplicación
+    LaunchedEffect(Unit) {
+        // Asegurarse de que el userId está configurado primero
+        playerViewModel.setUserId(context)
+        
+        // Esperar un momento para que el userId se cargue completamente
+        delay(1000)
+
+        Log.d("RetomarSong", "Restaurando estado de reproducción")
+        // Restaurar el estado de reproducción guardado anteriormente
+        playerViewModel.restorePlaybackState(context)
+        
+        // Inicializar las canciones con "me gusta"
+        playerViewModel.initializeLikedSongs(playerViewModel.getUserId())
+        
+        // Configurar el estado premium del usuario
+        playerViewModel.setPremiumUser(context)
+
+        Log.d("RetomarSong", "Estado de reproducción restaurado")
+    }
 
     // Estado para ruta actual observada
     val currentRoute = remember(navController) {
@@ -73,7 +94,7 @@ fun AppNavigator(navController: NavHostController, paymentSheet: PaymentSheet, i
 
     val baseRoute = getBaseRoute(currentRoute.value)
     val showFloatingPlayer = baseRoute !in routesWithoutBottomBar
-    val context = LocalContext.current
+    
 
     Scaffold(
         bottomBar = {

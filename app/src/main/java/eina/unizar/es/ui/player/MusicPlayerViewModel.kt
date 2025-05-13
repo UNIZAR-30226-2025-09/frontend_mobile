@@ -1,12 +1,11 @@
 package eina.unizar.es.ui.player
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.util.Log
-import androidx.compose.runtime.State
 import kotlinx.coroutines.flow.asStateFlow
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -18,25 +17,23 @@ import com.example.musicapp.ui.song.ShuffleMode
 import eina.unizar.es.R
 import eina.unizar.es.data.model.network.ApiClient.checkIfSongIsLiked
 import eina.unizar.es.data.model.network.ApiClient.get
+import eina.unizar.es.data.model.network.ApiClient.getLastPlaybackState
 import eina.unizar.es.data.model.network.ApiClient.getSongDetails
 import eina.unizar.es.data.model.network.ApiClient.getUserData
 import eina.unizar.es.data.model.network.ApiClient.likeUnlikeSong
-import eina.unizar.es.data.model.network.ApiClient.post
 import eina.unizar.es.data.model.network.ApiClient.skipsLessApi
-import eina.unizar.es.ui.playlist.PlaylistScreen
-import eina.unizar.es.ui.playlist.getArtistName
+import eina.unizar.es.data.model.network.ApiClient.updateLastPlaybackState
 import eina.unizar.es.ui.song.Song
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import org.json.JSONArray
+import org.json.JSONException
 import org.json.JSONObject
 
 
@@ -108,6 +105,15 @@ class MusicPlayerViewModel : ViewModel() {
     val currentAd: StateFlow<Ad?> = _currentAd
     private val _canSkipSongs = MutableStateFlow(true)
     val canSkipSongs: StateFlow<Boolean> = _canSkipSongs
+
+    // Añade esta propiedad a tu clase MusicPlayerViewModel
+    @SuppressLint("StaticFieldLeak")
+    var playerContext: Context? = null
+
+//    // Añade esta función para inicializar el contexto
+//    fun setApplicationContext(context: Context) {
+//        this.appContext = context.applicationContext
+//    }
 
     // Modelo para los anuncios
     data class Ad(
@@ -212,6 +218,7 @@ class MusicPlayerViewModel : ViewModel() {
                 val userData = getUserData(context)
                 if (userData != null) {
                     _userId = (userData["id"] ?: "").toString()
+                    Log.d("RetomarSong", "ID de usuario establecido: $_userId")
                     _isPremiumUser.value = (userData["is_premium"] as? Boolean) ?: false
                     _skipsRemainingToday = (userData["daily_skips"] as? Int) ?: 0
 
@@ -409,6 +416,10 @@ class MusicPlayerViewModel : ViewModel() {
                             progress = 0f
                         )
                         _currentSong.value = selectedSong
+
+                        Log.d("RetomarSong", "Cargando canción: ${selectedSong.title} (ID: ${selectedSong.id})")
+                        savePlaybackState(context)
+
                         initializePlayer(context, formattedUrl)
                     }
                 }
@@ -465,6 +476,10 @@ class MusicPlayerViewModel : ViewModel() {
         // Initialize the player with the first song in the playlist
         val selectedSong = songList[currentIndex]
         _currentSong.value = selectedSong
+
+        Log.d("RetomarSong", "Cargando canción: ${selectedSong.title} (ID: ${selectedSong.id})")
+        savePlaybackState(context)
+
         initializePlayer(context, selectedSong.url)
         songId?.let { loadLikedStatus(it) }
     }
@@ -474,6 +489,7 @@ class MusicPlayerViewModel : ViewModel() {
         try {
             // Context from the application to avoid memory leaks
             val appContext = context.applicationContext
+            this.playerContext = appContext
 
             // Formatear correctamente la URL
             val formattedUri = formatSongUrl(songUri)
@@ -565,6 +581,226 @@ class MusicPlayerViewModel : ViewModel() {
                 song?.photo == "defaultx.jpg" ||
                 song?.id?.toIntOrNull() == -1 ||
                 song?.title == "Anuncio Vibra"
+    }
+
+    /**
+     * Guarda el estado actual de reproducción en el servidor
+     */
+    fun savePlaybackState(context: Context) {
+        viewModelScope.launch {
+            try {
+                val currentSong = _currentSong.value ?: return@launch
+                val songId = currentSong.id
+                val playlistId = idCurrentPlaylist
+                
+                // No guardamos si no hay canción o si es un anuncio
+                if (songId.isEmpty() || isAdvertisement(currentSong)) {
+                    return@launch
+                }
+
+                // Verificar que tenemos un userId
+                if (_userId.isEmpty()) {
+                    Log.e("RetomarSong", "No se puede guardar el estado: userId está vacío")
+                    setUserId(context) // Intentar obtener el userId si está vacío
+                    if (_userId.isEmpty()) return@launch
+                }
+                
+                // Calcular la posición actual en minutos y segundos
+                val position = exoPlayer?.currentPosition ?: 0L
+                val positionMinutes = (position / 60000).toInt()  // Convertir ms a minutos
+                val positionSeconds = ((position % 60000) / 1000).toInt()  // Segundos restantes
+                
+                Log.d("RetomarSong", "Guardando estado: Canción $songId, Playlist $playlistId, Posición ${positionMinutes}m ${positionSeconds}s")
+                
+                // Llamar a la API para guardar el estado
+                val response = updateLastPlaybackState(
+                    userId = _userId,
+                    positionMinutos = positionMinutes,
+                    positionSegundos = positionSeconds,
+                    songId = songId,
+                    playlistId = playlistId,
+                    context = context
+                )
+                
+                if (response != null) {
+                    Log.d("RetomarSong", "Estado de reproducción guardado correctamente")
+                } else {
+                    Log.e("RetomarSong", "Error al guardar estado de reproducción")
+                }
+            } catch (e: Exception) {
+                Log.e("RetomarSong", "Excepción al guardar estado de reproducción: ${e.message}")
+            }
+        }
+    }
+
+    /**
+     * Restaura el último estado de reproducción desde el servidor
+     */
+    fun restorePlaybackState(context: Context) {
+        viewModelScope.launch {
+            try {
+                val playbackState = getLastPlaybackState(_userId, context)
+                
+                if (playbackState == null) {
+                    Log.d("RetomarSong", "No hay estado de reproducción guardado")
+                    return@launch
+                }
+                
+                try {
+                    // Extraer la información del estado
+                    val songId = playbackState.getString("songId")
+                    val playlistId = playbackState.getString("playlistId")
+                    val positionMinutes = playbackState.getInt("positionMinutes")
+                    val positionSeconds = playbackState.getInt("positionSeconds")
+                    
+                    // Calcular la posición total en milisegundos
+                    val position = (positionMinutes * 60 + positionSeconds) * 1000L
+                    
+                    Log.d("RetomarSong", "Restaurando estado: Canción $songId, Playlist $playlistId, Posición ${positionMinutes}m ${positionSeconds}s")
+                    
+                    // Verificar si tenemos información completa de la canción y playlist
+                    if (playbackState.has("song") && !playbackState.isNull("song")) {
+                        val songObject = playbackState.getJSONObject("song")
+                        
+                        // Extraer información de la canción
+                        val songTitle = songObject.getString("name")
+                        val songUrl = formatSongUrl(songObject.getString("url_mp3"))
+                        val songPhoto = songObject.optString("photo_video", "")
+                        val songLyrics = songObject.optString("lyrics", "")
+                        
+                        // Si hay información de playlist, intentamos cargar todas las canciones
+                        if (playbackState.has("playlist") && !playbackState.isNull("playlist")) {
+                            val playlistObject = playbackState.getJSONObject("playlist")
+                            
+                            if (playlistObject.has("songs")) {
+                                // Cargar todas las canciones de la playlist
+                                val songsArray = playlistObject.getJSONArray("songs")
+                                val playlistSongs = mutableListOf<CurrentSong>()
+                                
+                                for (i in 0 until songsArray.length()) {
+                                    val currentSongObject = songsArray.getJSONObject(i)
+                                    val currentSongId = currentSongObject.getInt("id").toString()
+                                    val currentSongTitle = currentSongObject.getString("name")
+                                    val currentSongPhoto = currentSongObject.optString("photo_video", "")
+                                    val currentSongLyrics = currentSongObject.optString("lyrics", "")
+                                    val currentSongUrl = formatSongUrl(currentSongObject.optString("url_mp3", ""))
+                                    
+                                    // Determinar el nombre del artista si está disponible
+                                    var artistName = "Desconocido"
+                                    if (currentSongObject.has("artists")) {
+                                        val artistsArray = currentSongObject.getJSONArray("artists")
+                                        if (artistsArray.length() > 0) {
+                                            val artistNames = mutableListOf<String>()
+                                            for (j in 0 until artistsArray.length()) {
+                                                val artist = artistsArray.getJSONObject(j)
+                                                artistNames.add(artist.getString("name"))
+                                            }
+                                            artistName = artistNames.joinToString(", ")
+                                        }
+                                    }
+                                    
+                                    playlistSongs.add(
+                                        CurrentSong(
+                                            id = currentSongId,
+                                            title = currentSongTitle,
+                                            artist = artistName,
+                                            photo = currentSongPhoto,
+                                            albumArt = R.drawable.defaultplaylist,
+                                            url = currentSongUrl,
+                                            lyrics = currentSongLyrics,
+                                            isPlaying = false,
+                                            progress = 0f
+                                        )
+                                    )
+                                }
+                                
+                                // Si hay canciones, establecemos la playlist
+                                if (playlistSongs.isNotEmpty()) {
+                                    songList = playlistSongs
+                                    originalSongList = playlistSongs
+                                    idCurrentPlaylist = playlistId
+                                    
+                                    // Encontrar el índice de la canción actual
+                                    currentIndex = songList.indexOfFirst { it.id == songId }
+                                    if (currentIndex == -1) currentIndex = 0
+                                    
+                                    // Crear la canción actual
+                                    val currentSongObject = CurrentSong(
+                                        id = songId,
+                                        title = songTitle,
+                                        artist = "Desconocido", // Se actualizará al cargar la playlist
+                                        photo = songPhoto,
+                                        albumArt = R.drawable.defaultplaylist,
+                                        url = songUrl,
+                                        lyrics = songLyrics,
+                                        isPlaying = false,
+                                        progress = 0f
+                                    )
+                                    
+                                    // Inicializar el reproductor
+                                    _currentSong.value = currentSongObject
+                                    initializePlayer(context, songUrl)
+                                    
+                                    // Establecer la posición
+                                    exoPlayer?.seekTo(position)
+                                    
+                                    // Pausar la reproducción inicialmente
+                                    exoPlayer?.pause()
+                                    
+                                    Log.d("RetomarSong", "Estado de reproducción restaurado completamente")
+                                    return@launch
+                                }
+                            }
+                        }
+                        
+                        // Si no pudimos cargar la playlist completa, al menos cargamos la canción individual
+                        val currentSongObject = CurrentSong(
+                            id = songId,
+                            title = songTitle,
+                            artist = "Desconocido",
+                            photo = songPhoto,
+                            albumArt = R.drawable.defaultx,
+                            url = songUrl,
+                            lyrics = songLyrics,
+                            isPlaying = false,
+                            progress = 0f
+                        )
+                        
+                        // Crear una lista de una sola canción
+                        songList = listOf(currentSongObject)
+                        originalSongList = songList
+                        idCurrentPlaylist = playlistId
+                        currentIndex = 0
+                        
+                        // Inicializar el reproductor
+                        _currentSong.value = currentSongObject
+                        initializePlayer(context, songUrl)
+                        
+                        // Establecer la posición
+                        exoPlayer?.seekTo(position)
+                        
+                        // Pausar la reproducción inicialmente
+                        exoPlayer?.pause()
+                        
+                        Log.d("RetomarSong", "Estado de reproducción restaurado (solo canción)")
+                    } else {
+                        // Si no tenemos detalles completos, intentamos cargar la canción por su ID
+                        loadSongsFromApi(songId, context, R.drawable.defaultx)
+                        
+                        // Esperar a que se cargue la canción y después ajustar la posición
+                        delay(500)
+                        exoPlayer?.seekTo(position)
+                        exoPlayer?.pause()
+                        
+                        Log.d("RetomarSong", "Estado de reproducción restaurado (cargando desde API)")
+                    }
+                } catch (e: JSONException) {
+                    Log.e("RetomarSong", "Error al procesar JSON de estado de reproducción: ${e.message}")
+                }
+            } catch (e: Exception) {
+                Log.e("RetomarSong", "Excepción al restaurar estado de reproducción: ${e.message}")
+            }
+        }
     }
 
     // Crear un listener como propiedad de clase para poder eliminarlo después
@@ -715,6 +951,9 @@ class MusicPlayerViewModel : ViewModel() {
                     }
                 }
                 startProgressTracking()
+            } else {
+                Log.d("RetomarSong", "Guardando estado de reproducción al pausar")
+                playerContext?.let { savePlaybackState(it) }
             }
         }
     }
@@ -783,7 +1022,7 @@ class MusicPlayerViewModel : ViewModel() {
             Log.d("MusicPlayer", "Usuario no premium ha excedido el límite de saltos")
             return
         }
-
+        
         // Si el usuario no es premium, contamos el salto
         if (!_isPremiumUser.value) {
             _skipsRemainingToday--
@@ -899,6 +1138,9 @@ class MusicPlayerViewModel : ViewModel() {
                     // Cargar estado de like
                     loadLikedStatus(nextCurrentSong.id)
 
+                    Log.d("RetomarSong", "Reproduciendo siguiente de la cola: ${nextQueueSong.name} (Artista: $artistName)")
+                    savePlaybackState(context)
+
                     Log.d("MusicPlayer", "Reproduciendo de cola: ${nextCurrentSong.title}")
                 } catch (e: Exception) {
                     Log.e("MusicPlayer", "Error al pasar a siguiente canción de cola: ${e.message}")
@@ -931,6 +1173,9 @@ class MusicPlayerViewModel : ViewModel() {
             }
 
             loadLikedStatus(_currentSong.value?.id)
+
+            Log.d("RetomarSong", "Avanzando a la siguiente canción: ${_currentSong.value?.title}")
+            savePlaybackState(context)
         }
     }
 
@@ -963,17 +1208,33 @@ class MusicPlayerViewModel : ViewModel() {
 
             // Cargar el estado de "me gusta" para la nueva canción
             loadLikedStatus(_currentSong.value?.id)
+
+            Log.d("RetomarSong", "Retrocediendo a la canción anterior: ${_currentSong.value?.title}")
+            savePlaybackState(context)
         }
     }
 
     // Function to release the player
     fun releasePlayer() {
+        Log.d("RetomarSong", "Liberando el reproductor")
+        // Guardar el estado antes de liberar recursos
+        playerContext?.let { savePlaybackState(it) }
+
         exoPlayer?.release()
         exoPlayer = null
     }
 
     // Function to clear the ViewModel
     override fun onCleared() {
+        Log.d("RetomarSong", "Limpiando el ViewModel")
+
+        if (playerContext == null) {
+            Log.d("RetomarSong", "Contexto de aplicación no inicializado")
+        }
+
+        // Guardar estado antes de limpiar usando el appContext existente
+        playerContext?.let { savePlaybackState(it) }
+
         super.onCleared()
         releasePlayer()
     }
