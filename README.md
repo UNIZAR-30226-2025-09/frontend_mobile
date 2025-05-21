@@ -1,7 +1,4 @@
 ![Banner](app/src/main/res/drawable/banner.png)
-## License
-This project is licensed under the [Creative Commons Attribution-NonCommercial-ShareAlike 2.5 Spain License](https://creativecommons.org/licenses/by-nc-sa/2.5/es/).
-
 # Vibra
 Vibra is a music streaming application that merges two domains: music and social networking. Additionally, users can listen to songs from their favorite artists, recommend playlists to their friends, or chat with them. Through this repository, you can access a mobile version, simulating a release, developed for the University of Zaragoza.
 
@@ -58,6 +55,8 @@ Vibra is a music streaming application that merges two domains: music and social
 - For Android connection problems, enable USB debugging in Developer Options
 
 # Disclaimer
-
 It should be noted that this project and the linked repository refer to university coursework and therefore do not have any commercial use permissions, as they are part of a simulated project for a course (Software Project) at the University of Zaragoza.
+
+## License
+This project is licensed under the [Creative Commons Attribution-NonCommercial-ShareAlike 2.5 Spain License](https://creativecommons.org/licenses/by-nc-sa/2.5/es/).
 
