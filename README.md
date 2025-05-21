@@ -1,25 +1,84 @@
 ![Banner](app/src/main/res/drawable/banner.png)
 
-# EeveeSpotify
+# Vibra
 
-This tweak makes Spotify think you have a Premium subscription, granting free listening, just like Spotilife, and provides some additional features like custom lyrics.
 
-## The History
+# Android Application Deployment Guide
 
-In January 2024, Spotilife, the only tweak to get Spotify Premium, stopped working on new Spotify versions. I decompiled Spotilife, reverse-engineered Spotify, intercepted requests, etc., and created this tweak.
+## Prerequisites
+- **IDE**: IntelliJ IDEA or Android Studio installed
+- **Docker**: Installed and running on your system
 
-## Repositories
+## Setup Instructions
 
-You can add an official EeveeSpotify repository to your signing app to always stay up to date.
+1. **Clone the repositories**:
+   ```bash
+   git clone <this-repository-url>
+   git clone <backend-repository-url>
+Set up the backend:
 
-## Restrictions
+bash
+cd backend/docker
+Then start the containers using either:
 
-Please refrain from opening issues about the following features, as they are server-sided and will **NEVER** work:
+Option 1: Docker Compose
 
-- Very High audio quality
-- Native playlist downloading (you can download podcast episodes though)
-- Jam (hosting a Spotify Jam and joining it remotely requires Premium; only joining in-person works)
-- AI DJ/Playlist
-- Spotify Connect (When using Spotify Connect, the device will act as a remote control and stream directly to the connected device. This is a server-sided limitation and is beyond the control of EeveeSpotify, so it will behave as if you have a Free subscription while using this feature.)
+bash
+# Linux/macOS (use sudo if required)
+(sudo) docker compose up -d
 
-It's possible to implement downloading locally, but it will never be included in EeveeSpotify (unless someone opens a pull request).
+# Windows
+docker-compose up -d
+Option 2: Using provided scripts (if available)
+
+bash
+./start-backend.sh
+Run the Android application:
+
+Open the project in IntelliJ IDEA or Android Studio
+
+Sync Gradle dependencies
+
+Connect your Android device or start an emulator
+
+Click the "Run" button (▶)
+
+Notes
+The -d flag runs containers in detached mode
+
+Ensure Docker has proper permissions if using sudo
+
+Check the repository for any additional setup scripts
+
+Troubleshooting
+If you encounter port conflicts, stop services using ports 8080/5432
+
+For Docker issues, try rebuilding containers:
+
+bash
+docker compose down && docker compose up --build
+For Android connection problems, enable USB debugging in Developer Options
+
+
+This Markdown document includes:
+1. Clear section headers
+2. Proper code block formatting
+3. Platform-specific instructions
+4. Troubleshooting tips
+5. Easy-to-follow steps
+
+The formatting is optimized for GitHub/GitLab README files and includes:
+- Code blocks for commands
+- Bullet points for readability
+- Cross-platform compatibility notes
+- Common issue solutions
+
+You can copy and paste this directly into your `README.md` file. Would you like me to add any additional sections such as:
+- Environment variable configuration
+- Database setup details
+- Testing instructions
+- CI/CD pipeline information?
+
+
+## Aclarations
+
